@@ -242,8 +242,7 @@ export default function AktivitasPage() {
                   <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Waktu</th>
                   <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Pengguna</th>
                   <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Aksi</th>
-                  <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Entitas</th>
-                  <th className="hidden px-5 py-3.5 text-sm font-medium text-txt-secondary md:table-cell">Detail</th>
+                  <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Entitas / Detail</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,11 +265,11 @@ export default function AktivitasPage() {
                           {actionInfo.label}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-sm text-txt-primary">
-                        {entityLabels[log.entity] || log.entity}
-                      </td>
-                      <td className="hidden max-w-xs truncate px-5 py-4 text-sm text-txt-secondary md:table-cell">
-                        {log.detail || "-"}
+                      <td className="px-5 py-4">
+                        <div className="text-sm font-medium text-txt-primary">{entityLabels[log.entity] || log.entity}</div>
+                        {log.detail && (
+                          <div className="text-xs text-txt-muted mt-0.5 max-w-xs break-words">{log.detail}</div>
+                        )}
                       </td>
                     </tr>
                   );
