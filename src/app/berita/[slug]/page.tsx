@@ -310,7 +310,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
             <article className="lg:col-span-2">
               {/* Print-only header */}
               <div className="print-header hidden">
-                <img src="/logo-jhb.png" alt="Jurnalis Hukum Bandung" />
+                <img src="/logo-jhb.png" alt="JHB" />
                 <div>
                   <div className="print-title">Jurnalis Hukum Bandung</div>
                   <div className="print-subtitle">Media Hukum Digital Terpercaya — jurnalishukumbandung.com</div>

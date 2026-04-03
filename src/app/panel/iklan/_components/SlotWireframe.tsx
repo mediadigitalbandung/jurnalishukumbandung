@@ -38,10 +38,10 @@ export default function SlotWireframe({ slot }: { slot: string }) {
         {/* ── Header Dark ── */}
         <div className="bg-[#1C1C1E] px-2.5 py-1.5 flex items-center">
           <div className="h-4 w-4 rounded-full bg-goto-green flex items-center justify-center shrink-0">
-            <span className="text-[4px] font-extrabold text-white">Jurnalis Hukum Bandung</span>
+            <span className="text-[4px] font-extrabold text-white">JHB</span>
           </div>
           <div className="ml-1.5 leading-none">
-            <span className="text-[7px] font-bold text-white block">Jurnalis Hukum Bandung</span>
+            <span className="text-[7px] font-bold text-white block">Jurnalis Hukum</span>
             <span className="text-[5px] text-white/40">Bandung</span>
           </div>
           <div className="flex-1" />
@@ -197,7 +197,7 @@ export default function SlotWireframe({ slot }: { slot: string }) {
             <div>
               <div className="flex items-center gap-1 mb-[3px]">
                 <div className="h-[8px] w-[8px] rounded-full bg-goto-green flex items-center justify-center">
-                  <span className="text-[3px] text-white font-bold">Jurnalis Hukum Bandung</span>
+                  <span className="text-[3px] text-white font-bold">JHB</span>
                 </div>
                 <span className="text-[5px] font-bold text-white">Jurnalis Hukum Bandung</span>
               </div>

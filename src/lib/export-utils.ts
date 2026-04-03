@@ -173,7 +173,7 @@ export async function exportArticlePdf(opts: ExportPdfOptions) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(0, 170, 19);
-  doc.text("KARTAWARTA", marginL, y);
+  doc.text("JURNALIS HUKUM BANDUNG", marginL, y);
 
   y += 3;
   doc.setDrawColor(230, 230, 230);

@@ -19,7 +19,7 @@ export const viewport = { width: "device-width", initialScale: 1 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.vercel.app"
+    process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"
   ),
   title: {
     default: "Jurnalis Hukum Bandung - Media Hukum Digital Terpercaya",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   keywords: [
     "berita hukum",
     "hukum bandung",
-    "jurnalishukumbandung",
+    "jurnalis hukum",
     "berita hukum bandung",
     "hukum pidana",
     "hukum perdata",

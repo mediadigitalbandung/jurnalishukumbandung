@@ -90,7 +90,7 @@ export default function Header() {
               />
               <span className="flex items-baseline gap-1 sm:gap-2">
                 <span className="text-sm font-bold text-white sm:text-2xl lg:text-3xl">
-                  Jurnalis Hukum Bandung
+                  Jurnalis Hukum
                 </span>
                 <span className="text-[10px] text-white/50 sm:text-base lg:text-xl">Bandung</span>
               </span>

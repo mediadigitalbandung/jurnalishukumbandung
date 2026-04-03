@@ -1,11 +1,11 @@
 # CLAUDE.md - Instruksi untuk Claude Code
 
 ## Project
-- **Nama:** Kartawarta v2.0
+- **Nama:** Jurnalis Hukum Bandung v2.0
 - **Stack:** Next.js 14, TypeScript, Tailwind CSS, Prisma, Supabase (PostgreSQL), NextAuth
 - **Deploy:** Vercel (auto-deploy dari GitHub master)
-- **Repo:** github.com/bonelade/Kartawarta
-- **URL:** https://kartawarta.vercel.app
+- **Repo:** github.com/bonelade/Jurnalis-Hukum-Bandung
+- **URL:** https://jurnalis-hukum-bandung.vercel.app
 
 ## Workflow: Auto Commit, Push & Deploy
 

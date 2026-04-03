@@ -28,7 +28,7 @@ const defaultSettings: SiteSettings = {
   metaDescription:
     "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
   keywords:
-    "berita hukum, hukum bandung, jurnalishukumbandung, berita hukum bandung, hukum pidana, hukum perdata",
+    "berita hukum, hukum bandung, jurnalis hukum, berita hukum bandung, hukum pidana, hukum perdata",
   articlesPerPage: 12,
   enableComments: true,
   autoModerateComments: false,
