@@ -209,7 +209,7 @@ export default function Header() {
       {/* Row 2: Category navigation — prominent white bar */}
       <nav className="bg-surface border-b border-border relative" aria-label="Navigasi kategori">
         <div className="container-main">
-          <ul className="flex items-center gap-1 overflow-x-auto scrollbar-hide lg:justify-between lg:gap-0">
+          <ul className="flex items-center gap-1 overflow-x-auto lg:overflow-visible scrollbar-hide lg:justify-between lg:gap-0">
             {categoryNavMain.map((item) => {
               const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               return (
