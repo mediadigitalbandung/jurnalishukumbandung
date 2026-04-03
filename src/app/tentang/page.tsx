@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 export const metadata: Metadata = {
   title: "Tentang Kami",
   description: "Jurnalis Hukum Bandung - Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.",
+  alternates: { canonical: "/tentang" },
 };
 
 async function getSettings() {

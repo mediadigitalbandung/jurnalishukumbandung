@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 export const metadata: Metadata = {
   title: "Susunan Redaksi",
   description: "Susunan redaksi Jurnalis Hukum Bandung.",
+  alternates: { canonical: "/redaksi" },
 };
 
 export default async function RedaksiPage() {

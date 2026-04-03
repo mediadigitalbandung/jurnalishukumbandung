@@ -3,6 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Pedoman Media Siber",
   description: "Pedoman pemberitaan media siber Jurnalis Hukum Bandung.",
+  alternates: { canonical: "/pedoman-media" },
 };
 
 export default function PedomanMediaPage() {
