@@ -111,7 +111,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   const notifRef = useRef<HTMLDivElement>(null);
 
   const userRole = session?.user?.role || "";
-  const isAdmin = userRole === "SUPER_ADMIN";
+  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "CHIEF_EDITOR";
   const isEditor = EDITOR_ROLES.includes(userRole);
 
   const fetchNotifications = useCallback(async () => {
