@@ -100,8 +100,23 @@ export default async function BeritaPage({ searchParams }: PageProps) {
     pageNumbers.push(i);
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app";
+
   return (
     <div className="bg-surface min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Semua Berita - Jurnalis Hukum Bandung",
+            description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
+            url: `${baseUrl}/berita`,
+            isPartOf: { "@type": "WebSite", name: "Jurnalis Hukum Bandung", url: baseUrl },
+          }),
+        }}
+      />
       <div className="container-main py-8">
         {/* Header */}
         <div className="mb-6">

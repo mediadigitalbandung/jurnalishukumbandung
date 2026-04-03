@@ -89,6 +89,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description,
       type: "website",
     },
+    twitter: {
+      card: "summary",
+      title: `${title} | Jurnalis Hukum Bandung`,
+      description,
+    },
     alternates: {
       canonical: `/kategori/${params.slug}`,
     },
@@ -124,8 +129,36 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     viewCount: a.viewCount,
   }));
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app";
+
   return (
     <div className="bg-surface min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Beranda", item: baseUrl },
+              { "@type": "ListItem", position: 2, name: category.name, item: `${baseUrl}/kategori/${category.slug}` },
+            ],
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: `${category.name} - Berita Hukum Terkini`,
+            description: `Kumpulan berita ${category.name.toLowerCase()} terbaru dari Jurnalis Hukum Bandung.`,
+            url: `${baseUrl}/kategori/${category.slug}`,
+            isPartOf: { "@type": "WebSite", name: "Jurnalis Hukum Bandung", url: baseUrl },
+          }),
+        }}
+      />
       <div className="container-main py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-txt-muted">

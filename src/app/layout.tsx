@@ -41,12 +41,23 @@ export const metadata: Metadata = {
     "berita hukum bandung",
     "hukum pidana",
     "hukum perdata",
+    "hukum tata negara",
+    "HAM",
+    "pengadilan bandung",
+    "advokat bandung",
+    "berita hukum jawa barat",
   ],
   authors: [{ name: "Jurnalis Hukum Bandung" }],
   openGraph: {
     type: "website",
     locale: "id_ID",
     siteName: "Jurnalis Hukum Bandung",
+    images: [{ url: "/logo-jhb.png", width: 512, height: 512, alt: "Jurnalis Hukum Bandung" }],
+  },
+  twitter: {
+    card: "summary",
+    site: "@jurnalishukumbdg",
+    creator: "@jurnalishukumbdg",
   },
   icons: {
     icon: "/logo-jhb.png",

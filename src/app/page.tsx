@@ -187,18 +187,47 @@ export default async function HomePage() {
             "@context": "https://schema.org",
             "@type": "NewsMediaOrganization",
             name: "Jurnalis Hukum Bandung",
-            url: "https://jurnalis-hukum-bandung.vercel.app",
+            url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app",
             logo: {
               "@type": "ImageObject",
-              url: "https://jurnalis-hukum-bandung.vercel.app/logo.png",
+              url: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"}/logo-jhb.png`,
+              width: 512,
+              height: 512,
             },
             description: "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
+            foundingDate: "2024",
+            publishingPrinciples: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"}/kode-etik`,
             sameAs: [],
             address: {
               "@type": "PostalAddress",
               addressLocality: "Bandung",
               addressRegion: "Jawa Barat",
               addressCountry: "ID",
+            },
+            areaServed: {
+              "@type": "GeoCircle",
+              geoMidpoint: { "@type": "GeoCoordinates", latitude: -6.9175, longitude: 107.6191 },
+              geoRadius: "50000",
+            },
+          }),
+        }}
+      />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Jurnalis Hukum Bandung",
+            url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"}/search?q={search_term_string}`,
+              },
+              "query-input": "required name=search_term_string",
             },
           }),
         }}
