@@ -126,7 +126,7 @@ const jadwalSidangData = [
 ];
 
 export default async function HomePage() {
-  const [articles, categories, trendingArticles, tickerArticles] = await Promise.all([
+  const [articles, categories, trendingArticles, trendingTags] = await Promise.all([
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
       include: { author: true, category: true },
@@ -143,23 +143,27 @@ export default async function HomePage() {
       orderBy: { viewCount: "desc" },
       take: 10,
     }),
-    prisma.article.findMany({
-      where: { status: "PUBLISHED" },
-      orderBy: { publishedAt: "desc" },
-      take: 5,
+    // Trending tags: tags with most articles, sorted by article count
+    prisma.tag.findMany({
+      include: { _count: { select: { articles: true } } },
+      orderBy: { articles: { _count: "desc" } },
+      take: 15,
     }),
   ]);
 
-  const headlineArticles = articles.slice(0, 5);  // For headline slider
-  const subHeadlines = articles.slice(5, 11);     // 6 items = 3 pages x 2 cards for sub-headline slider
-  const breakingArticles = articles.slice(11, 16); // For breaking news slider
-  const terkiniArticles = articles.slice(16, 24); // Berita Terkini: 2x4 grid = 8
+  const headlineArticles = articles.slice(0, 5);
+  const subHeadlines = articles.slice(5, 11);
+  const breakingArticles = articles.slice(11, 16);
+  const terkiniArticles = articles.slice(16, 24);
   const restArticles = articles.slice(24);
 
-  const tickerItems = tickerArticles.map((a) => ({
-    title: a.title,
-    slug: a.slug,
-  }));
+  // Ticker: trending tags with article count
+  const tickerItems = trendingTags
+    .filter((t) => t._count.articles > 0)
+    .map((t) => ({
+      title: `${t.name} (${t._count.articles})`,
+      slug: t.slug,
+    }));
 
   // Group remaining articles by category
   const articlesByCategory: Record<string, { categorySlug: string; articles: typeof restArticles }> = {};

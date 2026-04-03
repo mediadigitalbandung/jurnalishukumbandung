@@ -20,6 +20,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Flame,
+  AlertCircle,
 } from "lucide-react";
 
 interface Article {
@@ -714,6 +716,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<StatsItem[]>([]);
   const [recentArticles, setRecentArticles] = useState<Article[]>([]);
   const [allArticles, setAllArticles] = useState<Article[]>([]);
+  const [alerts, setAlerts] = useState<{ type: "warning" | "info" | "success"; message: string; icon: React.ElementType }[]>([]);
 
   const fetchData = useCallback(async () => {
       if (!session?.user) return;
@@ -777,6 +780,49 @@ export default function DashboardPage() {
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
           setRecentArticles(sorted.slice(0, 5));
+
+          // Build alerts
+          const newAlerts: typeof alerts = [];
+          const now = new Date();
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const thisWeekArticles = fetchedArticles.filter(
+            (a) => a.status === "PUBLISHED" && a.publishedAt && new Date(a.publishedAt) >= weekAgo
+          );
+          if (thisWeekArticles.length < 5) {
+            newAlerts.push({
+              type: "warning",
+              icon: AlertCircle,
+              message: `Hanya ${thisWeekArticles.length} artikel dipublikasi minggu ini. Target minimal 5 artikel/minggu untuk menjaga traffic.`,
+            });
+          }
+          if (thisWeekArticles.length === 0) {
+            newAlerts.push({
+              type: "warning",
+              icon: AlertTriangle,
+              message: "Belum ada artikel baru minggu ini! Segera publish artikel untuk menjaga konsistensi.",
+            });
+          }
+          // Viral articles (>50 views)
+          const viralArticles = fetchedArticles
+            .filter((a) => a.status === "PUBLISHED" && a.viewCount >= 50)
+            .sort((a, b) => b.viewCount - a.viewCount);
+          if (viralArticles.length > 0) {
+            newAlerts.push({
+              type: "info",
+              icon: Flame,
+              message: `${viralArticles.length} artikel sedang viral! "${viralArticles[0].title.substring(0, 50)}..." (${viralArticles[0].viewCount} views)`,
+            });
+          }
+          // Pending review alert
+          if (pendingReview > 0) {
+            newAlerts.push({
+              type: "warning",
+              icon: Clock,
+              message: `${pendingReview} artikel menunggu review. Segera review agar tidak menumpuk.`,
+            });
+          }
+          setAlerts(newAlerts);
+
         } else if (isCreator) {
           // Creator stats: my articles, my drafts, pending review, published
           const myTotal = fetchedArticles.length;
@@ -796,6 +842,31 @@ export default function DashboardPage() {
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
           setRecentArticles(sorted.slice(0, 5));
+
+          // Creator alerts
+          const creatorAlerts: typeof alerts = [];
+          const now2 = new Date();
+          const weekAgo2 = new Date(now2.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const myWeekArticles = fetchedArticles.filter(
+            (a) => a.status === "PUBLISHED" && a.publishedAt && new Date(a.publishedAt) >= weekAgo2
+          );
+          if (myWeekArticles.length < 2) {
+            creatorAlerts.push({
+              type: "warning",
+              icon: AlertCircle,
+              message: `Anda baru publish ${myWeekArticles.length} artikel minggu ini. Ayo tulis lebih banyak!`,
+            });
+          }
+          const myViral = fetchedArticles.filter((a) => a.viewCount >= 50).sort((a, b) => b.viewCount - a.viewCount);
+          if (myViral.length > 0) {
+            creatorAlerts.push({
+              type: "info",
+              icon: Flame,
+              message: `Artikel Anda "${myViral[0].title.substring(0, 50)}..." sedang viral! (${myViral[0].viewCount} views)`,
+            });
+          }
+          setAlerts(creatorAlerts);
+
         } else if (isEditorRole) {
           // Editor stats: review queue, approved today, rejected, total
           const reviewQueue = fetchedArticles.filter((a) => a.status === "IN_REVIEW").length;
@@ -885,6 +956,27 @@ export default function DashboardPage() {
           Selamat datang kembali, {session?.user?.name}!
         </p>
       </div>
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {alerts.map((alert, i) => {
+            const Icon = alert.icon;
+            const colors = alert.type === "warning"
+              ? "bg-yellow-50 border-yellow-200 text-yellow-800"
+              : alert.type === "info"
+              ? "bg-blue-50 border-blue-200 text-blue-800"
+              : "bg-goto-light border-goto-green/30 text-goto-green";
+            const iconColor = alert.type === "warning" ? "text-yellow-500" : alert.type === "info" ? "text-blue-500" : "text-goto-green";
+            return (
+              <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${colors}`}>
+                <Icon size={18} className={`shrink-0 mt-0.5 ${iconColor}`} />
+                <p className="text-sm">{alert.message}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Stats grid */}
       <div className={`mb-8 grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4 sm:grid-cols-3 ${isAdmin ? "md:grid-cols-4 xl:grid-cols-7" : "md:grid-cols-4"}`}>

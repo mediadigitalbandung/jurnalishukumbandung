@@ -106,7 +106,7 @@ export default function NewsTicker({ items }: NewsTickerProps) {
             {looped.map((item, i) => (
               <Link
                 key={i}
-                href={`/berita/${item.slug}`}
+                href={`/tag/${item.slug}`}
                 onClick={onLinkClick}
                 className="mx-6 sm:mx-10 inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-txt-primary/75 transition-colors duration-200 hover:text-goto-green whitespace-nowrap"
               >
