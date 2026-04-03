@@ -6,14 +6,14 @@ export const revalidate = 0;
 export async function GET() {
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jhb.kartawarta.com";
 
-  // Get articles published in the last 48 hours (Google News requirement)
-  const twoDaysAgo = new Date();
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  // Get recent published articles (last 30 days, Google News indexes last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const articles = await prisma.article.findMany({
+  let articles = await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
-      publishedAt: { gte: twoDaysAgo },
+      publishedAt: { gte: thirtyDaysAgo },
     },
     select: {
       slug: true,
@@ -25,6 +25,22 @@ export async function GET() {
     orderBy: { publishedAt: "desc" },
     take: 1000,
   });
+
+  // Fallback: if no recent articles, get the latest 50
+  if (articles.length === 0) {
+    articles = await prisma.article.findMany({
+      where: { status: "PUBLISHED" },
+      select: {
+        slug: true,
+        title: true,
+        publishedAt: true,
+        category: { select: { name: true } },
+        tags: { select: { name: true } },
+      },
+      orderBy: { publishedAt: "desc" },
+      take: 50,
+    });
+  }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
