@@ -346,8 +346,14 @@ export default function PollingPanelPage() {
       ) : (
         <div className="space-y-3">
           {polls.map((poll) => (
-            <div key={poll.id} className={`rounded-[12px] border bg-surface p-5 shadow-card transition-all ${editingId === poll.id ? "border-goto-green bg-goto-light/10" : "border-border"}`}>
-              <div className="flex items-start gap-4">
+            <div key={poll.id} className={`rounded-[12px] border bg-surface shadow-card transition-all overflow-hidden ${editingId === poll.id ? "border-goto-green bg-goto-light/10" : "border-border"}`}>
+              {/* Image */}
+              {poll.image && (
+                <div className="w-full h-32 sm:h-40 bg-surface-tertiary overflow-hidden">
+                  <img src={poll.image} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="flex items-start gap-4 p-5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${poll.isActive ? "bg-goto-light text-goto-green" : "bg-red-50 text-red-600"}`}>
@@ -355,6 +361,9 @@ export default function PollingPanelPage() {
                     </span>
                     {poll.category && (
                       <span className="rounded bg-surface-tertiary px-2 py-0.5 text-xs text-txt-secondary">{poll.category.name}</span>
+                    )}
+                    {!poll.image && (
+                      <span className="rounded bg-yellow-50 px-2 py-0.5 text-xs text-yellow-600">Tanpa gambar</span>
                     )}
                   </div>
                   <p className="font-bold text-txt-primary text-base">{poll.question}</p>
