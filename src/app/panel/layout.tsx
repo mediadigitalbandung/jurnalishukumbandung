@@ -49,7 +49,6 @@ const menuItems: MenuItem[] = [
   { name: "Kategori", href: "/panel/kategori", icon: FolderOpen, adminOnly: true },
   { name: "Riwayat Review", href: "/panel/riwayat-review", icon: ClipboardCheck, editorOnly: true },
   { name: "Komentar", href: "/panel/komentar", icon: MessageCircle, adminOnly: true },
-  { name: "Media", href: "/panel/media", icon: ImageIcon, adminOnly: true },
   { name: "Laporan", href: "/panel/laporan", icon: Flag },
   { name: "Iklan", href: "/panel/iklan", icon: Megaphone, superAdminOnly: true },
   { name: "Redaksi", href: "/panel/redaksi", icon: Users, adminOnly: true },
