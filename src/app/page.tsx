@@ -242,7 +242,7 @@ export default async function HomePage() {
             {/* Left: Berita Terkini — 2/3 width, grid layout */}
             <div className="lg:col-span-3">
               <div className="flex items-center justify-between mb-5">
-                <Link href="/berita" className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary hover:text-goto-green transition-colors">
+                <Link href="/berita" className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary hover:text-goto-green transition-colors">
                   Berita Terkini
                 </Link>
                 <Link href="/berita" className="text-sm font-medium text-goto-green hover:underline">
@@ -260,7 +260,7 @@ export default async function HomePage() {
             {trendingArticles.length > 0 && (
               <div className="lg:col-span-2 flex flex-col">
                 <div className="flex items-center justify-between mb-5">
-                  <Link href="/berita?sort=popular" className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary flex items-center hover:text-goto-green transition-colors">
+                  <Link href="/berita?sort=popular" className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary flex items-center hover:text-goto-green transition-colors">
                     <TrendingUp size={18} className="mr-2 text-goto-green" />
                     Terpopuler
                   </Link>
@@ -293,7 +293,7 @@ export default async function HomePage() {
                       {/* Text */}
                       <div className="flex-1 min-w-0">
                         <Link href={`/berita/${article.slug}`}>
-                          <h3 className="text-sm font-bold leading-snug text-txt-primary line-clamp-2 group-hover:text-goto-green transition-colors">
+                          <h3 className="font-serif text-sm font-bold leading-snug text-txt-primary line-clamp-2 group-hover:text-goto-green transition-colors">
                             {article.title}
                           </h3>
                         </Link>
@@ -319,7 +319,7 @@ export default async function HomePage() {
       <section className="bg-surface py-6">
         <div className="container-main">
           <div className="flex items-center justify-between mb-4">
-            <Link href="/jadwal-sidang" className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary flex items-center hover:text-goto-green transition-colors">
+            <Link href="/jadwal-sidang" className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary flex items-center hover:text-goto-green transition-colors">
               <Calendar size={18} className="mr-2 text-goto-green" />
               Jadwal Sidang Mendatang
             </Link>
@@ -354,7 +354,7 @@ export default async function HomePage() {
       <section className="bg-surface-secondary py-6">
         <div className="container-main">
           <div className="flex items-center justify-between mb-4">
-            <Link href="/live-sidang" className="border-l-[3px] border-red-500 pl-3 text-lg font-bold text-txt-primary flex items-center hover:text-red-500 transition-colors">
+            <Link href="/live-sidang" className="border-l-[3px] border-red-500 pl-3 font-serif text-lg font-bold text-txt-primary flex items-center hover:text-red-500 transition-colors">
               <Radio size={18} className="mr-2 text-red-500 animate-pulse" />
               Live Sidang Hari Ini
             </Link>
@@ -412,7 +412,7 @@ export default async function HomePage() {
       <section className="bg-surface py-8">
         <div className="container-main">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary flex items-center cursor-default">
+            <h2 className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary flex items-center cursor-default">
               <Vote size={18} className="mr-2 text-goto-green" />
               Polling Hukum
             </h2>
@@ -428,7 +428,7 @@ export default async function HomePage() {
       <section className="bg-surface-secondary py-8">
         <div className="container-main">
           <div className="flex items-center justify-between mb-5">
-            <Link href="/video" className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary flex items-center hover:text-goto-green transition-colors">
+            <Link href="/video" className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary flex items-center hover:text-goto-green transition-colors">
               <Play size={18} className="mr-2 text-goto-green" />
               Video Story
             </Link>
@@ -459,7 +459,7 @@ export default async function HomePage() {
             <div className="container-main">
               {/* Section header */}
               <div className="flex items-center justify-between mb-5">
-                <Link href={`/kategori/${categorySlug}`} className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary hover:text-goto-green transition-colors">
+                <Link href={`/kategori/${categorySlug}`} className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary hover:text-goto-green transition-colors">
                   {categoryName}
                 </Link>
                 <Link
@@ -488,7 +488,7 @@ export default async function HomePage() {
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <h3 className="text-base font-bold leading-snug text-white line-clamp-2">
+                          <h3 className="font-serif text-base font-bold leading-snug text-white line-clamp-2">
                             {featured.title}
                           </h3>
                           <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/50">
@@ -519,7 +519,7 @@ export default async function HomePage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <Link href={`/berita/${a.slug}`}>
-                              <h4 className="text-[13px] font-bold text-txt-primary leading-snug line-clamp-2 group-hover:text-goto-green transition-colors">
+                              <h4 className="font-serif text-[13px] font-bold text-txt-primary leading-snug line-clamp-2 group-hover:text-goto-green transition-colors">
                                 {a.title}
                               </h4>
                             </Link>
@@ -552,7 +552,7 @@ export default async function HomePage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <Link href={`/berita/${a.slug}`}>
-                              <h4 className="text-[13px] font-bold text-txt-primary leading-snug line-clamp-2 group-hover:text-goto-green transition-colors">
+                              <h4 className="font-serif text-[13px] font-bold text-txt-primary leading-snug line-clamp-2 group-hover:text-goto-green transition-colors">
                                 {a.title}
                               </h4>
                             </Link>
@@ -579,7 +579,7 @@ export default async function HomePage() {
       <section className="bg-surface-secondary py-8">
         <div className="container-main">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary">
+            <h2 className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary">
               Kategori
             </h2>
           </div>

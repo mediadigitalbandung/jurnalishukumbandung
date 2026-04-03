@@ -333,7 +333,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl font-extrabold leading-tight text-txt-primary tracking-tight sm:text-3xl lg:text-4xl">
+              <h1 className="font-serif text-2xl font-extrabold leading-tight text-txt-primary tracking-tight sm:text-3xl lg:text-4xl">
                 {article.title}
               </h1>
 
@@ -534,7 +534,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
               {relatedArticles.length > 0 && (
                 <section className="mt-10">
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="border-l-[3px] border-goto-green pl-3 text-lg font-bold text-txt-primary">Artikel Terkait</h2>
+                    <h2 className="border-l-[3px] border-goto-green pl-3 font-serif text-lg font-bold text-txt-primary">Artikel Terkait</h2>
                     <Link href={`/kategori/${article.category.slug}`} className="text-sm font-medium text-goto-green hover:underline">
                       Lihat Lainnya &rarr;
                     </Link>

@@ -115,7 +115,7 @@ export default function SubHeadlineSlider({ items }: SubHeadlineSliderProps) {
                     <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
                       {article.category.name}
                     </span>
-                    <h3 className="mt-1 text-sm font-bold leading-snug text-white line-clamp-2">
+                    <h3 className="mt-1 font-serif text-sm font-bold leading-snug text-white line-clamp-2">
                       {article.title}
                     </h3>
                     <span className="mt-1.5 text-[10px] text-white/40">

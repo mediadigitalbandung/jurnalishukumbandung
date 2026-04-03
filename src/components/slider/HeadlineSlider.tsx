@@ -126,7 +126,7 @@ export default function HeadlineSlider({ items }: HeadlineSliderProps) {
                 </span>
 
                 <Link href={`/berita/${article.slug}`}>
-                  <h2 className="mt-2 text-base font-extrabold leading-[1.2] text-white sm:text-lg md:text-xl lg:text-2xl">
+                  <h2 className="mt-2 font-serif text-base font-extrabold leading-[1.2] text-white sm:text-lg md:text-xl lg:text-2xl">
                     {article.title}
                   </h2>
                 </Link>

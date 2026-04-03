@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Lora, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import { Suspense } from "react";
@@ -8,11 +8,18 @@ import PublicNav from "@/components/layout/PublicNav";
 import PublicFooter from "@/components/layout/PublicFooter";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
-const inter = Inter({
+const sourceSans = Source_Sans_3({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-source-sans",
   weight: ["400", "500", "600", "700", "800"],
+});
+
+const lora = Lora({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-lora",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const viewport = { width: "device-width", initialScale: 1 };
@@ -64,7 +71,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={inter.variable}>
+    <html lang="id" className={`${sourceSans.variable} ${lora.variable}`}>
       <body className="flex min-h-screen flex-col font-sans bg-surface text-txt-primary">
         <Providers>
           <a

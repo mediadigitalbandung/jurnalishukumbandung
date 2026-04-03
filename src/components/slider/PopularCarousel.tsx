@@ -109,7 +109,7 @@ export default function PopularCarousel({ items }: PopularCarouselProps) {
                     {article.category.name}
                   </span>
                   <Link href={`/berita/${article.slug}`}>
-                    <h3 className="mt-0.5 text-sm font-bold leading-snug text-txt-primary line-clamp-2 group-hover:underline">
+                    <h3 className="mt-0.5 font-serif text-sm font-bold leading-snug text-txt-primary line-clamp-2 group-hover:underline">
                       {article.title}
                     </h3>
                   </Link>

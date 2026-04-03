@@ -29,7 +29,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", '"DM Sans"', "system-ui", "sans-serif"],
+        sans: ["var(--font-source-sans)", "system-ui", "sans-serif"],
+        serif: ["var(--font-lora)", "Georgia", "serif"],
       },
       borderRadius: {
         DEFAULT: "12px",

@@ -78,7 +78,7 @@ export default function ArticleCard({
             {category.name}
           </Link>
           <Link href={`/berita/${slug}`}>
-            <h2 className="mt-1 text-lg font-bold leading-tight text-txt-primary hover:underline sm:text-xl lg:text-2xl">
+            <h2 className="mt-1 font-serif text-lg font-bold leading-tight text-txt-primary hover:underline sm:text-xl lg:text-2xl">
               {title}
             </h2>
           </Link>
@@ -139,7 +139,7 @@ export default function ArticleCard({
           {category.name}
         </Link>
         <Link href={`/berita/${slug}`}>
-          <h3 className="mt-0.5 text-sm font-semibold leading-snug text-txt-primary hover:underline">
+          <h3 className="mt-0.5 font-serif text-sm font-semibold leading-snug text-txt-primary hover:underline">
             {title}
           </h3>
         </Link>
@@ -175,7 +175,7 @@ export default function ArticleCard({
           {category.name}
         </Link>
         <Link href={`/berita/${slug}`}>
-          <h3 className="mt-1 line-clamp-2 text-base font-bold leading-snug text-txt-primary hover:underline">
+          <h3 className="mt-1 font-serif line-clamp-2 text-base font-bold leading-snug text-txt-primary hover:underline">
             {title}
           </h3>
         </Link>

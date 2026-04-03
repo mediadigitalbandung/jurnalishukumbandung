@@ -115,7 +115,7 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
                 {article.category.name}
               </span>
               <Link href={`/berita/${article.slug}`}>
-                <h3 className="mt-1 text-sm sm:text-[15px] font-bold leading-snug text-white line-clamp-3">
+                <h3 className="mt-1 font-serif text-sm sm:text-[15px] font-bold leading-snug text-white line-clamp-3">
                   {article.title}
                 </h3>
               </Link>

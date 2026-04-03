@@ -105,7 +105,7 @@ export default async function BeritaPage({ searchParams }: PageProps) {
       <div className="container-main py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="flex items-center gap-3 text-xl font-bold text-txt-primary sm:text-2xl lg:text-3xl">
+          <h1 className="flex items-center gap-3 font-serif text-xl font-bold text-txt-primary sm:text-2xl lg:text-3xl">
             <span className="block h-7 w-[3px] rounded-full bg-goto-green" />
             Semua Berita
           </h1>
