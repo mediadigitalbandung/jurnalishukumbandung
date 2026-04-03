@@ -233,22 +233,30 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
   // Inject ads per page (after pagination) so every page gets an ad in the middle
   const sanitizedContent = injectInlineAds(contentPages[currentPage - 1] || article.content);
 
+  const plainContent = article.content.replace(/<[^>]*>/g, "");
+  const wordCount = plainContent.split(/\s+/).filter(Boolean).length;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    headline: article.title,
-    description: article.excerpt || "",
+    headline: article.seoTitle || article.title,
+    description: article.seoDescription || article.excerpt || "",
     image: article.featuredImage ? [article.featuredImage] : [],
     datePublished: article.publishedAt?.toISOString(),
     dateModified: article.updatedAt.toISOString(),
     author: { "@type": "Person", name: article.author.name },
     publisher: {
-      "@type": "Organization",
+      "@type": "NewsMediaOrganization",
       name: "Jurnalis Hukum Bandung",
-      logo: { "@type": "ImageObject", url: `${appUrl}/logo.png` },
+      logo: { "@type": "ImageObject", url: `${appUrl}/logo-jhb.png`, width: 512, height: 512 },
+      url: appUrl,
     },
     mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
     articleSection: article.category.name,
+    keywords: article.tags?.map((t: { name: string }) => t.name).join(", ") || "",
+    wordCount,
+    isAccessibleForFree: true,
+    inLanguage: "id-ID",
   };
 
   const breadcrumbLd = {
