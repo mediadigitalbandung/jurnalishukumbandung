@@ -220,12 +220,12 @@ export default async function HomePage() {
                 <SubHeadlineSlider items={JSON.parse(JSON.stringify(subHeadlines))} />
               )}
             </div>
-            {/* Right column: Breaking + Sidebar Ad — side by side on mobile, stacked on desktop */}
-            <div className="lg:col-span-1 grid grid-cols-7 lg:grid-cols-1 gap-3 lg:gap-4">
-              <div className="col-span-4 lg:col-span-1">
+            {/* Right column: Breaking + Sidebar Ad */}
+            <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-5 lg:grid-cols-1 gap-3 lg:gap-4">
+              <div className="sm:col-span-3 lg:col-span-1">
                 <BreakingSlider items={JSON.parse(JSON.stringify(breakingArticles))} />
               </div>
-              <div className="col-span-3 lg:col-span-1 flex items-stretch">
+              <div className="sm:col-span-2 lg:col-span-1 flex items-stretch">
                 <SidebarAd />
               </div>
             </div>
