@@ -114,12 +114,12 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
 
   const content =
     ad.type === "HTML" && ad.htmlCode ? (
-      <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} className="w-full h-full" />
+      <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} className="w-full" />
     ) : ad.imageUrl ? (
       <img
         src={ad.imageUrl}
         alt="Iklan"
-        className="w-full h-full object-cover block rounded-lg"
+        className="w-full h-auto block rounded-lg"
         loading="lazy"
       />
     ) : null;
@@ -133,12 +133,12 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
         target="_blank"
         rel="noopener noreferrer sponsored"
         onClick={() => handleClick(ad)}
-        className="block w-full h-full rounded-lg overflow-hidden"
+        className="block w-full rounded-lg overflow-hidden"
       >
         {content}
       </a>
     );
   }
 
-  return <div className="w-full h-full rounded-lg overflow-hidden">{content}</div>;
+  return <div className="w-full rounded-lg overflow-hidden">{content}</div>;
 }
