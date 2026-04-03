@@ -38,8 +38,9 @@ interface MenuItem {
   name: string;
   href: string;
   icon: React.ElementType;
-  adminOnly?: boolean;
-  editorOnly?: boolean;
+  superAdminOnly?: boolean; // Only SUPER_ADMIN
+  adminOnly?: boolean;      // SUPER_ADMIN + CHIEF_EDITOR
+  editorOnly?: boolean;     // EDITOR roles
 }
 
 const menuItems: MenuItem[] = [
@@ -50,14 +51,14 @@ const menuItems: MenuItem[] = [
   { name: "Komentar", href: "/panel/komentar", icon: MessageCircle, adminOnly: true },
   { name: "Media", href: "/panel/media", icon: ImageIcon, adminOnly: true },
   { name: "Laporan", href: "/panel/laporan", icon: Flag },
-  { name: "Aktivitas", href: "/panel/aktivitas", icon: History, adminOnly: true },
-  { name: "Iklan", href: "/panel/iklan", icon: Megaphone, adminOnly: true },
+  { name: "Iklan", href: "/panel/iklan", icon: Megaphone, superAdminOnly: true },
   { name: "Redaksi", href: "/panel/redaksi", icon: Users, adminOnly: true },
   { name: "Polling", href: "/panel/polling", icon: Vote, adminOnly: true },
-  { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, adminOnly: true },
-  { name: "Pengguna", href: "/panel/pengguna", icon: Users, adminOnly: true },
   { name: "Statistik", href: "/panel/statistik-editor", icon: BarChart3, editorOnly: true },
-  { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, adminOnly: true },
+  { name: "Aktivitas", href: "/panel/aktivitas", icon: History, superAdminOnly: true },
+  { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
+  { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
+  { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, superAdminOnly: true },
   { name: "Profil", href: "/panel/profil", icon: UserCircle },
 ];
 
@@ -111,6 +112,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   const notifRef = useRef<HTMLDivElement>(null);
 
   const userRole = session?.user?.role || "";
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isAdmin = userRole === "SUPER_ADMIN" || userRole === "CHIEF_EDITOR";
   const isEditor = EDITOR_ROLES.includes(userRole);
 
@@ -197,6 +199,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   };
 
   const filteredMenu = menuItems.filter((item) => {
+    if (item.superAdminOnly && !isSuperAdmin) return false;
     if (item.adminOnly && !isAdmin) return false;
     if (item.editorOnly && !isEditor) return false;
     return true;
