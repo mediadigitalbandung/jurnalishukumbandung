@@ -10,6 +10,7 @@ interface SiteSettings {
   siteDescription: string;
   emailRedaksi: string;
   alamatRedaksi: string;
+  websiteUrl: string;
   metaTitle: string;
   metaDescription: string;
   keywords: string;
@@ -22,8 +23,9 @@ const defaultSettings: SiteSettings = {
   siteName: "Jurnalis Hukum Bandung",
   siteDescription:
     "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
-  emailRedaksi: "redaksi@jurnalishukumbandung.id",
-  alamatRedaksi: "Jl. Bandung, Jawa Barat, Indonesia",
+  emailRedaksi: "redaksi@jurnalishukumbandung.com",
+  alamatRedaksi: "Bandung, Jawa Barat, Indonesia",
+  websiteUrl: "jurnalishukumbandung.com",
   metaTitle: "Jurnalis Hukum Bandung - Media Hukum Digital Terpercaya",
   metaDescription:
     "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
@@ -59,19 +61,26 @@ export default function PengaturanPage() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+        setSettings((prev) => ({ ...prev, ...JSON.parse(stored) }));
       }
     } catch {
       // Ignore parse errors
     }
     setLoaded(true);
 
-    // Load AI API key from server
+    // Load settings from server (AI key + contact info)
     fetch("/api/settings")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
-        if (json?.data?.deepseek_api_key) {
-          setAiApiKey(json.data.deepseek_api_key);
+        if (json?.data) {
+          const d = json.data;
+          if (d.deepseek_api_key) setAiApiKey(d.deepseek_api_key);
+          setSettings((prev) => ({
+            ...prev,
+            ...(d.contact_email && { emailRedaksi: d.contact_email }),
+            ...(d.alamat_redaksi && { alamatRedaksi: d.alamat_redaksi }),
+            ...(d.website_url && { websiteUrl: d.website_url }),
+          }));
         }
       })
       .catch(() => {});
@@ -83,9 +92,29 @@ export default function PengaturanPage() {
     setTimeout(() => setToast(false), 3000);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    showToast("Pengaturan berhasil disimpan");
+
+    // Also save contact info to database so public pages can read it
+    const dbSettings = [
+      { key: "contact_email", value: settings.emailRedaksi },
+      { key: "alamat_redaksi", value: settings.alamatRedaksi },
+      { key: "website_url", value: settings.websiteUrl },
+    ];
+    try {
+      await Promise.all(
+        dbSettings.map((s) =>
+          fetch("/api/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(s),
+          })
+        )
+      );
+      showToast("Pengaturan berhasil disimpan");
+    } catch {
+      showToast("Tersimpan lokal, gagal sinkron ke server");
+    }
   };
 
   const handleSaveAiKey = async () => {
@@ -206,6 +235,18 @@ export default function PengaturanPage() {
                 }
                 rows={2}
                 className="input resize-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-base font-medium text-txt-primary">
+                Website URL
+              </label>
+              <input
+                type="text"
+                value={settings.websiteUrl}
+                onChange={(e) => updateField("websiteUrl", e.target.value)}
+                className="input"
+                placeholder="contoh: jurnalishukumbandung.com"
               />
             </div>
           </div>

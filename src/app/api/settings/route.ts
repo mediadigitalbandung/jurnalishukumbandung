@@ -7,6 +7,8 @@ const ALLOWED_KEYS = [
   "site_name",
   "site_description",
   "contact_email",
+  "alamat_redaksi",
+  "website_url",
   "deepseek_api_key",
   "resend_api_key",
   "notification_email_from",

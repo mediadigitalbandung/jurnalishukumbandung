@@ -1,12 +1,30 @@
+export const dynamic = "force-dynamic";
+
 import { Metadata } from "next";
 import { Shield, Eye, Users, Award } from "lucide-react";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Tentang Kami",
   description: "Jurnalis Hukum Bandung - Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.",
 };
 
-export default function TentangPage() {
+async function getSettings() {
+  const rows = await prisma.systemSetting.findMany({
+    where: { key: { in: ["contact_email", "alamat_redaksi", "website_url"] } },
+  });
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  return {
+    email: map.contact_email || "redaksi@jurnalishukumbandung.com",
+    alamat: map.alamat_redaksi || "Bandung, Jawa Barat, Indonesia",
+    website: map.website_url || "jurnalishukumbandung.com",
+  };
+}
+
+export default async function TentangPage() {
+  const contact = await getSettings();
+
   return (
     <div className="bg-surface min-h-screen">
       <div className="container-main py-12">
@@ -57,9 +75,9 @@ export default function TentangPage() {
           <div className="mt-12 rounded-[12px] border border-border bg-surface-secondary p-6">
             <h2 className="text-lg font-bold text-txt-primary">Informasi Kontak</h2>
             <div className="mt-3 space-y-2 text-sm text-txt-secondary">
-              <p><strong className="text-txt-primary">Alamat Redaksi:</strong> Bandung, Jawa Barat, Indonesia</p>
-              <p><strong className="text-txt-primary">Email:</strong> redaksi@jurnalishukumbandung.com</p>
-              <p><strong className="text-txt-primary">Website:</strong> jurnalishukumbandung.com</p>
+              <p><strong className="text-txt-primary">Alamat Redaksi:</strong> {contact.alamat}</p>
+              <p><strong className="text-txt-primary">Email:</strong> {contact.email}</p>
+              <p><strong className="text-txt-primary">Website:</strong> {contact.website}</p>
             </div>
           </div>
         </div>
