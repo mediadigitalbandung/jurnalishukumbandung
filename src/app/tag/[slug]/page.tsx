@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const tag = await prisma.tag.findUnique({ where: { slug: params.slug } });
   if (!tag) return { title: "Tag Tidak Ditemukan" };
   return {
-    title: `Berita ${tag.name} Terbaru - Kartawarta`,
+    title: `Berita ${tag.name} Terbaru - Jurnalis Hukum Bandung`,
     description: `Baca berita terbaru tentang ${tag.name}. Kumpulan artikel dan analisis hukum terkait ${tag.name} di Bandung dan Indonesia.`,
     alternates: {
       canonical: `/tag/${params.slug}`,

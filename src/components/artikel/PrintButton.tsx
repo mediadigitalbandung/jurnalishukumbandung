@@ -93,10 +93,10 @@ function PrintPreviewContent() {
     <div style={{ fontFamily: "Georgia, serif", color: "#1C1C1E" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "2px solid #00AA13", paddingBottom: 12, marginBottom: 20 }}>
-        <img src="/logo-jhb.png" alt="Kartawarta" style={{ width: 40, height: 40 }} />
+        <img src="/logo-jhb.png" alt="Jurnalis Hukum Bandung" style={{ width: 40, height: 40 }} />
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>Kartawarta</div>
-          <div style={{ fontSize: 9, color: "#6B7280" }}>Media Hukum Digital Terpercaya — kartawarta.com</div>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>Jurnalis Hukum Bandung</div>
+          <div style={{ fontSize: 9, color: "#6B7280" }}>Media Hukum Digital Terpercaya — jurnalishukumbandung.com</div>
         </div>
       </div>
 
@@ -140,7 +140,7 @@ function PrintPreviewContent() {
 
       {/* Footer */}
       <div style={{ marginTop: 24, paddingTop: 12, borderTop: "1px solid #E5E7EB", fontSize: 9, color: "#9CA3AF", textAlign: "center" }}>
-        &copy; {new Date().getFullYear()} Kartawarta — kartawarta.com
+        &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung — jurnalishukumbandung.com
         <br />Artikel ini dicetak pada {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
         <br />Sumber: {typeof window !== "undefined" ? window.location.href : ""}
       </div>

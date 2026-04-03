@@ -3,7 +3,7 @@ import { Shield, Eye, Users, Award } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Tentang Kami",
-  description: "Kartawarta - Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.",
+  description: "Jurnalis Hukum Bandung - Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.",
 };
 
 export default function TentangPage() {
@@ -18,7 +18,7 @@ export default function TentangPage() {
 
           <div className="mt-8 space-y-6 font-serif text-[17px] leading-relaxed text-txt-secondary">
             <p>
-              <strong className="text-txt-primary">Kartawarta</strong> adalah media digital yang berfokus pada pemberitaan
+              <strong className="text-txt-primary">Jurnalis Hukum Bandung</strong> adalah media digital yang berfokus pada pemberitaan
               hukum di wilayah Bandung Raya dan Jawa Barat. Didirikan dengan visi menjadi sumber informasi
               hukum yang terpercaya, akurat, dan berimbang bagi masyarakat.
             </p>
@@ -58,8 +58,8 @@ export default function TentangPage() {
             <h2 className="text-lg font-bold text-txt-primary">Informasi Kontak</h2>
             <div className="mt-3 space-y-2 text-sm text-txt-secondary">
               <p><strong className="text-txt-primary">Alamat Redaksi:</strong> Bandung, Jawa Barat, Indonesia</p>
-              <p><strong className="text-txt-primary">Email:</strong> redaksi@kartawarta.com</p>
-              <p><strong className="text-txt-primary">Website:</strong> kartawarta.com</p>
+              <p><strong className="text-txt-primary">Email:</strong> redaksi@jurnalishukumbandung.com</p>
+              <p><strong className="text-txt-primary">Website:</strong> jurnalishukumbandung.com</p>
             </div>
           </div>
         </div>

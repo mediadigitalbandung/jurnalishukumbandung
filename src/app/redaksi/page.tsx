@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Susunan Redaksi",
-  description: "Susunan redaksi Kartawarta.",
+  description: "Susunan redaksi Jurnalis Hukum Bandung.",
 };
 
 export default async function RedaksiPage() {
@@ -24,7 +24,7 @@ export default async function RedaksiPage() {
           </h1>
 
           <p className="mt-6 text-txt-secondary">
-            Berikut susunan redaksi Kartawarta yang bertanggung jawab atas
+            Berikut susunan redaksi Jurnalis Hukum Bandung yang bertanggung jawab atas
             seluruh proses produksi dan distribusi konten.
           </p>
 
@@ -62,8 +62,8 @@ export default async function RedaksiPage() {
             <p className="text-sm text-txt-muted">
               Susunan redaksi ini akan diperbarui seiring dengan perkembangan organisasi.
               Untuk informasi lebih lanjut, silakan hubungi{" "}
-              <a href="mailto:redaksi@kartawarta.com" className="text-goto-green hover:underline">
-                redaksi@kartawarta.com
+              <a href="mailto:redaksi@jurnalishukumbandung.com" className="text-goto-green hover:underline">
+                redaksi@jurnalishukumbandung.com
               </a>
             </p>
           </div>

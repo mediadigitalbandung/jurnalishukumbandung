@@ -65,7 +65,7 @@ async function filterWithAI(trends: string[]): Promise<string[] | null> {
 
     if (!setting?.value) return null;
 
-    const prompt = `Kamu adalah editor media hukum "Kartawarta". Dari daftar trending topik Google Indonesia berikut, pilih dan ubah menjadi tags yang RELEVAN dengan dunia hukum, peradilan, politik, kebijakan publik, HAM, korupsi, regulasi, atau isu sosial yang berkaitan dengan hukum di Indonesia.
+    const prompt = `Kamu adalah editor media hukum "Jurnalis Hukum Bandung". Dari daftar trending topik Google Indonesia berikut, pilih dan ubah menjadi tags yang RELEVAN dengan dunia hukum, peradilan, politik, kebijakan publik, HAM, korupsi, regulasi, atau isu sosial yang berkaitan dengan hukum di Indonesia.
 
 Daftar trending:
 ${trends.map((t, i) => `${i + 1}. ${t}`).join("\n")}

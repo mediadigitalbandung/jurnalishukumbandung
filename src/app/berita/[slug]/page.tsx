@@ -225,7 +225,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     viewCount: a.viewCount,
   }));
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kartawarta.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
   const articleUrl = `${appUrl}/berita/${params.slug}`;
   const contentPages = splitContentIntoPages(article.content);
   const totalPages = contentPages.length;
@@ -244,7 +244,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     author: { "@type": "Person", name: article.author.name },
     publisher: {
       "@type": "Organization",
-      name: "Kartawarta",
+      name: "Jurnalis Hukum Bandung",
       logo: { "@type": "ImageObject", url: `${appUrl}/logo.png` },
     },
     mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
@@ -310,10 +310,10 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
             <article className="lg:col-span-2">
               {/* Print-only header */}
               <div className="print-header hidden">
-                <img src="/logo-jhb.png" alt="Kartawarta" />
+                <img src="/logo-jhb.png" alt="Jurnalis Hukum Bandung" />
                 <div>
-                  <div className="print-title">Kartawarta</div>
-                  <div className="print-subtitle">Media Hukum Digital Terpercaya — kartawarta.com</div>
+                  <div className="print-title">Jurnalis Hukum Bandung</div>
+                  <div className="print-subtitle">Media Hukum Digital Terpercaya — jurnalishukumbandung.com</div>
                 </div>
               </div>
 
@@ -552,7 +552,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
               {/* Print-only footer */}
               <div className="print-footer hidden">
-                &copy; {new Date().getFullYear()} Kartawarta — kartawarta.com
+                &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung — jurnalishukumbandung.com
                 <br />Artikel ini dicetak pada {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
                 <br />Sumber: {articleUrl}
               </div>

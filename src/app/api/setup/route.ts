@@ -63,11 +63,11 @@ export async function GET(request: NextRequest) {
     const adminPassword = await bcrypt.hash(adminPlain, 12);
     const admin = await prisma.user.create({
       data: {
-        email: "admin@kartawarta.com",
+        email: "admin@jurnalishukumbandung.com",
         password: adminPassword,
         name: "Super Admin",
         role: "SUPER_ADMIN",
-        bio: "Administrator Kartawarta",
+        bio: "Administrator Jurnalis Hukum Bandung",
       },
     });
 
@@ -75,11 +75,11 @@ export async function GET(request: NextRequest) {
     const editorPassword = await bcrypt.hash(editorPlain, 12);
     const editor = await prisma.user.create({
       data: {
-        email: "editor@kartawarta.com",
+        email: "editor@jurnalishukumbandung.com",
         password: editorPassword,
         name: "Editor Kepala",
         role: "CHIEF_EDITOR",
-        bio: "Editor Kepala Kartawarta",
+        bio: "Editor Kepala Jurnalis Hukum Bandung",
       },
     });
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     const journalistPassword = await bcrypt.hash(journalistPlain, 12);
     const journalist = await prisma.user.create({
       data: {
-        email: "jurnalis@kartawarta.com",
+        email: "jurnalis@jurnalishukumbandung.com",
         password: journalistPassword,
         name: "Ahmad Fauzi",
         role: "SENIOR_JOURNALIST",

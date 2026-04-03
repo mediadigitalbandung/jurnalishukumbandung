@@ -19,16 +19,16 @@ interface SiteSettings {
 }
 
 const defaultSettings: SiteSettings = {
-  siteName: "Kartawarta",
+  siteName: "Jurnalis Hukum Bandung",
   siteDescription:
     "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
-  emailRedaksi: "redaksi@kartawarta.id",
+  emailRedaksi: "redaksi@jurnalishukumbandung.id",
   alamatRedaksi: "Jl. Bandung, Jawa Barat, Indonesia",
-  metaTitle: "Kartawarta - Media Hukum Digital Terpercaya",
+  metaTitle: "Jurnalis Hukum Bandung - Media Hukum Digital Terpercaya",
   metaDescription:
     "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
   keywords:
-    "berita hukum, hukum bandung, kartawarta, berita hukum bandung, hukum pidana, hukum perdata",
+    "berita hukum, hukum bandung, jurnalishukumbandung, berita hukum bandung, hukum pidana, hukum perdata",
   articlesPerPage: 12,
   enableComments: true,
   autoModerateComments: false,

@@ -156,7 +156,7 @@ export async function exportArticlePdf(opts: ExportPdfOptions) {
     doc.setFontSize(8);
     doc.setTextColor(160, 160, 160);
     doc.text(
-      `© ${new Date().getFullYear()} Kartawarta — kartawarta.com`,
+      `© ${new Date().getFullYear()} Jurnalis Hukum Bandung — jurnalishukumbandung.com`,
       marginL,
       pageH - 10
     );

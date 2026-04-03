@@ -8,10 +8,10 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Semua Berita",
-  description: "Kumpulan seluruh berita hukum terbaru dari Kartawarta.",
+  description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
   openGraph: {
-    title: "Semua Berita - Kartawarta",
-    description: "Kumpulan seluruh berita hukum terbaru dari Kartawarta.",
+    title: "Semua Berita - Jurnalis Hukum Bandung",
+    description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
     type: "website",
   },
   alternates: {

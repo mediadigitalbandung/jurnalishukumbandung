@@ -81,7 +81,7 @@ export default function Header() {
             <Link href="/" className="group flex shrink-0 items-center gap-2.5">
               <Image
                 src="/logo-jhb.png"
-                alt="Kartawarta"
+                alt="Jurnalis Hukum Bandung"
                 width={96}
                 height={96}
                 className="h-9 w-9 sm:h-12 sm:w-12 object-contain"
@@ -90,7 +90,7 @@ export default function Header() {
               />
               <span className="flex items-baseline gap-1 sm:gap-2">
                 <span className="text-sm font-bold text-white sm:text-2xl lg:text-3xl">
-                  Kartawarta
+                  Jurnalis Hukum Bandung
                 </span>
                 <span className="text-[10px] text-white/50 sm:text-base lg:text-xl">Bandung</span>
               </span>
@@ -337,7 +337,7 @@ export default function Header() {
           {/* Mobile footer */}
           <div className="absolute bottom-0 left-0 right-0 border-t border-border px-5 py-4">
             <span className="block text-center text-xs text-txt-muted">
-              Kartawarta
+              Jurnalis Hukum Bandung
             </span>
           </div>
         </div>

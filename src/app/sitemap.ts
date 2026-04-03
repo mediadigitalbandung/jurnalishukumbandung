@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://kartawarta.vercel.app";
+    "https://jurnalishukumbandung.vercel.app";
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [

@@ -4,9 +4,9 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Kartawarta <noreply@kartawarta.com>";
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Kartawarta";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kartawarta.vercel.app";
+const FROM_EMAIL = process.env.EMAIL_FROM || "Jurnalis Hukum Bandung <noreply@jurnalishukumbandung.com>";
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Jurnalis Hukum Bandung";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.vercel.app";
 
 function baseTemplate(title: string, body: string): string {
   return `

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Kebijakan Privasi",
-  description: "Kebijakan privasi Kartawarta - Informasi mengenai pengumpulan, penggunaan, dan perlindungan data pengguna.",
+  description: "Kebijakan privasi Jurnalis Hukum Bandung - Informasi mengenai pengumpulan, penggunaan, dan perlindungan data pengguna.",
 };
 
 export default function PrivasiPage() {
@@ -17,7 +17,7 @@ export default function PrivasiPage() {
 
         <div className="mt-8 space-y-8 font-serif text-[17px] leading-relaxed text-txt-secondary">
           <p>
-            <strong>Kartawarta</strong> menghormati privasi pengunjung dan pengguna
+            <strong>Jurnalis Hukum Bandung</strong> menghormati privasi pengunjung dan pengguna
             platform kami. Kebijakan privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan,
             dan melindungi informasi pribadi Anda saat mengakses situs kami.
           </p>
@@ -106,7 +106,7 @@ export default function PrivasiPage() {
               </li>
               <li>
                 <strong>Perlindungan hak:</strong> Jika diperlukan untuk melindungi hak, properti,
-                atau keselamatan Kartawarta, pengguna, atau publik.
+                atau keselamatan Jurnalis Hukum Bandung, pengguna, atau publik.
               </li>
             </ul>
           </section>
@@ -172,8 +172,8 @@ export default function PrivasiPage() {
             </p>
             <div className="mt-4 rounded-[12px] bg-surface-secondary p-6">
               <div className="space-y-2 text-sm">
-                <p><strong>Kartawarta</strong></p>
-                <p><strong>Email:</strong> privasi@kartawarta.com</p>
+                <p><strong>Jurnalis Hukum Bandung</strong></p>
+                <p><strong>Email:</strong> privasi@jurnalishukumbandung.com</p>
                 <p><strong>Alamat:</strong> Bandung, Jawa Barat, Indonesia</p>
               </div>
             </div>

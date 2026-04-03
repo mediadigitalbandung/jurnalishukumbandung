@@ -29,7 +29,7 @@ export default function Footer() {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">
                 JH
               </span>
-              <span className="text-base font-bold">Kartawarta</span>
+              <span className="text-base font-bold">Jurnalis Hukum Bandung</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/50">
               Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.
@@ -79,7 +79,7 @@ export default function Footer() {
         <div className="mt-8 border-t border-white/10 pt-5">
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
             <p className="text-xs text-white/40">
-              &copy; {new Date().getFullYear()} Kartawarta. Seluruh hak cipta dilindungi.
+              &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung. Seluruh hak cipta dilindungi.
             </p>
             <p className="text-xs text-white/40">
               Anggota{" "}

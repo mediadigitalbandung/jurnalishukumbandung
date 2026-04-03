@@ -182,11 +182,11 @@ export default async function HomePage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "NewsMediaOrganization",
-            name: "Kartawarta",
-            url: "https://kartawarta.vercel.app",
+            name: "Jurnalis Hukum Bandung",
+            url: "https://jurnalishukumbandung.vercel.app",
             logo: {
               "@type": "ImageObject",
-              url: "https://kartawarta.vercel.app/logo.png",
+              url: "https://jurnalishukumbandung.vercel.app/logo.png",
             },
             description: "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
             sameAs: [],

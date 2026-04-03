@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Pedoman Media Siber",
-  description: "Pedoman pemberitaan media siber Kartawarta.",
+  description: "Pedoman pemberitaan media siber Jurnalis Hukum Bandung.",
 };
 
 export default function PedomanMediaPage() {
@@ -17,7 +17,7 @@ export default function PedomanMediaPage() {
 
           <div className="mt-8 space-y-6 font-serif text-[17px] leading-relaxed text-txt-secondary">
             <p>
-              Kartawarta sebagai media siber mematuhi <strong className="text-txt-primary">Pedoman Pemberitaan Media Siber</strong> yang
+              Jurnalis Hukum Bandung sebagai media siber mematuhi <strong className="text-txt-primary">Pedoman Pemberitaan Media Siber</strong> yang
               ditetapkan oleh Dewan Pers Indonesia. Berikut adalah prinsip-prinsip yang kami terapkan:
             </p>
 
@@ -56,7 +56,7 @@ export default function PedomanMediaPage() {
 
             <h2 className="!mt-8 text-lg font-bold text-txt-primary sm:text-xl">6. Perlindungan Hak Cipta</h2>
             <p>
-              Seluruh konten yang dipublikasikan di Kartawarta dilindungi hak cipta.
+              Seluruh konten yang dipublikasikan di Jurnalis Hukum Bandung dilindungi hak cipta.
               Pengutipan diperbolehkan dengan mencantumkan sumber dan link ke artikel asli.
               Sistem kami secara otomatis menyertakan informasi atribusi penulis ketika konten disalin.
             </p>

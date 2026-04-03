@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const siteUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://kartawarta.vercel.app";
+    "https://jurnalishukumbandung.vercel.app";
 
   const articles = await prisma.article.findMany({
     where: { status: "PUBLISHED" },
@@ -36,7 +36,7 @@ export async function GET() {
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Kartawarta</title>
+    <title>Jurnalis Hukum Bandung</title>
     <link>${siteUrl}</link>
     <description>Portal berita hukum terpercaya di Bandung</description>
     <language>id</language>

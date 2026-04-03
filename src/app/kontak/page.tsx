@@ -60,7 +60,7 @@ export default function KontakPage() {
                 <Mail size={20} className="text-goto-green" />
                 <h3 className="mt-2 font-bold text-txt-primary">Email</h3>
                 <p className="mt-1 text-sm text-txt-secondary">
-                  redaksi@kartawarta.com
+                  redaksi@jurnalishukumbandung.com
                 </p>
               </div>
               <div className="rounded-[12px] border border-border bg-surface p-5">
