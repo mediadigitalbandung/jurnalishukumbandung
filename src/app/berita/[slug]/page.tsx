@@ -404,40 +404,42 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
               {/* Page navigation */}
               {totalPages > 1 && (
-                <div className="mt-8 flex items-center justify-between rounded-[12px] border border-border bg-surface-secondary p-4">
-                  <div className="text-sm text-txt-secondary">
-                    Halaman <span className="font-bold text-txt-primary">{currentPage}</span> dari <span className="font-bold text-txt-primary">{totalPages}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {currentPage > 1 && (
-                      <Link
-                        href={`/berita/${params.slug}?page=${currentPage - 1}`}
-                        className="btn-secondary px-4 py-2 text-sm"
-                      >
-                        ← Sebelumnya
-                      </Link>
-                    )}
-                    {Array.from({ length: totalPages }, (_, i) => (
-                      <Link
-                        key={i + 1}
-                        href={`/berita/${params.slug}${i === 0 ? "" : `?page=${i + 1}`}`}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
-                          currentPage === i + 1
-                            ? "bg-goto-green text-white"
-                            : "hover:bg-surface-tertiary text-txt-secondary"
-                        }`}
-                      >
-                        {i + 1}
-                      </Link>
-                    ))}
-                    {currentPage < totalPages && (
-                      <Link
-                        href={`/berita/${params.slug}?page=${currentPage + 1}`}
-                        className="btn-primary px-4 py-2 text-sm"
-                      >
-                        Selanjutnya →
-                      </Link>
-                    )}
+                <div className="mt-8 rounded-[12px] border border-border bg-surface-secondary p-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-sm text-txt-secondary">
+                      Halaman <span className="font-bold text-txt-primary">{currentPage}</span> dari <span className="font-bold text-txt-primary">{totalPages}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {currentPage > 1 && (
+                        <Link
+                          href={`/berita/${params.slug}?page=${currentPage - 1}`}
+                          className="btn-secondary px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                        >
+                          ←<span className="hidden sm:inline"> Sebelumnya</span>
+                        </Link>
+                      )}
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <Link
+                          key={i + 1}
+                          href={`/berita/${params.slug}${i === 0 ? "" : `?page=${i + 1}`}`}
+                          className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                            currentPage === i + 1
+                              ? "bg-goto-green text-white"
+                              : "hover:bg-surface-tertiary text-txt-secondary"
+                          }`}
+                        >
+                          {i + 1}
+                        </Link>
+                      ))}
+                      {currentPage < totalPages && (
+                        <Link
+                          href={`/berita/${params.slug}?page=${currentPage + 1}`}
+                          className="btn-primary px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                        >
+                          <span className="hidden sm:inline">Selanjutnya </span>→
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
