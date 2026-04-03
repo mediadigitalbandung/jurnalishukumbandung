@@ -204,7 +204,7 @@ export default async function HomePage() {
         }}
       />
 
-      <NewsTicker items={tickerItems} />
+      {/* NewsTicker removed — TrendingTags in PublicNav already shows trending */}
 
       {/* Banner Ad — Leaderboard (above headline) */}
       <BannerAd size="slim" className="bg-surface" />
