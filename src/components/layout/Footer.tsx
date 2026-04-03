@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 const footerLinks = {
   tentang: [
@@ -25,10 +26,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {/* Brand */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">
-                JH
-              </span>
+            <div className="flex items-center gap-2.5">
+              <Image src="/logo-jhb.png" alt="Logo JHB" width={36} height={36} className="rounded-full" />
               <span className="text-base font-bold">Jurnalis Hukum Bandung</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/50">
