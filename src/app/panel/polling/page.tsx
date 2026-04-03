@@ -54,6 +54,8 @@ export default function PollingPanelPage() {
   const [formIsActive, setFormIsActive] = useState(true);
   const [formOrder, setFormOrder] = useState(0);
   const [formOptions, setFormOptions] = useState(["", ""]);
+  const [page, setPage] = useState(1);
+  const POLLS_PER_PAGE = 6; // 2-3 cols x 2 rows = ~6 per page
 
   const fetchData = useCallback(async () => {
     try {
@@ -344,57 +346,70 @@ export default function PollingPanelPage() {
           <button onClick={openAdd} className="mt-3 btn-primary px-4 py-2 text-sm"><Plus size={14} className="mr-1" /> Buat Polling Pertama</button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {polls.map((poll) => (
-            <div key={poll.id} className={`rounded-[12px] border bg-surface shadow-card transition-all overflow-hidden ${editingId === poll.id ? "border-goto-green bg-goto-light/10" : "border-border"}`}>
-              {/* Image */}
-              {poll.image && (
-                <div className="w-full h-32 sm:h-40 bg-surface-tertiary overflow-hidden">
-                  <img src={poll.image} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="flex items-start gap-4 p-5">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${poll.isActive ? "bg-goto-light text-goto-green" : "bg-red-50 text-red-600"}`}>
-                      <Power size={10} /> {poll.isActive ? "Aktif" : "Nonaktif"}
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {polls.slice((page - 1) * POLLS_PER_PAGE, page * POLLS_PER_PAGE).map((poll) => (
+              <div key={poll.id} className={`rounded-[12px] border bg-surface shadow-card transition-all overflow-hidden flex flex-col ${editingId === poll.id ? "border-goto-green bg-goto-light/10" : "border-border"}`}>
+                {/* Image */}
+                {poll.image ? (
+                  <div className="w-full h-28 bg-surface-tertiary overflow-hidden">
+                    <img src={poll.image} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-full h-10 bg-gradient-to-r from-goto-green/10 to-goto-green/5 flex items-center justify-center">
+                    <span className="text-[10px] text-goto-green/50">Tanpa gambar</span>
+                  </div>
+                )}
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${poll.isActive ? "bg-goto-light text-goto-green" : "bg-red-50 text-red-600"}`}>
+                      <Power size={8} /> {poll.isActive ? "Aktif" : "Off"}
                     </span>
                     {poll.category && (
-                      <span className="rounded bg-surface-tertiary px-2 py-0.5 text-xs text-txt-secondary">{poll.category.name}</span>
-                    )}
-                    {!poll.image && (
-                      <span className="rounded bg-yellow-50 px-2 py-0.5 text-xs text-yellow-600">Tanpa gambar</span>
+                      <span className="rounded bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-txt-secondary">{poll.category.name}</span>
                     )}
                   </div>
-                  <p className="font-bold text-txt-primary text-base">{poll.question}</p>
-                  <div className="mt-3 space-y-1.5">
+                  <p className="font-bold text-txt-primary text-sm leading-snug line-clamp-2 mb-3">{poll.question}</p>
+                  <div className="space-y-1 flex-1">
                     {poll.options.map((opt) => (
-                      <div key={opt.id} className="flex items-center gap-3">
-                        <div className="flex-1 h-2 rounded-full bg-border overflow-hidden">
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
                           <div className="h-full rounded-full bg-goto-green/50" style={{ width: `${opt.percentage}%` }} />
                         </div>
-                        <span className="text-xs text-txt-secondary w-24 truncate">{opt.label}</span>
-                        <span className="text-xs font-bold text-txt-primary w-10 text-right">{opt.percentage}%</span>
-                        <span className="text-xs text-txt-muted w-12 text-right">{opt.votes}</span>
+                        <span className="text-[10px] text-txt-secondary w-16 truncate">{opt.label}</span>
+                        <span className="text-[10px] font-bold text-txt-primary w-8 text-right">{opt.percentage}%</span>
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-txt-muted mt-2">
-                    <BarChart3 size={12} className="inline mr-1" />
-                    {poll.totalVotes.toLocaleString("id-ID")} total suara
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => toggleActive(poll)} className={`btn-ghost rounded p-2 ${poll.isActive ? "hover:text-red-500" : "hover:text-goto-green"}`} title={poll.isActive ? "Nonaktifkan" : "Aktifkan"}>
-                    <Power size={16} />
-                  </button>
-                  <button onClick={() => openEdit(poll)} className="btn-ghost rounded p-2" title="Edit"><Edit size={16} /></button>
-                  <button onClick={() => handleDelete(poll.id, poll.question)} className="btn-ghost rounded p-2 hover:text-red-500" title="Hapus"><Trash2 size={16} /></button>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                    <p className="text-[10px] text-txt-muted">
+                      <BarChart3 size={10} className="inline mr-0.5" />
+                      {poll.totalVotes.toLocaleString("id-ID")} suara
+                    </p>
+                    <div className="flex items-center gap-0.5">
+                      <button onClick={() => toggleActive(poll)} className={`btn-ghost rounded p-1.5 ${poll.isActive ? "hover:text-red-500" : "hover:text-goto-green"}`} title={poll.isActive ? "Nonaktifkan" : "Aktifkan"}>
+                        <Power size={14} />
+                      </button>
+                      <button onClick={() => openEdit(poll)} className="btn-ghost rounded p-1.5" title="Edit"><Edit size={14} /></button>
+                      <button onClick={() => handleDelete(poll.id, poll.question)} className="btn-ghost rounded p-1.5 hover:text-red-500" title="Hapus"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {polls.length > POLLS_PER_PAGE && (
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-sm text-txt-secondary">Halaman {page} dari {Math.ceil(polls.length / POLLS_PER_PAGE)}</p>
+              <div className="flex gap-2">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="btn-secondary px-4 py-2 text-sm disabled:opacity-40">Sebelumnya</button>
+                <button onClick={() => setPage(p => Math.min(Math.ceil(polls.length / POLLS_PER_PAGE), p + 1))} disabled={page >= Math.ceil(polls.length / POLLS_PER_PAGE)} className="btn-secondary px-4 py-2 text-sm disabled:opacity-40">Selanjutnya</button>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
