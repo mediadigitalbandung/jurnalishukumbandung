@@ -133,12 +133,12 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
         target="_blank"
         rel="noopener noreferrer sponsored"
         onClick={() => handleClick(ad)}
-        className="block w-full h-full"
+        className="block w-full h-full rounded-lg overflow-hidden"
       >
         {content}
       </a>
     );
   }
 
-  return content;
+  return <div className="w-full h-full rounded-lg overflow-hidden">{content}</div>;
 }
