@@ -97,7 +97,23 @@ export default function PollingCarousel({ items, categorySlug }: Props) {
               : p
           )
         );
-        setVotedPolls((prev) => ({ ...prev, [pollId]: optionId }));
+        setVotedPolls((prev) => {
+          const updated = { ...prev, [pollId]: optionId };
+          // Auto-scroll to next unvoted poll
+          setTimeout(() => {
+            if (!scrollRef.current) return;
+            const currentIdx = polls.findIndex((p) => p.id === pollId);
+            const nextUnvoted = polls.findIndex((p, i) => i > currentIdx && !updated[p.id]);
+            if (nextUnvoted !== -1) {
+              const cards = scrollRef.current.querySelectorAll("[data-poll-card]");
+              if (cards[nextUnvoted]) {
+                cards[nextUnvoted].scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                setTimeout(checkScroll, 500);
+              }
+            }
+          }, 800);
+          return updated;
+        });
       }
     } catch {}
     finally {
@@ -162,7 +178,7 @@ export default function PollingCarousel({ items, categorySlug }: Props) {
           const isVoting = voting === poll.id;
 
           return (
-            <div key={poll.id} className="shrink-0 w-[calc(100vw-48px)] sm:w-[300px] md:w-[340px] rounded-xl border border-border bg-surface-secondary overflow-hidden hover:shadow-card-hover transition-shadow">
+            <div key={poll.id} data-poll-card className="shrink-0 w-[calc(100vw-48px)] sm:w-[300px] md:w-[340px] rounded-xl border border-border bg-surface-secondary overflow-hidden hover:shadow-card-hover transition-shadow">
               {poll.image && (
                 <div className="relative w-full aspect-[2/1]">
                   <Image src={poll.image} alt={poll.question} fill className="object-cover" sizes="340px" />
