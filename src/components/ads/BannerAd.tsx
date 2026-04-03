@@ -114,17 +114,19 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
 
   const content =
     ad.type === "HTML" && ad.htmlCode ? (
-      <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} className="w-full" />
+      <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} className="w-full h-full" />
     ) : ad.imageUrl ? (
       <img
         src={ad.imageUrl}
         alt="Iklan"
-        className="w-full h-auto block rounded-lg"
+        className="w-full h-full object-contain object-top block rounded-lg"
         loading="lazy"
       />
     ) : null;
 
   if (!content) return null;
+
+  const wrapperClass = "block w-full h-full rounded-lg overflow-hidden bg-[#0f1210]";
 
   if (ad.targetUrl) {
     return (
@@ -133,12 +135,12 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
         target="_blank"
         rel="noopener noreferrer sponsored"
         onClick={() => handleClick(ad)}
-        className="block w-full rounded-lg overflow-hidden"
+        className={wrapperClass}
       >
         {content}
       </a>
     );
   }
 
-  return <div className="w-full rounded-lg overflow-hidden">{content}</div>;
+  return <div className={wrapperClass}>{content}</div>;
 }

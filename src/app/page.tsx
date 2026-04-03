@@ -221,12 +221,14 @@ export default async function HomePage() {
               )}
             </div>
             {/* Right column: Breaking + Sidebar Ad */}
-            <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-5 lg:grid-cols-1 gap-3 lg:gap-4">
-              <div className="sm:col-span-3 lg:col-span-1">
-                <BreakingSlider items={JSON.parse(JSON.stringify(breakingArticles))} />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-1">
-                <SidebarAd />
+            <div className="lg:col-span-1 relative">
+              <div className="grid grid-cols-1 sm:grid-cols-5 lg:absolute lg:inset-0 lg:flex lg:flex-col gap-3 lg:gap-4">
+                <div className="sm:col-span-3 lg:shrink-0 lg:[&>div]:h-auto">
+                  <BreakingSlider items={JSON.parse(JSON.stringify(breakingArticles))} />
+                </div>
+                <div className="sm:col-span-2 lg:flex-1 lg:min-h-0">
+                  <SidebarAd />
+                </div>
               </div>
             </div>
           </div>
