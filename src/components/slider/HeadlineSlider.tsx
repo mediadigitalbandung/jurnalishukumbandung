@@ -99,6 +99,7 @@ export default function HeadlineSlider({ items }: HeadlineSliderProps) {
                     src={article.featuredImage}
                     alt={article.title}
                     fill
+                    sizes="(max-width: 1024px) 100vw, 66vw"
                     className="object-cover"
                     priority={i === 0}
                   />

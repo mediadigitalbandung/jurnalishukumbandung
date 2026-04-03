@@ -62,6 +62,7 @@ export default function ArticleCard({
                 src={featuredImage}
                 alt={title}
                 fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 priority
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               />
@@ -107,6 +108,7 @@ export default function ArticleCard({
               src={featuredImage}
               alt={title}
               fill
+              sizes="112px"
               className="object-cover"
             />
           ) : (
@@ -160,6 +162,7 @@ export default function ArticleCard({
               src={featuredImage}
               alt={title}
               fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             />
           ) : (

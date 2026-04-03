@@ -90,6 +90,7 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
                   src={article.featuredImage}
                   alt={article.title}
                   fill
+                  sizes="(max-width: 1024px) 100vw, 33vw"
                   className="object-cover"
                 />
               ) : (

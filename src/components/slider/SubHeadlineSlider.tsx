@@ -100,6 +100,7 @@ export default function SubHeadlineSlider({ items }: SubHeadlineSliderProps) {
                         src={article.featuredImage}
                         alt={article.title}
                         fill
+                        sizes="(max-width: 640px) 100vw, 50vw"
                         className="object-cover"
                       />
                     ) : (
