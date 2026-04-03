@@ -85,14 +85,14 @@ export default function IklanPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {adSlots.map((slot) => (
-              <Link href="#kontak" key={slot.name} className="block group rounded-[12px] border border-border bg-surface p-5 hover:border-goto-green/40 hover:shadow-card-hover transition-all">
+              <a href="#kontak" key={slot.name} className="block group rounded-[12px] border border-border bg-surface p-5 hover:border-goto-green/40 hover:shadow-card-hover transition-all">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-txt-primary">{slot.name}</h3>
                   <span className="rounded-full bg-goto-light px-3 py-0.5 text-xs font-bold text-goto-green">{slot.size}</span>
                 </div>
                 <p className="text-sm text-txt-secondary mb-3">{slot.position}</p>
                 <p className="text-sm font-semibold text-goto-green group-hover:underline">{slot.price}</p>
-              </Link>
+              </a>
             ))}
           </div>
         </div>
