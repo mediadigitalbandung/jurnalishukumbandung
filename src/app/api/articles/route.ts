@@ -11,6 +11,7 @@ import {
 } from "@/lib/api-utils";
 import { slugify, calculateReadTime } from "@/lib/utils";
 import { canWriteArticles, canApproveArticles } from "@/lib/auth";
+import { autoGenerateSeoFields } from "@/lib/seo-utils";
 
 const createArticleSchema = z.object({
   title: z.string().min(5, "Judul minimal 5 karakter").max(255),
@@ -197,6 +198,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Auto-generate SEO fields if empty (AI-powered)
+    const seoFields = await autoGenerateSeoFields(data.title, data.content, data.seoTitle, data.seoDescription);
+
     const article = await prisma.article.create({
       data: {
         title: data.title,
@@ -209,8 +213,8 @@ export async function POST(request: NextRequest) {
         readTime,
         authorId: effectiveAuthorId,
         categoryId: data.categoryId,
-        seoTitle: data.seoTitle || data.title,
-        seoDescription: data.seoDescription || data.content.replace(/<[^>]*>/g, "").slice(0, 160),
+        seoTitle: seoFields.seoTitle,
+        seoDescription: seoFields.seoDescription,
         publishedAt: null,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
         tags: { connect: tagConnections },

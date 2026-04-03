@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyArticleStatusChange } from "@/lib/notifications";
 import { sendArticlePublishedEmail } from "@/lib/email";
 import { ApiError, successResponse, errorResponse } from "@/lib/api-utils";
+import { onArticlePublished } from "@/lib/seo-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
         status: "APPROVED",
         scheduledAt: { lte: now },
       },
-      select: { id: true, title: true, slug: true, authorId: true, scheduledAt: true },
+      select: { id: true, title: true, slug: true, authorId: true, categoryId: true, scheduledAt: true },
     });
 
     if (articles.length === 0) {
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
       await notifyArticleStatusChange(article.id, article.title, "PUBLISHED", article.authorId);
       const author = authorMap.get(article.authorId);
       if (author) await sendArticlePublishedEmail(author.email, article.title, article.slug);
+      // SEO automation (non-blocking)
+      onArticlePublished(article.slug, article.id, article.categoryId).catch(() => {});
       published.push(article.title);
     }
 

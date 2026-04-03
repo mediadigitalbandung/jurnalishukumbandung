@@ -17,6 +17,7 @@ import {
   sendArticlePublishedEmail,
   sendNewReviewEmail,
 } from "@/lib/email";
+import { onArticlePublished, autoGenerateSeoFields } from "@/lib/seo-utils";
 
 const updateArticleSchema = z.object({
   title: z.string().min(5).max(255).optional(),
@@ -389,6 +390,9 @@ export async function PUT(
       const authorPub = await prisma.user.findUnique({ where: { id: article.authorId }, select: { email: true } });
       if (authorPub) await sendArticlePublishedEmail(authorPub.email, article.title, updated.slug);
 
+      // SEO automation (non-blocking)
+      onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
+
       return successResponse(updated);
     }
 
@@ -537,6 +541,9 @@ export async function PUT(
         await notifyArticleStatusChange(article.id, article.title, "PUBLISHED", article.authorId);
         const authorPub = await prisma.user.findUnique({ where: { id: article.authorId }, select: { email: true } });
         if (authorPub) await sendArticlePublishedEmail(authorPub.email, article.title, updated.slug);
+
+        // SEO automation (non-blocking)
+        onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
 
         return successResponse(updated);
       }
