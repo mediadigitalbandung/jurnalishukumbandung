@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"
   ),
+  verification: {
+    google: "aOYlnEshfJKwCD4v8OePC3vgPACRIRt2bO5s9dziFj0",
+  },
   title: {
     default: "Jurnalis Hukum Bandung - Media Hukum Digital Terpercaya",
     template: "%s | Jurnalis Hukum Bandung",
