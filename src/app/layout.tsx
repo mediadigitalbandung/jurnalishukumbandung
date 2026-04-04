@@ -7,6 +7,7 @@ import TopLoader from "@/components/layout/TopLoader";
 import PublicNav from "@/components/layout/PublicNav";
 import PublicFooter from "@/components/layout/PublicFooter";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import ZoomCompensator from "@/components/layout/ZoomCompensator";
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
@@ -101,6 +102,7 @@ export default function RootLayout({
           <main id="main-content" className="flex-1">{children}</main>
           <PublicFooter />
           <ServiceWorkerRegistration />
+          <ZoomCompensator />
         </Providers>
       </body>
     </html>

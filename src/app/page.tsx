@@ -306,7 +306,7 @@ export default async function HomePage() {
                       </span>
                       {/* Thumbnail */}
                       <Link href={`/berita/${article.slug}`} className="shrink-0">
-                        <div className="relative h-[80px] w-[115px] overflow-hidden rounded">
+                        <div className="relative h-20 w-28 overflow-hidden rounded">
                           {article.featuredImage ? (
                             <Image
                               src={article.featuredImage}
@@ -358,7 +358,7 @@ export default async function HomePage() {
           </div>
           <HorizontalScroll>
             {jadwalSidangData.map((j) => (
-              <div key={j.date} className="shrink-0 w-[calc(100vw-48px)] sm:w-[260px] md:w-[300px] rounded-lg border border-border bg-surface-secondary p-4 hover:border-goto-green/40 transition-colors">
+              <div key={j.date} className="shrink-0 w-[calc(100vw-3rem)] sm:w-[16.25rem] md:w-[18.75rem] rounded-lg border border-border bg-surface-secondary p-4 hover:border-goto-green/40 transition-colors">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-goto-green text-white">
                     <span className="text-lg font-extrabold leading-none">{j.date.split(" ")[0]}</span>
@@ -536,12 +536,12 @@ export default async function HomePage() {
                     <Link href={`/kategori/${categorySlug}`} className="border-l-[3px] border-goto-green pl-3 text-sm font-bold text-txt-primary mb-3 block hover:text-goto-green transition-colors">
                       Trending di {categoryName}
                     </Link>
-                    <div className="space-y-0 divide-y divide-border max-h-[280px] overflow-y-auto scrollbar-hide">
+                    <div className="space-y-0 divide-y divide-border max-h-[17.5rem] overflow-y-auto scrollbar-hide">
                       {trending.map((a) => (
                         <div key={a.slug} className="group flex gap-3 py-2.5 first:pt-0">
                           {a.featuredImage && (
                             <Link href={`/berita/${a.slug}`} className="shrink-0">
-                              <div className="relative h-[56px] w-[80px] overflow-hidden rounded">
+                              <div className="relative h-14 w-20 overflow-hidden rounded">
                                 <Image src={a.featuredImage} alt={a.title} fill className="object-cover" />
                               </div>
                             </Link>
@@ -569,12 +569,12 @@ export default async function HomePage() {
                     <Link href={`/kategori/${categorySlug}`} className="border-l-[3px] border-goto-green pl-3 text-sm font-bold text-txt-primary mb-3 block hover:text-goto-green transition-colors">
                       Terbaru di {categoryName}
                     </Link>
-                    <div className="space-y-0 divide-y divide-border max-h-[280px] overflow-y-auto scrollbar-hide">
+                    <div className="space-y-0 divide-y divide-border max-h-[17.5rem] overflow-y-auto scrollbar-hide">
                       {terbaru.map((a) => (
                         <div key={a.slug} className="group flex gap-3 py-2.5 first:pt-0">
                           {a.featuredImage && (
                             <Link href={`/berita/${a.slug}`} className="shrink-0">
-                              <div className="relative h-[56px] w-[80px] overflow-hidden rounded">
+                              <div className="relative h-14 w-20 overflow-hidden rounded">
                                 <Image src={a.featuredImage} alt={a.title} fill className="object-cover" />
                               </div>
                             </Link>

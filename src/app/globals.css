@@ -5,6 +5,11 @@
 @layer base {
   html {
     overflow-x: clip;
+    --zoom-compensate: 1;
+  }
+  /* When zoom is detected, scale down the root font-size to resist zoom blow-up */
+  html.zoom-compensated {
+    font-size: calc(16px * var(--zoom-compensate));
   }
   body {
     @apply bg-surface text-txt-primary antialiased font-sans;
@@ -24,6 +29,13 @@
   /* Container — GoTo uses centered max-width */
   .container-main {
     @apply mx-auto max-w-6xl px-5 sm:px-8 lg:px-8;
+  }
+
+  /* When zoom-compensated, tighten the container and spacing */
+  .zoom-compensated .container-main {
+    max-width: calc(72rem * var(--zoom-compensate));
+    padding-left: calc(1.25rem * var(--zoom-compensate));
+    padding-right: calc(1.25rem * var(--zoom-compensate));
   }
 
   /* Section headers */

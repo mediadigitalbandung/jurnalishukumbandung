@@ -143,7 +143,7 @@ export default function PollingCarousel({ items, categorySlug }: Props) {
     return (
       <div className="flex gap-4 overflow-hidden">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="shrink-0 w-[300px] rounded-xl border border-border bg-surface-secondary p-5 animate-pulse">
+          <div key={i} className="shrink-0 w-[18.75rem] rounded-xl border border-border bg-surface-secondary p-5 animate-pulse">
             <div className="h-4 w-3/4 rounded bg-surface-tertiary mb-4" />
             <div className="space-y-3">
               {[1, 2, 3].map((j) => (
@@ -178,7 +178,7 @@ export default function PollingCarousel({ items, categorySlug }: Props) {
           const isVoting = voting === poll.id;
 
           return (
-            <div key={poll.id} data-poll-card className="shrink-0 w-[calc(100vw-48px)] sm:w-[300px] md:w-[340px] rounded-xl border border-border bg-surface-secondary overflow-hidden hover:shadow-card-hover transition-shadow">
+            <div key={poll.id} data-poll-card className="shrink-0 w-[calc(100vw-3rem)] sm:w-[18.75rem] md:w-[21.25rem] rounded-xl border border-border bg-surface-secondary overflow-hidden hover:shadow-card-hover transition-shadow">
               {poll.image && (
                 <div className="relative w-full aspect-[2/1]">
                   <Image src={poll.image} alt={poll.question} fill className="object-cover" sizes="340px" />

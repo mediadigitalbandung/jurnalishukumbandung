@@ -65,7 +65,7 @@ export default function HeadlineSlider({ items }: HeadlineSliderProps) {
   return (
     <div className="group relative overflow-hidden rounded-lg bg-surface-dark">
       {/* All slides stacked — crossfade + ken burns */}
-      <div className="relative aspect-[2/1] sm:aspect-[1.8/1] w-full min-h-[140px] sm:min-h-[200px] lg:min-h-[270px]">
+      <div className="relative aspect-[2/1] sm:aspect-[1.8/1] w-full min-h-[8.75rem] sm:min-h-[12.5rem] lg:min-h-[16.875rem]">
         {items.map((article, i) => {
           const isActive = i === current;
           const isLeaving = i === previous;
