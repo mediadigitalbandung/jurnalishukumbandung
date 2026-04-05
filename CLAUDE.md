@@ -1,11 +1,11 @@
 # CLAUDE.md - Instruksi untuk Claude Code
 
 ## Project
-- **Nama:** Jurnalis Hukum Bandung v2.0
-- **Stack:** Next.js 14, TypeScript, Tailwind CSS, Prisma, Supabase (PostgreSQL), NextAuth
-- **Deploy:** Vercel (auto-deploy dari GitHub master)
+- **Nama:** Jurnalis Hukum Bandung
+- **Stack:** Next.js 14, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth
+- **Deploy:** VPS (Ubuntu 24.04)
 - **Repo:** github.com/bonelade/Jurnalis-Hukum-Bandung
-- **URL:** https://jurnalis-hukum-bandung.vercel.app
+- **URL:** https://jurnalishukumbandung.com
 
 ## Workflow: Auto Commit, Push & Deploy
 
@@ -19,9 +19,8 @@
    - `style:` untuk perubahan UI/styling
    - `refactor:` untuk refactoring
    - `docs:` untuk dokumentasi
-   - Akhiri dengan `Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>`
+   - Akhiri dengan `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
 4. **Push** — `git push origin master`
-5. **Verifikasi** — cek HTTP status dari URL production (curl)
 
 Jangan tunggu user minta commit/push — **langsung lakukan** setelah perubahan selesai dan build sukses.
 
@@ -55,11 +54,10 @@ Jangan tunggu user minta commit/push — **langsung lakukan** setelah perubahan 
 
 ## Database
 
-- **Provider:** Supabase (Seoul region)
-- **Ref:** `rbjlasipbucuzegdzboa`
+- **Provider:** PostgreSQL
 - **Schema:** `prisma/schema.prisma`
 - **Migrate:** `npx prisma db push`
-- **Env:** `DATABASE_URL` (port 6543 + pgbouncer) dan `DIRECT_URL` (port 5432)
+- **Env:** `DATABASE_URL` dan `DIRECT_URL`
 
 ## File Penting
 
@@ -84,5 +82,4 @@ src/app/panel/          — Admin panel pages
 - Panel admin pakai client components + fetch API routes
 - Gunakan `export const dynamic = "force-dynamic"` untuk halaman yang query database
 - Jangan commit file `.env` — sudah di `.gitignore`
-- Vercel env vars dikelola via `npx vercel env` CLI
 - Password di-hash dengan `bcryptjs` (12 rounds)

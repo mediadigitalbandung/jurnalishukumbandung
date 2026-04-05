@@ -1,8 +1,8 @@
 {
   "name": "jurnalis-hukum-bandung",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "Platform Media Hukum Digital Modern untuk Kota Bandung",
+  "description": "Platform Media Hukum Digital untuk Jurnalis Hukum Bandung",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
