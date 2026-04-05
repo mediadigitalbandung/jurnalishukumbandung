@@ -81,9 +81,9 @@ export default function RichTextEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
-      Underline,
+      Underline.configure({}),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Link.configure({ openOnClick: false }),
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: 'text-goto-green hover:underline' } }),
       ImageExtension.configure({ inline: false }),
       Youtube.configure({ width: 640, height: 360 }),
       Placeholder.configure({ placeholder }),
