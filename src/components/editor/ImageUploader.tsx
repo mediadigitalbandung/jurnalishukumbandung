@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import NextImage from "next/image";
 import { Upload, X, Loader2, ImageIcon } from "lucide-react";
 
 interface ImageUploaderProps {
@@ -149,14 +148,18 @@ export default function ImageUploader({ onUpload, currentImage }: ImageUploaderP
     <div className="space-y-2">
       {preview ? (
         <div className="relative">
-          <NextImage
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={preview}
             alt="Preview"
-            width={800}
-            height={400}
             className="w-full rounded-[8px] object-cover"
-            style={{ maxHeight: 200 }}
-            unoptimized
+            style={{ maxHeight: 200, minHeight: 80, width: "100%" }}
+            onError={(e) => {
+              const el = e.currentTarget;
+              el.style.minHeight = "80px";
+              el.style.background = "#f7f7f8";
+              el.alt = "Gambar tidak dapat ditampilkan";
+            }}
           />
           <button
             type="button"
