@@ -308,6 +308,36 @@ export async function PUT(
         return successResponse(updated);
       }
 
+      // Editor takedown: PUBLISHED -> ARCHIVED (assigned editor)
+      if (data.status === "ARCHIVED" && article.status === "PUBLISHED" && isAssignedEditor) {
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: {
+            status: "ARCHIVED",
+            verificationLabel: "UNVERIFIED",
+            reviewNote: data.reviewNote || null,
+          },
+          include: {
+            author: { select: { id: true, name: true } },
+            category: { select: { id: true, name: true, slug: true } },
+            tags: true,
+            sources: true,
+          },
+        });
+
+        await logAudit(
+          session.user.id,
+          "STATUS_CHANGE",
+          "article",
+          article.id,
+          `Editor melakukan takedown artikel: ${article.title}${data.reviewNote ? ` — Alasan: ${data.reviewNote}` : ""}`
+        );
+
+        await notifyArticleStatusChange(article.id, article.title, "ARCHIVED", article.authorId, data.reviewNote || undefined);
+
+        return successResponse(updated);
+      }
+
       // Editor can only work on articles IN_REVIEW assigned to them
       if (article.status !== "IN_REVIEW") {
         throw new ApiError("Artikel tidak dalam status review", 403);
@@ -548,6 +578,36 @@ export async function PUT(
 
         // SEO automation (non-blocking)
         onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
+
+        return successResponse(updated);
+      }
+
+      // Admin takedown: PUBLISHED -> ARCHIVED
+      if (data.status === "ARCHIVED" && article.status === "PUBLISHED") {
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: {
+            status: "ARCHIVED",
+            verificationLabel: "UNVERIFIED",
+            reviewNote: data.reviewNote || null,
+          },
+          include: {
+            author: { select: { id: true, name: true } },
+            category: { select: { id: true, name: true, slug: true } },
+            tags: true,
+            sources: true,
+          },
+        });
+
+        await logAudit(
+          session.user.id,
+          "STATUS_CHANGE",
+          "article",
+          article.id,
+          `Admin melakukan takedown artikel: ${article.title}${data.reviewNote ? ` — Alasan: ${data.reviewNote}` : ""}`
+        );
+
+        await notifyArticleStatusChange(article.id, article.title, "ARCHIVED", article.authorId, data.reviewNote || undefined);
 
         return successResponse(updated);
       }

@@ -20,6 +20,7 @@ import {
   UserCheck,
   Download,
   Archive,
+  ArrowDownCircle,
 } from "lucide-react";
 import { exportToCsv } from "@/lib/csv-utils";
 
@@ -319,6 +320,54 @@ export default function ArtikelPage() {
     }
   }
 
+  async function handleTakedown(id: string, title: string) {
+    const ok = await confirm({
+      message: `Takedown artikel "${title}"? Artikel akan diarsipkan dan tidak tampil di publik.`,
+      variant: "warning",
+      title: "Konfirmasi Takedown",
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ARCHIVED" }),
+      });
+      if (!res.ok) throw new Error("Gagal takedown");
+      success("Artikel berhasil di-takedown.");
+      fetchArticles();
+    } catch {
+      showError("Gagal melakukan takedown artikel.");
+    }
+  }
+
+  async function handleBulkTakedown() {
+    const ok = await confirm({
+      message: `Takedown ${selectedIds.size} artikel yang dipilih? Artikel akan diarsipkan.`,
+      variant: "warning",
+      title: "Konfirmasi Takedown",
+    });
+    if (!ok) return;
+    setBulkProcessing(true);
+    try {
+      const ids = Array.from(selectedIds);
+      await Promise.all(ids.map((id) =>
+        fetch(`/api/articles/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "ARCHIVED" }),
+        })
+      ));
+      success(`${ids.length} artikel berhasil di-takedown.`);
+      setSelectedIds(new Set());
+      fetchArticles();
+    } catch {
+      showError("Gagal melakukan takedown beberapa artikel.");
+    } finally {
+      setBulkProcessing(false);
+    }
+  }
+
   async function handleBulkPublish() {
     const ok = await confirm({ message: `Publikasikan ${selectedIds.size} artikel yang dipilih?`, variant: "default", title: "Konfirmasi" });
     if (!ok) return;
@@ -392,6 +441,16 @@ export default function ArtikelPage() {
               aria-label="Publikasikan artikel terpilih"
             >
               Publish
+            </button>
+          )}
+          {isEditor && (
+            <button
+              onClick={handleBulkTakedown}
+              disabled={bulkProcessing}
+              className="text-sm font-medium text-orange-400 hover:text-orange-300 disabled:opacity-50"
+              aria-label="Takedown artikel terpilih"
+            >
+              Takedown
             </button>
           )}
           <button
@@ -587,6 +646,16 @@ export default function ArtikelPage() {
                                 title="Publikasikan"
                               >
                                 Publish
+                              </button>
+                            )}
+                            {/* Takedown — for PUBLISHED articles, editor/admin only */}
+                            {isEditor && article.status === "PUBLISHED" && (
+                              <button
+                                onClick={() => handleTakedown(article.id, article.title)}
+                                className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
+                                title="Takedown"
+                              >
+                                Takedown
                               </button>
                             )}
                             <button
