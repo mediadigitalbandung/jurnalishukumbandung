@@ -12,6 +12,8 @@ const PROMPTS: Record<string, (title: string, content: string) => string> = {
     `Buatkan SEO title (maks 60 karakter) untuk artikel berita hukum berikut. Judul: ${title}`,
   meta_description: (title, content) =>
     `Buatkan meta description (maks 155 karakter) untuk artikel berita hukum berikut. Judul: ${title}. Konten: ${content.slice(0, 1000)}`,
+  image_caption: (title, content) =>
+    `Buatkan caption/judul foto singkat (maks 100 karakter, bahasa Indonesia) yang cocok untuk gambar utama artikel berita hukum berikut. Hanya berikan caption-nya saja tanpa penjelasan. Judul: ${title}. Konten: ${content.slice(0, 500)}`,
 };
 
 export async function POST(req: NextRequest) {

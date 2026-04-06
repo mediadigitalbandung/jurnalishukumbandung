@@ -1301,9 +1301,7 @@ export default function EditArticlePage() {
                 <div className="mt-2">
                   <input type="url" value={featuredImage} onChange={(e) => setFeaturedImage(e.target.value)} placeholder="Atau paste URL gambar" className="input w-full text-xs" />
                 </div>
-                {featuredImage && !featuredImage.startsWith("data:") && (
-                  <Image src={featuredImage} alt="Preview" width={800} height={400} className="mt-2 w-full rounded-[8px] object-cover" style={{ maxHeight: 200 }} unoptimized />
-                )}
+                {/* Caption removed duplikat preview — ImageUploader sudah punya */}
               </div>
               <div className="rounded-[12px] border border-border bg-surface p-5">
                 <div className="mb-2 flex items-center justify-between">

@@ -55,6 +55,7 @@ export default function NewArticlePage() {
   const [categoryId, setCategoryId] = useState("");
   const [tags, setTags] = useState("");
   const [featuredImage, setFeaturedImage] = useState("");
+  const [imageCaption, setImageCaption] = useState("");
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [sources, setSources] = useState<Source[]>([{ name: "", title: "", institution: "", url: "" }]);
@@ -658,15 +659,41 @@ export default function NewArticlePage() {
                 className="input w-full text-xs"
               />
             </div>
-            {featuredImage && !featuredImage.startsWith("data:") && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={featuredImage}
-                alt="Preview"
-                className="mt-2 w-full rounded-[8px] object-cover"
-                style={{ maxHeight: 200 }}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
+            {/* Caption / Judul Foto */}
+            {featuredImage && (
+              <div className="mt-3">
+                <label className="mb-1 block text-xs font-medium text-txt-secondary">
+                  Judul Foto / Caption
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={imageCaption}
+                    onChange={(e) => setImageCaption(e.target.value)}
+                    placeholder="Contoh: Suasana sidang di PN Bandung"
+                    className="input w-full text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!title) return;
+                      try {
+                        const res = await fetch("/api/ai/generate", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ feature: "image_caption", title, content: content || title }),
+                        });
+                        const data = await res.json();
+                        if (data.data?.result) setImageCaption(data.data.result);
+                      } catch {}
+                    }}
+                    className="shrink-0 rounded-lg bg-goto-green/10 px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green/20 transition-colors"
+                    title="Generate caption dengan AI"
+                  >
+                    AI
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
