@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#F0F1F3"/>
+  <g transform="translate(400, 200)">
+    <path d="M-48,-28 L-36,-28 L-28,-40 L28,-40 L36,-28 L48,-28 C52,-28 56,-24 56,-20 L56,24 C56,28 52,32 48,32 L-48,32 C-52,32 -56,28 -56,24 L-56,-20 C-56,-24 -52,-28 -48,-28 Z" fill="none" stroke="#9CA3AF" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="0" cy="0" r="14" fill="none" stroke="#9CA3AF" stroke-width="3"/>
+    <circle cx="36" cy="-18" r="3" fill="#9CA3AF"/>
+  </g>
+  <text x="400" y="285" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="#9CA3AF" text-anchor="middle" letter-spacing="0.5">Gambar Tidak Tersedia</text>
+</svg>

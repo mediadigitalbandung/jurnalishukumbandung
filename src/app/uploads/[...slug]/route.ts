@@ -30,11 +30,11 @@ export async function GET(
     });
   } catch (error) {
     // File not found or unreadable — serve placeholder
-    const placeholderPath = join(process.cwd(), "public", "logo-jhb.png");
+    const placeholderPath = join(process.cwd(), "public", "placeholder-image.svg");
     try {
       const placeholder = await readFile(placeholderPath);
       return new NextResponse(placeholder, {
-        headers: { "Content-Type": "image/png" },
+        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=3600" },
       });
     } catch {
       // If placeholder also missing, return minimal 1x1 transparent PNG
