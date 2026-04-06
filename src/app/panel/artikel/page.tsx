@@ -627,61 +627,58 @@ export default function ArtikelPage() {
                           {formatDate(article.publishedAt || article.createdAt)}
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-0.5">
                             {/* Quick Approve — for IN_REVIEW articles, editor/admin only */}
                             {isEditor && article.status === "IN_REVIEW" && (
                               <button
                                 onClick={() => handleQuickApprove(article.id, article.title)}
-                                className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
-                                title="Setujui"
+                                className="rounded-lg p-2 text-blue-500 hover:bg-blue-50 transition-colors"
+                                title="Setujui artikel"
                               >
-                                Setujui
+                                <CheckCircle size={18} />
                               </button>
                             )}
                             {/* Quick Publish — for APPROVED articles, editor/admin only */}
                             {isEditor && article.status === "APPROVED" && (
                               <button
                                 onClick={() => handleQuickPublish(article.id, article.title)}
-                                className="rounded-full bg-goto-light px-2.5 py-1 text-xs font-medium text-goto-green hover:bg-goto-green/20 transition-colors"
-                                title="Publikasikan"
+                                className="rounded-lg p-2 text-goto-green hover:bg-goto-light transition-colors"
+                                title="Publikasikan artikel"
                               >
-                                Publish
+                                <ArrowDownCircle size={18} className="rotate-180" />
                               </button>
                             )}
                             {/* Takedown — for PUBLISHED articles, editor/admin only */}
                             {isEditor && article.status === "PUBLISHED" && (
                               <button
                                 onClick={() => handleTakedown(article.id, article.title)}
-                                className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                                title="Takedown"
+                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
+                                title="Takedown artikel"
                               >
-                                Takedown
+                                <ArrowDownCircle size={18} />
                               </button>
                             )}
                             <button
                               onClick={() => router.push(`/berita/${article.slug}`)}
-                              className="btn-ghost rounded p-2"
-                              title="Lihat"
-                              aria-label="Lihat artikel"
+                              className="rounded-lg p-2 text-txt-secondary hover:bg-surface-secondary hover:text-txt-primary transition-colors"
+                              title="Lihat artikel"
                             >
-                              <Eye size={16} />
+                              <Eye size={18} />
                             </button>
                             <button
                               onClick={() => router.push(`/panel/artikel/${article.id}/edit`)}
-                              className="btn-ghost rounded p-2"
-                              title="Edit"
-                              aria-label="Edit artikel"
+                              className="rounded-lg p-2 text-txt-secondary hover:bg-surface-secondary hover:text-txt-primary transition-colors"
+                              title="Edit artikel"
                             >
-                              <Edit size={16} />
+                              <Edit size={18} />
                             </button>
                             <button
                               onClick={() => handleDelete(article.id, article.title)}
                               disabled={deleting === article.id}
-                              className="btn-ghost rounded p-2 hover:text-red-500 disabled:opacity-50"
-                              title="Hapus"
-                              aria-label="Hapus artikel"
+                              className="rounded-lg p-2 text-txt-secondary hover:bg-red-50 hover:text-red-500 disabled:opacity-50 transition-colors"
+                              title="Hapus artikel"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         </td>
