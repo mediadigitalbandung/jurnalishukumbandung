@@ -54,9 +54,9 @@ function LoginContent() {
           <Image
             src="/logo-jhb.png"
             alt="Jurnalis Hukum Bandung"
-            width={48}
-            height={48}
-            className="mx-auto mb-4 rounded-full"
+            width={80}
+            height={80}
+            className="w-20 h-20 mx-auto mb-4 rounded-full"
           />
           <h1 className="text-xl font-bold text-txt-primary">
             Masuk ke Panel
