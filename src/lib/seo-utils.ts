@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jhb.kartawarta.com";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
 /* ── 1. Ping Google & Bing sitemap ─────────────────────────────── */
 
@@ -31,7 +31,7 @@ export async function submitUrlToGoogle(articleSlug: string) {
   // Also try IndexNow (Bing/Yandex instant indexing — free, no API key needed for basic)
   const indexNowResults = await Promise.allSettled([
     fetch(pingUrl).then((r) => ({ engine: "google-ping", status: r.status })),
-    fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(articleUrl)}&key=jhbkartawarta`).then((r) => ({ engine: "bing-indexnow", status: r.status })),
+    fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(articleUrl)}&key=jurnalishukumbandung`).then((r) => ({ engine: "bing-indexnow", status: r.status })),
   ]);
 
   return indexNowResults.map((r) =>

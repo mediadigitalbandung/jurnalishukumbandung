@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jhb.kartawarta.com";
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
   // Get recent published articles (last 30 days, Google News indexes last 30 days)
   const thirtyDaysAgo = new Date();
