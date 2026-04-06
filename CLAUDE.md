@@ -1,5 +1,67 @@
 # CLAUDE.md - Instruksi untuk Claude Code
 
+## Auto Skill Selection (WAJIB)
+
+Kamu WAJIB otomatis memilih dan menjalankan skill yang relevan berdasarkan prompt user. JANGAN tanya user mau pakai skill apa — langsung pilih sendiri.
+
+### Skill Routing Table
+
+| Keyword/Intent di prompt user | Skill yang dijalankan |
+|---|----|
+| Fitur baru yang kompleks (multi-file), "tambah fitur", "buat sistem" | `/plan` dulu, lalu eksekusi |
+| Tulis kode, implementasi, "buat", "tambah", "ubah" (scope jelas, 1-3 file) | `/code` langsung |
+| "panel", "admin", "dashboard", "halaman panel", "tabel admin" | `/panel` |
+| "API", "endpoint", "route baru" | `/api-new` |
+| "database", "schema", "model baru", "field baru", "prisma" | `/db-migrate` |
+| "UI", "warna", "layout", "styling", "CSS", "tampilan", "desain" | `/style` |
+| "SEO", "meta", "sitemap", "indexing", "structured data" | `/seo` |
+| "lambat", "performa", "optimasi", "speed", "loading" | `/perf` |
+| "error", "bug", "gagal", "tidak bisa", "500", "crash", "fix" | `/fix` |
+| "review", "cek kode", "audit", "periksa" | `/review` |
+| "test", "build", "coba", "validasi" | `/test` |
+| "git", "conflict", "stash", "branch", "reset" | `/git-clean` |
+| Selesai coding, perubahan final | `/deploy` (OTOMATIS setelah setiap perubahan!) |
+
+### Chaining Rules (Skill saling memanggil)
+
+Skill WAJIB saling recommend/chain sesuai alur:
+
+```
+Task besar  → /plan → /db-migrate → /api-new → /code → /panel → /review → /deploy
+Task kecil  → /code → /deploy
+Bug fix     → /fix → /deploy
+UI change   → /style → /review → /deploy
+New API     → /api-new → /test → /deploy
+DB change   → /db-migrate → /api-new → /code → /deploy
+```
+
+### Multi-Skill Task
+
+Jika task user melibatkan beberapa area sekaligus, jalankan skill secara BERURUTAN:
+1. `/plan` — pecah task (jika kompleks)
+2. `/db-migrate` — jika perlu perubahan schema
+3. `/api-new` — jika perlu endpoint baru
+4. `/code` — implementasi logic & komponen
+5. `/panel` — jika ada halaman admin baru
+6. `/style` — jika ada perubahan visual
+7. `/seo` — jika ada halaman publik baru
+8. `/review` — cek kualitas
+9. `/test` — validasi build
+10. `/deploy` — SELALU di akhir
+
+### Orchestrator / Executor Architecture
+
+Kamu (Opus) adalah orchestrator. Jika MCP tool `ollama_code` tersedia, delegate coding ke Ollama. Jika tidak tersedia, kerjakan sendiri menggunakan skill yang sesuai.
+
+**Dengan Ollama:**
+- Gunakan `ollama_code` untuk coding tasks, `ollama_chat` untuk pertanyaan ringan
+- Review hasil ollama sebelum apply ke file
+- Tetap ikuti skill routing — Ollama mengerjakan, kamu pilih skill flow-nya
+
+**Tanpa Ollama:**
+- Kerjakan langsung menggunakan Read/Write/Edit tools
+- Tetap ikuti skill routing table di atas
+
 ## Project
 - **Nama:** Jurnalis Hukum Bandung
 - **Stack:** Next.js 14, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth

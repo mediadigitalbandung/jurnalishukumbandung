@@ -45,6 +45,8 @@ interface StatsItem {
   value: string;
   icon: React.ElementType;
   color: string;
+  cardBg: string;
+  borderColor: string;
 }
 
 import { CREATOR_ROLES, EDITOR_ROLES } from "@/lib/roles";
@@ -767,13 +769,13 @@ export default function DashboardPage() {
             .reduce((sum, a) => sum + (a.viewCount || 0), 0);
 
           setStats([
-            { label: "Total Artikel", value: formatNumber(totalArticles), icon: FileText, color: "text-blue-500 bg-blue-50" },
-            { label: "Total Tayangan", value: formatNumber(totalViews), icon: Eye, color: "text-goto-green bg-goto-light" },
-            { label: "Menunggu Review", value: pendingReview.toString(), icon: Clock, color: "text-yellow-500 bg-yellow-50" },
-            { label: "Dipublikasi", value: formatNumber(published), icon: CheckCircle, color: "text-goto-green bg-goto-light" },
-            { label: "Dijadwalkan", value: scheduled.toString(), icon: CalendarClock, color: "text-blue-500 bg-blue-50" },
-            { label: "Laporan Masuk", value: reportsPending.toString(), icon: AlertTriangle, color: "text-red-500 bg-red-50" },
-            { label: "Tayangan Hari Ini", value: formatNumber(todayViews), icon: TrendingUp, color: "text-purple-500 bg-purple-50" },
+            { label: "Total Artikel", value: formatNumber(totalArticles), icon: FileText, color: "text-blue-500 bg-blue-50", cardBg: "bg-blue-50/40", borderColor: "border-l-blue-500" },
+            { label: "Total Tayangan", value: formatNumber(totalViews), icon: Eye, color: "text-goto-green bg-goto-light", cardBg: "bg-emerald-50/40", borderColor: "border-l-goto-green" },
+            { label: "Menunggu Review", value: pendingReview.toString(), icon: Clock, color: "text-yellow-500 bg-yellow-50", cardBg: "bg-amber-50/40", borderColor: "border-l-yellow-500" },
+            { label: "Dipublikasi", value: formatNumber(published), icon: CheckCircle, color: "text-goto-green bg-goto-light", cardBg: "bg-emerald-50/40", borderColor: "border-l-goto-green" },
+            { label: "Dijadwalkan", value: scheduled.toString(), icon: CalendarClock, color: "text-blue-500 bg-blue-50", cardBg: "bg-indigo-50/40", borderColor: "border-l-indigo-500" },
+            { label: "Laporan Masuk", value: reportsPending.toString(), icon: AlertTriangle, color: "text-red-500 bg-red-50", cardBg: "bg-red-50/40", borderColor: "border-l-red-500" },
+            { label: "Tayangan Hari Ini", value: formatNumber(todayViews), icon: TrendingUp, color: "text-purple-500 bg-purple-50", cardBg: "bg-purple-50/40", borderColor: "border-l-purple-500" },
           ]);
 
           const sorted = [...fetchedArticles].sort(
@@ -831,10 +833,10 @@ export default function DashboardPage() {
           const myPublished = fetchedArticles.filter((a) => a.status === "PUBLISHED").length;
 
           setStats([
-            { label: "Artikel Saya", value: formatNumber(myTotal), icon: FileText, color: "text-blue-500 bg-blue-50" },
-            { label: "Draf Saya", value: myDrafts.toString(), icon: FileText, color: "text-surface-tertiary bg-surface-secondary" },
-            { label: "Menunggu Review", value: myPendingReview.toString(), icon: Clock, color: "text-yellow-500 bg-yellow-50" },
-            { label: "Dipublikasi", value: formatNumber(myPublished), icon: CheckCircle, color: "text-goto-green bg-goto-light" },
+            { label: "Artikel Saya", value: formatNumber(myTotal), icon: FileText, color: "text-blue-500 bg-blue-50", cardBg: "bg-blue-50/40", borderColor: "border-l-blue-500" },
+            { label: "Draf Saya", value: myDrafts.toString(), icon: FileText, color: "text-surface-tertiary bg-surface-secondary", cardBg: "bg-gray-50/40", borderColor: "border-l-gray-400" },
+            { label: "Menunggu Review", value: myPendingReview.toString(), icon: Clock, color: "text-yellow-500 bg-yellow-50", cardBg: "bg-amber-50/40", borderColor: "border-l-yellow-500" },
+            { label: "Dipublikasi", value: formatNumber(myPublished), icon: CheckCircle, color: "text-goto-green bg-goto-light", cardBg: "bg-emerald-50/40", borderColor: "border-l-goto-green" },
           ]);
 
           // Recent: my articles sorted by createdAt
@@ -878,10 +880,10 @@ export default function DashboardPage() {
           const totalArticles = fetchedArticles.length;
 
           setStats([
-            { label: "Antrean Review", value: reviewQueue.toString(), icon: Clock, color: "text-yellow-500 bg-yellow-50" },
-            { label: "Disetujui Hari Ini", value: approvedToday.toString(), icon: CheckCircle, color: "text-goto-green bg-goto-light" },
-            { label: "Ditolak", value: rejected.toString(), icon: XCircle, color: "text-red-500 bg-red-50" },
-            { label: "Total Artikel", value: formatNumber(totalArticles), icon: FileText, color: "text-blue-500 bg-blue-50" },
+            { label: "Antrean Review", value: reviewQueue.toString(), icon: Clock, color: "text-yellow-500 bg-yellow-50", cardBg: "bg-amber-50/40", borderColor: "border-l-yellow-500" },
+            { label: "Disetujui Hari Ini", value: approvedToday.toString(), icon: CheckCircle, color: "text-goto-green bg-goto-light", cardBg: "bg-emerald-50/40", borderColor: "border-l-goto-green" },
+            { label: "Ditolak", value: rejected.toString(), icon: XCircle, color: "text-red-500 bg-red-50", cardBg: "bg-red-50/40", borderColor: "border-l-red-500" },
+            { label: "Total Artikel", value: formatNumber(totalArticles), icon: FileText, color: "text-blue-500 bg-blue-50", cardBg: "bg-blue-50/40", borderColor: "border-l-blue-500" },
           ]);
 
           // Recent: IN_REVIEW first, then by createdAt
@@ -985,7 +987,7 @@ export default function DashboardPage() {
           return (
             <div
               key={stat.label}
-              className="rounded-[12px] border border-border bg-surface p-3 sm:p-4 shadow-card overflow-hidden"
+              className={`rounded-[12px] border border-border border-l-[3px] ${stat.borderColor} ${stat.cardBg} p-3 sm:p-4 shadow-card overflow-hidden transition-all hover:shadow-md`}
             >
               <div className={`inline-flex rounded-[12px] p-1.5 sm:p-2 ${stat.color}`}>
                 <Icon size={16} />
