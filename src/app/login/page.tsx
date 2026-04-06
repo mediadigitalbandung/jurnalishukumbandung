@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 function LoginContent() {
@@ -50,9 +51,13 @@ function LoginContent() {
       <div className="w-full max-w-sm rounded-[12px] border border-border bg-surface p-5 sm:p-8 shadow-card">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-goto-green">
-            <span className="text-lg font-bold text-white">JH</span>
-          </div>
+          <Image
+            src="/logo-jhb.png"
+            alt="Jurnalis Hukum Bandung"
+            width={48}
+            height={48}
+            className="mx-auto mb-4 rounded-full"
+          />
           <h1 className="text-xl font-bold text-txt-primary">
             Masuk ke Panel
           </h1>
