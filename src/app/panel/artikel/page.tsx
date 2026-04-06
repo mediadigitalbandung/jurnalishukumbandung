@@ -285,6 +285,63 @@ export default function ArtikelPage() {
     }
   }
 
+  async function handleQuickPublish(id: string, title: string) {
+    const ok = await confirm({ message: `Publikasikan artikel "${title}"?`, variant: "default", title: "Konfirmasi Publikasi" });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PUBLISHED" }),
+      });
+      if (!res.ok) throw new Error("Gagal mempublikasikan");
+      success("Artikel berhasil dipublikasikan!");
+      fetchArticles();
+    } catch {
+      showError("Gagal mempublikasikan artikel.");
+    }
+  }
+
+  async function handleQuickApprove(id: string, title: string) {
+    const ok = await confirm({ message: `Setujui artikel "${title}"?`, variant: "default", title: "Konfirmasi Persetujuan" });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "APPROVED" }),
+      });
+      if (!res.ok) throw new Error("Gagal menyetujui");
+      success("Artikel berhasil disetujui!");
+      fetchArticles();
+    } catch {
+      showError("Gagal menyetujui artikel.");
+    }
+  }
+
+  async function handleBulkPublish() {
+    const ok = await confirm({ message: `Publikasikan ${selectedIds.size} artikel yang dipilih?`, variant: "default", title: "Konfirmasi" });
+    if (!ok) return;
+    setBulkProcessing(true);
+    try {
+      const ids = Array.from(selectedIds);
+      await Promise.all(ids.map((id) =>
+        fetch(`/api/articles/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "PUBLISHED" }),
+        })
+      ));
+      success(`${ids.length} artikel berhasil dipublikasikan.`);
+      setSelectedIds(new Set());
+      fetchArticles();
+    } catch {
+      showError("Gagal mempublikasikan beberapa artikel.");
+    } finally {
+      setBulkProcessing(false);
+    }
+  }
+
   function handleExportCsv() {
     const headers = ["Judul", "Kategori", "Status", "Penulis", "Views", "Tanggal"];
     const rows = filtered.map((a) => [
@@ -327,6 +384,16 @@ export default function ArtikelPage() {
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full bg-surface-dark px-6 py-3 shadow-lg border border-white/10">
           <span className="text-sm text-white">{selectedIds.size} dipilih</span>
+          {isEditor && (
+            <button
+              onClick={handleBulkPublish}
+              disabled={bulkProcessing}
+              className="text-sm font-medium text-goto-green hover:text-green-300 disabled:opacity-50"
+              aria-label="Publikasikan artikel terpilih"
+            >
+              Publish
+            </button>
+          )}
           <button
             onClick={handleBulkArchive}
             disabled={bulkProcessing}
@@ -502,6 +569,26 @@ export default function ArtikelPage() {
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {/* Quick Approve — for IN_REVIEW articles, editor/admin only */}
+                            {isEditor && article.status === "IN_REVIEW" && (
+                              <button
+                                onClick={() => handleQuickApprove(article.id, article.title)}
+                                className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                                title="Setujui"
+                              >
+                                Setujui
+                              </button>
+                            )}
+                            {/* Quick Publish — for APPROVED articles, editor/admin only */}
+                            {isEditor && article.status === "APPROVED" && (
+                              <button
+                                onClick={() => handleQuickPublish(article.id, article.title)}
+                                className="rounded-full bg-goto-light px-2.5 py-1 text-xs font-medium text-goto-green hover:bg-goto-green/20 transition-colors"
+                                title="Publikasikan"
+                              >
+                                Publish
+                              </button>
+                            )}
                             <button
                               onClick={() => router.push(`/berita/${article.slug}`)}
                               className="btn-ghost rounded p-2"
