@@ -955,14 +955,116 @@ export default function EditArticlePage() {
         )}
 
         {currentStatus === "IN_REVIEW" && (
-          <div className="mb-6 rounded-[12px] border border-yellow-300 bg-yellow-50 p-5">
+          <div className="mb-6 rounded-[12px] border-2 border-yellow-300 bg-yellow-50 p-5">
             <h3 className="flex items-center gap-2 text-base font-bold text-yellow-800">
               <MessageSquare size={18} />
-              Artikel Sedang Direview oleh Editor
+              Artikel Menunggu Review
             </h3>
             <p className="mt-1 text-sm text-yellow-600">
-              Editor: {existingReviewerName || "Belum ditugaskan"}
+              Editor yang ditugaskan: {existingReviewerName || "Belum ditugaskan"}
             </p>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Approve Card */}
+              <div
+                onClick={() => { setReviewChoice("approve"); setRejectNote(""); }}
+                className={`cursor-pointer rounded-[12px] border-2 p-4 transition-all ${
+                  reviewChoice === "approve"
+                    ? "border-goto-green bg-goto-green/5"
+                    : "border-border bg-white hover:border-goto-green/50"
+                } ${reviewChoice === "reject" ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <div className="flex items-center gap-2 text-goto-green font-bold">
+                  <CheckCircle size={20} />
+                  Setujui Artikel
+                </div>
+                <p className="mt-1 text-xs text-txt-secondary">Artikel memenuhi standar. Teruskan untuk publikasi.</p>
+                {reviewChoice === "approve" && (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-xs font-medium text-txt-secondary">
+                      Catatan (opsional)
+                    </label>
+                    <textarea
+                      value={approveNote}
+                      onChange={(e) => setApproveNote(e.target.value)}
+                      rows={2}
+                      placeholder="Catatan untuk penulis..."
+                      className="input w-full text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Reject Card */}
+              <div
+                onClick={() => { setReviewChoice("reject"); setApproveNote(""); }}
+                className={`cursor-pointer rounded-[12px] border-2 p-4 transition-all ${
+                  reviewChoice === "reject"
+                    ? "border-red-500 bg-red-500/5"
+                    : "border-border bg-white hover:border-red-300"
+                } ${reviewChoice === "approve" ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <div className="flex items-center gap-2 text-red-600 font-bold">
+                  <XCircle size={20} />
+                  Tolak Artikel
+                </div>
+                <p className="mt-1 text-xs text-txt-secondary">Artikel perlu diperbaiki. Kembalikan ke penulis dengan catatan.</p>
+                {reviewChoice === "reject" && (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-xs font-medium text-red-700">
+                      Alasan penolakan (wajib)
+                    </label>
+                    <textarea
+                      value={rejectNote}
+                      onChange={(e) => setRejectNote(e.target.value)}
+                      rows={2}
+                      placeholder="Jelaskan alasan penolakan..."
+                      className="input w-full text-sm border-red-200"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Reset choice */}
+            {reviewChoice && (
+              <button
+                onClick={() => { setReviewChoice(null); setApproveNote(""); setRejectNote(""); }}
+                className="mt-3 text-xs text-txt-muted hover:text-txt-secondary underline"
+              >
+                Reset pilihan
+              </button>
+            )}
+
+            {/* Submit button */}
+            {reviewChoice && (
+              <div className="mt-4">
+                <button
+                  onClick={reviewChoice === "approve" ? handleEditorApprove : handleEditorReject}
+                  disabled={saving || (reviewChoice === "reject" && !rejectNote.trim())}
+                  className={`flex items-center gap-1.5 rounded-[12px] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${
+                    reviewChoice === "approve"
+                      ? "bg-goto-green hover:bg-goto-dark"
+                      : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {reviewChoice === "approve" ? (
+                    <>
+                      <CheckCircle size={16} />
+                      Konfirmasi Setujui
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={16} />
+                      Konfirmasi Tolak
+                    </>
+                  )}
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
           </div>
         )}
 

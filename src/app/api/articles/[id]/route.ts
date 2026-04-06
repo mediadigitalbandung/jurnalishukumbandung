@@ -281,6 +281,33 @@ export async function PUT(
         return successResponse(updated);
       }
 
+      // Editor "Publish": APPROVED -> PUBLISHED (only by assigned editor)
+      if (data.status === "PUBLISHED" && article.status === "APPROVED") {
+        if (!isAssignedEditor) {
+          throw new ApiError("Hanya editor yang ditugaskan yang dapat mempublikasi artikel", 403);
+        }
+
+        await prisma.revision.create({
+          data: { articleId: article.id, title: article.title, content: article.content, changedBy: session.user.name || session.user.email },
+        });
+
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: { status: "PUBLISHED", verificationLabel: "VERIFIED", publishedAt: new Date(), scheduledAt: null },
+          include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
+        });
+
+        await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Editor mempublikasi artikel: ${article.title}`);
+        await notifyArticleStatusChange(article.id, article.title, "PUBLISHED", article.authorId);
+        const authorPub = await prisma.user.findUnique({ where: { id: article.authorId }, select: { email: true } });
+        if (authorPub) await sendArticlePublishedEmail(authorPub.email, article.title, updated.slug);
+
+        // SEO automation (non-blocking)
+        onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
+
+        return successResponse(updated);
+      }
+
       // Editor can only work on articles IN_REVIEW assigned to them
       if (article.status !== "IN_REVIEW") {
         throw new ApiError("Artikel tidak dalam status review", 403);
@@ -369,29 +396,6 @@ export async function PUT(
           await sendArticleRejectedEmail(authorForEmail.email, article.title, data.reviewNote || undefined);
         }
       }
-
-      return successResponse(updated);
-    }
-
-    // --- EDITOR publish: APPROVED -> PUBLISHED ---
-    if (isEditor && !isAdmin && data.status === "PUBLISHED" && article.status === "APPROVED") {
-      await prisma.revision.create({
-        data: { articleId: article.id, title: article.title, content: article.content, changedBy: session.user.name || session.user.email },
-      });
-
-      const updated = await prisma.article.update({
-        where: { id: params.id },
-        data: { status: "PUBLISHED", verificationLabel: "VERIFIED", publishedAt: new Date(), scheduledAt: null },
-        include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
-      });
-
-      await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Editor mempublikasi artikel: ${article.title}`);
-      await notifyArticleStatusChange(article.id, article.title, "PUBLISHED", article.authorId);
-      const authorPub = await prisma.user.findUnique({ where: { id: article.authorId }, select: { email: true } });
-      if (authorPub) await sendArticlePublishedEmail(authorPub.email, article.title, updated.slug);
-
-      // SEO automation (non-blocking)
-      onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
 
       return successResponse(updated);
     }

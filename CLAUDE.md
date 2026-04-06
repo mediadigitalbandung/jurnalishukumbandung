@@ -9,8 +9,9 @@
 
 ## Workflow: Auto Commit, Push & Deploy
 
-**PENTING:** Setiap kali selesai melakukan perubahan kode, WAJIB langsung:
+**PENTING:** Setiap kali selesai melakukan perubahan kode, WAJIB langsung jalankan `/deploy`.
 
+Atau manual:
 1. **Build** — `npx next build` untuk pastikan tidak ada error
 2. **Stage** — `git add` file yang berubah (jangan pakai `git add -A` jika ada `.env`)
 3. **Commit** — dengan pesan deskriptif dalam bahasa Inggris, format:
@@ -21,8 +22,18 @@
    - `docs:` untuk dokumentasi
    - Akhiri dengan `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
 4. **Push** — `git push origin master`
+5. **Deploy VPS** — `ssh root@145.79.15.99 "cd /var/www/jhb && git pull origin master && npm install && npm run build && pm2 restart jhb"`
 
 Jangan tunggu user minta commit/push — **langsung lakukan** setelah perubahan selesai dan build sukses.
+
+## VPS Deploy Info (JANGAN UBAH)
+- **VPS IP:** 145.79.15.99
+- **SSH:** `ssh root@145.79.15.99`
+- **App dir:** `/var/www/jhb` (BUKAN `/var/www/kartawarta`)
+- **PM2 process:** `jhb` (BUKAN `kartawarta`)
+- **Port:** 3001
+- **Domain:** jurnalishukumbandung.com
+- **Repo:** `origin` → `github.com/mediadigitalbandung/jurnalishukumbandung.git`
 
 ## Design System
 
