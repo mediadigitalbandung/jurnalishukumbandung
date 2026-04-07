@@ -53,10 +53,11 @@ function LoginContent() {
         <div className="mb-8 text-center">
           <Image
             src="/logo-jhb.png"
-            alt="Jurnalis Hukum Bandung"
+            alt="Logo Jurnalis Hukum Bandung"
             width={80}
             height={80}
             className="w-20 h-20 mx-auto mb-4 rounded-full"
+            priority
           />
           <h1 className="text-xl font-bold text-txt-primary">
             Masuk ke Panel
