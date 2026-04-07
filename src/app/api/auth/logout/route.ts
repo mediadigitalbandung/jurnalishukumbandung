@@ -7,11 +7,7 @@ export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     if (session?.user?.id) {
-      // Clear active session ID so another device can login
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { activeSessionId: null },
-      });
+      // Just acknowledge logout — multi-device sessions allowed
     }
     return NextResponse.json({ success: true });
   } catch {

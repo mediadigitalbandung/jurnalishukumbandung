@@ -63,16 +63,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email atau password salah");
         }
 
-        // Single-device login check — temporarily disabled
-        // if (user.activeSessionId) {
-        //   throw new Error("Akun Anda sedang online di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.");
-        // }
-
-        // Generate unique session ID and save to DB
-        const sessionId = crypto.randomUUID();
+        // Multi-device login: no session tracking, just update lastLoginAt
         await prisma.user.update({
           where: { id: user.id },
-          data: { activeSessionId: sessionId, lastLoginAt: new Date() },
+          data: { lastLoginAt: new Date() },
         });
 
         return {
@@ -81,7 +75,6 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           avatar: user.avatar,
-          sessionId,
         };
       },
     }),
@@ -94,22 +87,15 @@ export const authOptions: NextAuthOptions = {
         token.avatar = user.avatar;
         token.sessionId = user.sessionId;
       }
-      // Refresh role from DB and check session validity
-      if (token.id && token.sessionId) {
+      // Refresh role/name/avatar from DB
+      if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { role: true, name: true, avatar: true, isActive: true, activeSessionId: true },
+            select: { role: true, name: true, avatar: true, isActive: true },
           });
           if (!dbUser || !dbUser.isActive) {
             return { ...token, invalid: true };
-          }
-          // Check if another device tried to login (session mismatch)
-          if (dbUser.activeSessionId && dbUser.activeSessionId !== token.sessionId) {
-            // Mark that there was a login attempt from another device
-            token.loginAttempt = true;
-          } else {
-            token.loginAttempt = false;
           }
           token.role = dbUser.role;
           token.name = dbUser.name;
@@ -127,12 +113,7 @@ export const authOptions: NextAuthOptions = {
       session.user.id = token.id;
       session.user.role = token.role;
       session.user.avatar = token.avatar;
-      session.user.sessionId = token.sessionId;
       if (token.name) session.user.name = token.name as string;
-      // Pass login attempt warning to client
-      const sess = session as unknown as { loginAttempt?: boolean };
-      const tok = token as unknown as { loginAttempt?: boolean };
-      sess.loginAttempt = !!tok.loginAttempt;
       return session;
     },
   },
