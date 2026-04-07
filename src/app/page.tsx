@@ -126,7 +126,7 @@ const jadwalSidangData = [
 ];
 
 export default async function HomePage() {
-  const [articles, categories, trendingArticles, trendingTags, latestArticles] = await Promise.all([
+  const [articles, categories, trendingArticles, trendingTags, latestArticles, breakingLatest] = await Promise.all([
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
       include: { author: true, category: true },
@@ -156,13 +156,20 @@ export default async function HomePage() {
       orderBy: { publishedAt: "desc" },
       take: 8,
     }),
+    // Breaking News: 5 artikel terbaru berdasarkan createdAt (baru dibuat)
+    prisma.article.findMany({
+      where: { status: "PUBLISHED" },
+      include: { author: true, category: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
   ]);
 
   const headlineArticles = articles.slice(0, 5);
   const subHeadlines = articles.slice(5, 11);
-  const breakingArticles = articles.slice(11, 16);
+  const breakingArticles = breakingLatest; // Breaking News pakai query terpisah — selalu terbaru
   const terkiniArticles = latestArticles; // Berita Terkini pakai query terpisah — selalu terbaru
-  const restArticles = articles.slice(16);
+  const restArticles = articles.slice(11);
 
   // Ticker: trending tags with article count
   const tickerItems = trendingTags
