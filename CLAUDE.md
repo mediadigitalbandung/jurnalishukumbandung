@@ -49,18 +49,74 @@ Jika task user melibatkan beberapa area sekaligus, jalankan skill secara BERURUT
 9. `/test` — validasi build
 10. `/deploy` — SELALU di akhir
 
-### Orchestrator / Executor Architecture
+### Multi-Agent Architecture
 
-Kamu (Opus) adalah orchestrator. Jika MCP tool `ollama_code` tersedia, delegate coding ke Ollama. Jika tidak tersedia, kerjakan sendiri menggunakan skill yang sesuai.
+Kamu (Opus 4.6) adalah **orchestrator utama**. Delegate pekerjaan ke Sonnet 4.6 (built-in Agent) atau Qwen 3.6 (OpenRouter MCP) sesuai kompleksitas task.
 
-**Dengan Ollama:**
-- Gunakan `ollama_code` untuk coding tasks, `ollama_chat` untuk pertanyaan ringan
-- Review hasil ollama sebelum apply ke file
-- Tetap ikuti skill routing — Ollama mengerjakan, kamu pilih skill flow-nya
+#### Agent Roles — 3 Tier
 
-**Tanpa Ollama:**
-- Kerjakan langsung menggunakan Read/Write/Edit tools
-- Tetap ikuti skill routing table di atas
+| Role | Model | Cara Panggil | Kapan Digunakan |
+|---|---|---|---|
+| **Orchestrator** | Opus 4.6 | — (kamu sendiri) | Selalu — koordinasi semua task |
+| **Planner** | Opus 4.6 | — (kamu sendiri) | Task kompleks, arsitektur, breakdown |
+| **Researcher** | Opus 4.6 | — (kamu sendiri) | Cari info, analisis codebase, debugging rumit |
+| **Reviewer** | Sonnet 4.6 | `Agent(model:"sonnet")` | Review kode, cek quality, validasi logic |
+| **Executor (All)** | Qwen 3.6 | `qwen_code` | General coding, refactor, implementasi |
+| **Frontend Specialist** | Qwen 3.6 | `qwen_frontend` | React/Next.js components, Tailwind, UI |
+| **Backend Specialist** | Qwen 3.6 | `qwen_backend` | API routes, server logic, auth |
+| **Database Specialist** | Qwen 3.6 | `qwen_database` | Prisma schema, queries, migrations |
+| **Tester** | Qwen 3.6 | `qwen_test` | Tulis test, validasi, edge cases |
+| **Quick Chat** | Qwen 3.6 | `qwen_chat` | Pertanyaan teknis ringan |
+
+#### Task Routing
+
+```
+Task masuk → Opus analisis & plan:
+
+SEMUA CODING (sederhana maupun kompleks):
+  → Qwen 3.6 via MCP tool yang sesuai
+  → Sonnet 4.6 review hasil Qwen
+  → Opus: apply ke file jika approved
+
+PLANNING & RESEARCH:
+  → Opus 4.6 kerjakan sendiri
+
+REVIEW:
+  → Sonnet 4.6 via Agent(model:"sonnet")
+```
+
+#### Contoh Routing
+
+| Task | Executor | Reviewer |
+|---|---|---|
+| Ganti warna tombol | Qwen (`qwen_frontend`) | Sonnet |
+| Tambah field di schema | Qwen (`qwen_database`) | Sonnet |
+| Buat CRUD lengkap + API | Qwen (`qwen_code`) | Sonnet |
+| Refactor auth middleware | Qwen (`qwen_code`) | Sonnet |
+| Arsitektur baru | Opus (plan) → Qwen (code) | Sonnet |
+
+#### Workflow Rules
+
+1. **Planning & Research** — SELALU Opus 4.6
+2. **Semua Coding** — Qwen 3.6 via MCP (executor utama)
+3. **Review** — Sonnet 4.6 via Agent tool (reviewer utama)
+4. **Apply ke file** — Opus (orchestrator, setelah Sonnet approve)
+5. **Fallback** — Jika MCP/Agent tidak tersedia, Opus kerjakan sendiri
+
+#### Delegation Flow
+
+```
+User request
+  → Opus: analisis & plan
+  → Opus: baca file context yang diperlukan
+  → Qwen via qwen_* MCP tool (generate kode)
+  → Sonnet via Agent(model:"sonnet") (review kode Qwen)
+  → IF approved: Opus apply ke file
+  → IF rejected: Qwen regenerate dengan feedback Sonnet
+  → IF kompleks:
+      → Opus: kerjakan sendiri → apply
+  → Opus: /deploy
+```
 
 ## Project
 - **Nama:** Jurnalis Hukum Bandung

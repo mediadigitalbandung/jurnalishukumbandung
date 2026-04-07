@@ -29,12 +29,12 @@ export async function GET(
       headers: { "Content-Type": contentType },
     });
   } catch (error) {
-    // File not found or unreadable — serve placeholder
-    const placeholderPath = join(process.cwd(), "public", "placeholder-image.svg");
+    // File not found or unreadable — serve placeholder PNG
+    const placeholderPath = join(process.cwd(), "public", "placeholder-image.png");
     try {
       const placeholder = await readFile(placeholderPath);
       return new NextResponse(placeholder, {
-        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=3600" },
+        headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" },
       });
     } catch {
       // If placeholder also missing, return minimal 1x1 transparent PNG
