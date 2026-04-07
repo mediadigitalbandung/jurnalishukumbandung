@@ -31,12 +31,20 @@
     @apply mx-auto max-w-6xl px-5 sm:px-8 lg:px-8;
   }
 
-  /* When zoom-compensated, tighten the container and spacing */
+  /* When zoom-compensated, tighten everything proportionally */
   .zoom-compensated .container-main {
     max-width: calc(72rem * var(--zoom-compensate));
     padding-left: calc(1.25rem * var(--zoom-compensate));
     padding-right: calc(1.25rem * var(--zoom-compensate));
   }
+  .zoom-compensated .section-header { margin-bottom: calc(2rem * var(--zoom-compensate)); }
+  .zoom-compensated .section-title { font-size: calc(1.5rem * var(--zoom-compensate)); }
+  .zoom-compensated .card { border-radius: calc(12px * var(--zoom-compensate)); }
+  .zoom-compensated .badge { padding: calc(0.25rem * var(--zoom-compensate)) calc(0.75rem * var(--zoom-compensate)); font-size: calc(0.75rem * var(--zoom-compensate)); }
+  .zoom-compensated .btn-primary,
+  .zoom-compensated .btn-secondary { padding: calc(0.75rem * var(--zoom-compensate)) calc(1.5rem * var(--zoom-compensate)); font-size: calc(0.875rem * var(--zoom-compensate)); }
+  .zoom-compensated .input { padding: calc(0.75rem * var(--zoom-compensate)) calc(1rem * var(--zoom-compensate)); font-size: calc(0.875rem * var(--zoom-compensate)); }
+  .zoom-compensated .stat-number { font-size: calc(2.25rem * var(--zoom-compensate)); }
 
   /* Section headers */
   .section-header {

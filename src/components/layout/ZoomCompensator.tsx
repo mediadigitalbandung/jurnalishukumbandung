@@ -3,38 +3,33 @@
 import { useEffect } from "react";
 
 /**
- * ZoomCompensator detects browser zoom level and applies a CSS
- * custom property (--zoom-compensate) on \<html\> to reduce
- * the effective sizing when the user zooms in beyond 110%.
+ * ZoomCompensator detects browser zoom level and scales down
+ * the page proportionally so elements don't blow up at high zoom.
  *
- * At 100% zoom → --zoom-compensate: 1
- * At 125% zoom → --zoom-compensate: ~0.88
- * At 150% zoom → --zoom-compensate: ~0.78
- * At 175% zoom → --zoom-compensate: ~0.7
- * At 200% zoom → --zoom-compensate: ~0.65
- *
- * This allows the font-size on \<html\> to shrink proportionally,
- * keeping the layout more like the 100% view.
+ * At 100% zoom → no change
+ * At 125% zoom → font-size shrinks ~12%, layout stays compact
+ * At 150% zoom → font-size shrinks ~22%
+ * At 200% zoom → font-size shrinks ~35%
  */
 export default function ZoomCompensator() {
   useEffect(() => {
     function applyZoomCompensation() {
-      // Detect zoom ratio (works in most desktop browsers)
       const zoomRatio = Math.round((window.outerWidth / window.innerWidth) * 100) / 100;
 
-      // Only compensate when zoom > 110%
       if (zoomRatio > 1.1) {
-        // Damped compensation: don't fully counteract zoom, but soften it
-        // At 175% zoom (ratio=1.75): scale = 1 / (1 + (1.75-1)*0.55) ≈ 0.71
-        const compensate = 1 / (1 + (zoomRatio - 1) * 0.5);
-        document.documentElement.style.setProperty(
-          "--zoom-compensate",
-          compensate.toFixed(4)
-        );
-        document.documentElement.classList.add("zoom-compensated");
+        // More aggressive dampening: at 200% zoom, compensate = ~0.65
+        const compensate = 1 / (1 + (zoomRatio - 1) * 0.55);
+        const el = document.documentElement;
+        el.style.setProperty("--zoom-compensate", compensate.toFixed(4));
+        el.classList.add("zoom-compensated");
+
+        // Also cap the root font-size so rem-based sizing shrinks
+        el.style.fontSize = `${(16 * compensate).toFixed(2)}px`;
       } else {
-        document.documentElement.style.removeProperty("--zoom-compensate");
-        document.documentElement.classList.remove("zoom-compensated");
+        const el = document.documentElement;
+        el.style.removeProperty("--zoom-compensate");
+        el.style.removeProperty("font-size");
+        el.classList.remove("zoom-compensated");
       }
     }
 
