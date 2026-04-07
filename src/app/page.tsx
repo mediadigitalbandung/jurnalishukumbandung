@@ -192,7 +192,7 @@ export default async function HomePage() {
 
   // Berita Terkini: exclude yang sudah tampil di headline & breaking
   const usedIds = new Set([
-    ...breakingIds,
+    ...Array.from(breakingIds),
     ...headlineArticles.map((a: { id: string }) => a.id),
     ...subHeadlines.map((a: { id: string }) => a.id),
   ]);
