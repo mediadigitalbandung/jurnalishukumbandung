@@ -126,7 +126,7 @@ const jadwalSidangData = [
 ];
 
 export default async function HomePage() {
-  const [articles, categories, trendingArticles, trendingTags, latestArticles, breakingLatest] = await Promise.all([
+  const [articles, categories, trendingArticles, trendingTags, latestArticles, breakingLatest, headlineData] = await Promise.all([
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
       include: { author: true, category: true },
@@ -149,27 +149,58 @@ export default async function HomePage() {
       orderBy: { articles: { _count: "desc" } },
       take: 15,
     }),
-    // Berita Terkini: 8 artikel terbaru berdasarkan publishedAt
+    // Berita Terkini: 8 artikel terbaru
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
       include: { author: true, category: true },
       orderBy: { publishedAt: "desc" },
       take: 8,
     }),
-    // Breaking News: 5 artikel terbaru berdasarkan createdAt (baru dibuat)
+    // Breaking News: artikel dalam 3 jam terakhir
     prisma.article.findMany({
-      where: { status: "PUBLISHED" },
+      where: {
+        status: "PUBLISHED",
+        publishedAt: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) },
+      },
       include: { author: true, category: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: { publishedAt: "desc" },
       take: 5,
+    }),
+    // Headline: artikel dalam 24 jam terakhir
+    prisma.article.findMany({
+      where: {
+        status: "PUBLISHED",
+        publishedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+      include: { author: true, category: true },
+      orderBy: { publishedAt: "desc" },
+      take: 10,
     }),
   ]);
 
-  const headlineArticles = articles.slice(0, 5);
-  const subHeadlines = articles.slice(5, 11);
-  const breakingArticles = breakingLatest; // Breaking News pakai query terpisah — selalu terbaru
-  const terkiniArticles = latestArticles; // Berita Terkini pakai query terpisah — selalu terbaru
-  const restArticles = articles.slice(11);
+  // Breaking News: artikel 3 jam terakhir (fallback ke 5 terbaru jika kosong)
+  const breakingRaw = breakingLatest.length > 0 ? breakingLatest : articles.slice(0, 5);
+  const breakingIds = new Set(breakingRaw.map((a: { id: string }) => a.id));
+
+  // Headline: artikel 24 jam terakhir, exclude yang sudah di breaking (fallback ke terbaru)
+  const headlineRaw = headlineData.length > 0 ? headlineData : articles.slice(0, 10);
+  const headlineFiltered = headlineRaw.filter((a: { id: string }) => !breakingIds.has(a.id));
+  const headlineArticles = headlineFiltered.slice(0, 5);
+  const subHeadlines = headlineFiltered.slice(5, 11);
+
+  const breakingArticles = breakingRaw;
+
+  // Berita Terkini: exclude yang sudah tampil di headline & breaking
+  const usedIds = new Set([
+    ...breakingIds,
+    ...headlineArticles.map((a: { id: string }) => a.id),
+    ...subHeadlines.map((a: { id: string }) => a.id),
+  ]);
+  const terkiniArticles = latestArticles.filter((a: { id: string }) => !usedIds.has(a.id)).length >= 4
+    ? latestArticles.filter((a: { id: string }) => !usedIds.has(a.id))
+    : latestArticles;
+
+  const restArticles = articles.filter((a: { id: string }) => !usedIds.has(a.id)).slice(0, 30);
 
   // Ticker: trending tags with article count
   const tickerItems = trendingTags
