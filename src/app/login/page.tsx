@@ -60,10 +60,10 @@ function LoginContent() {
             priority
           />
           <h1 className="text-xl font-bold text-txt-primary">
-            Masuk ke Panel
+            Masuk ke Panel Admin
           </h1>
           <p className="mt-2 text-sm text-txt-secondary">
-            Jurnalis Hukum Bandung
+            Portal Berita Hukum Bandung
           </p>
         </div>
 
