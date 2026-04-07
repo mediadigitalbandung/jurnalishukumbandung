@@ -179,28 +179,28 @@ export default async function HomePage() {
   ]);
 
   // Breaking News: artikel 3 jam terakhir (fallback ke 5 terbaru jika kosong)
-  const breakingRaw = breakingLatest.length > 0 ? breakingLatest : articles.slice(0, 5);
-  const breakingIds = new Set(breakingRaw.map((a: { id: string }) => a.id));
+  const breakingArticles = breakingLatest.length > 0 ? breakingLatest : articles.slice(0, 5);
+  const breakingIds = new Set(breakingArticles.map((a: { id: string }) => a.id));
 
-  // Headline: artikel 24 jam terakhir, exclude yang sudah di breaking (fallback ke terbaru)
-  const headlineRaw = headlineData.length > 0 ? headlineData : articles.slice(0, 10);
-  const headlineFiltered = headlineRaw.filter((a: { id: string }) => !breakingIds.has(a.id));
-  const headlineArticles = headlineFiltered.slice(0, 5);
-  const subHeadlines = headlineFiltered.slice(5, 11);
+  // Headline: artikel 24 jam terakhir untuk slider utama (fallback ke terbaru)
+  const headlinePool = headlineData.length >= 5 ? headlineData : articles.slice(0, 15);
+  const headlineArticles = headlinePool.filter((a: { id: string }) => !breakingIds.has(a.id)).slice(0, 5);
+  const headlineIds = new Set(headlineArticles.map((a: { id: string }) => a.id));
 
-  const breakingArticles = breakingRaw;
+  // Sub-headline: artikel berikutnya, exclude breaking & headline
+  const subExclude = new Set([...Array.from(breakingIds), ...Array.from(headlineIds)]);
+  const subHeadlines = articles.filter((a: { id: string }) => !subExclude.has(a.id)).slice(0, 6);
 
-  // Berita Terkini: exclude yang sudah tampil di headline & breaking
-  const usedIds = new Set([
+  // Berita Terkini: 8 terbaru, exclude yang sudah tampil
+  const allUsedIds = new Set([
     ...Array.from(breakingIds),
-    ...headlineArticles.map((a: { id: string }) => a.id),
+    ...Array.from(headlineIds),
     ...subHeadlines.map((a: { id: string }) => a.id),
   ]);
-  const terkiniArticles = latestArticles.filter((a: { id: string }) => !usedIds.has(a.id)).length >= 4
-    ? latestArticles.filter((a: { id: string }) => !usedIds.has(a.id))
-    : latestArticles;
+  const terkiniFiltered = latestArticles.filter((a: { id: string }) => !allUsedIds.has(a.id));
+  const terkiniArticles = terkiniFiltered.length >= 4 ? terkiniFiltered : latestArticles;
 
-  const restArticles = articles.filter((a: { id: string }) => !usedIds.has(a.id)).slice(0, 30);
+  const restArticles = articles.filter((a: { id: string }) => !allUsedIds.has(a.id)).slice(0, 30);
 
   // Ticker: trending tags with article count
   const tickerItems = trendingTags
