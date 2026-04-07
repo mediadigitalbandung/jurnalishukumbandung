@@ -515,27 +515,27 @@ export default function NewArticlePage() {
               <div className="space-y-3 border-t border-border px-6 py-4">
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <label className="text-sm font-medium text-txt-primary">SEO Title ({seoTitle.length}/70)</label>
+                    <label className="text-sm font-medium text-txt-primary">Judul SEO ({seoTitle.length}/150)</label>
                     <AiButton feature="seo_title" setter={setSeoTitle} />
                   </div>
                   <input
                     type="text"
                     value={seoTitle}
                     onChange={(e) => setSeoTitle(e.target.value)}
-                    maxLength={70}
+                    maxLength={150}
                     placeholder={title || "Judul untuk mesin pencari"}
                     className="input w-full text-sm"
                   />
                 </div>
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <label className="text-sm font-medium text-txt-primary">Meta Description ({seoDescription.length}/160)</label>
+                    <label className="text-sm font-medium text-txt-primary">Deskripsi SEO ({seoDescription.length}/300)</label>
                     <AiButton feature="meta_description" setter={setSeoDescription} />
                   </div>
                   <textarea
                     value={seoDescription}
                     onChange={(e) => setSeoDescription(e.target.value)}
-                    maxLength={160}
+                    maxLength={300}
                     rows={2}
                     placeholder="Deskripsi singkat untuk hasil pencarian"
                     className="input w-full text-sm"
