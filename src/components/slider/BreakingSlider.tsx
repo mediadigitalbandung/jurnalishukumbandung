@@ -94,7 +94,7 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
                   className="object-cover"
                 />
               ) : (
-                <div className="h-full w-full bg-surface-dark" />
+                <Image src="/placeholder-image.png" alt="Placeholder" fill className="object-cover opacity-60" />
               )}
             </div>
 

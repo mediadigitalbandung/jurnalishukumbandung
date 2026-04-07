@@ -95,7 +95,7 @@ export default function PopularCarousel({ items }: PopularCarouselProps) {
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="h-full w-full bg-surface-tertiary" />
+                    <Image src="/placeholder-image.png" alt="Placeholder" fill className="object-cover opacity-60" />
                   )}
                   {/* Rank number overlay */}
                   <div className="absolute bottom-0 left-0 flex h-10 w-10 items-center justify-center bg-goto-green">

@@ -67,7 +67,7 @@ export default function ArticleCard({
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               />
             ) : (
-              <div className="h-full w-full bg-surface-secondary" />
+              <Image src="/placeholder-image.png" alt="Placeholder" fill className="object-cover opacity-60" />
             )}
           </div>
         </Link>

@@ -104,7 +104,7 @@ export default function SubHeadlineSlider({ items }: SubHeadlineSliderProps) {
                         className="object-cover"
                       />
                     ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-gray-700 to-gray-900" />
+                      <Image src="/placeholder-image.png" alt="Placeholder" fill className="object-cover opacity-60" />
                     )}
                   </div>
 

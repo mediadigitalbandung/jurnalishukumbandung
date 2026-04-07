@@ -104,7 +104,7 @@ export default function HeadlineSlider({ items }: HeadlineSliderProps) {
                     priority={i === 0}
                   />
                 ) : (
-                  <div className="h-full w-full bg-gradient-to-br from-surface-dark to-gray-800" />
+                  <Image src="/placeholder-image.png" alt="Placeholder" fill className="object-cover opacity-60" />
                 )}
               </div>
 
