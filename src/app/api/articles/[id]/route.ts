@@ -432,6 +432,64 @@ export async function PUT(
 
     // --- ADMIN (SUPER_ADMIN / EDITOR) ---
     if (isAdmin) {
+      // Admin: DRAFT → IN_REVIEW (kirim untuk review)
+      if (data.status === "IN_REVIEW" && article.status === "DRAFT") {
+        let assignedReviewerId: string | null = null;
+        const editors = await prisma.user.findMany({ where: { role: { in: ["EDITOR"] }, isActive: true }, select: { id: true } });
+        if (editors.length > 0) assignedReviewerId = editors[Math.floor(Math.random() * editors.length)].id;
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: { status: "IN_REVIEW", reviewedBy: assignedReviewerId, assignedEditorId: assignedReviewerId, verificationLabel: "UNVERIFIED" },
+          include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
+        });
+        await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin kirim untuk review: DRAFT → IN_REVIEW. Artikel: ${article.title}`);
+        return successResponse(updated);
+      }
+
+      // Admin: DRAFT → APPROVED (langsung setujui, skip review)
+      if (data.status === "APPROVED" && article.status === "DRAFT") {
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: { status: "APPROVED", verificationLabel: "VERIFIED", reviewedBy: session.user.id, reviewedAt: new Date() },
+          include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
+        });
+        await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung setujui: DRAFT → APPROVED. Artikel: ${article.title}`);
+        return successResponse(updated);
+      }
+
+      // Admin: DRAFT/IN_REVIEW → PUBLISHED (langsung publish, skip semua)
+      if (data.status === "PUBLISHED" && ["DRAFT", "IN_REVIEW"].includes(article.status)) {
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: { status: "PUBLISHED", verificationLabel: "VERIFIED", publishedAt: new Date(), reviewedBy: session.user.id, reviewedAt: new Date() },
+          include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
+        });
+        await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish: ${article.status} → PUBLISHED. Artikel: ${article.title}`);
+        return successResponse(updated);
+      }
+
+      // Admin: IN_REVIEW → PUBLISHED (langsung publish dari review)
+      if (data.status === "PUBLISHED" && article.status === "IN_REVIEW") {
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: { status: "PUBLISHED", verificationLabel: "VERIFIED", publishedAt: new Date(), reviewedBy: session.user.id, reviewedAt: new Date() },
+          include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
+        });
+        await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish dari review: IN_REVIEW → PUBLISHED. Artikel: ${article.title}`);
+        return successResponse(updated);
+      }
+
+      // Admin: rejected/any → DRAFT (kembalikan ke draf)
+      if (data.status === "DRAFT" && article.status !== "DRAFT") {
+        const updated = await prisma.article.update({
+          where: { id: params.id },
+          data: { status: "DRAFT", verificationLabel: "UNVERIFIED", reviewNote: data.reviewNote || "Dikembalikan ke draf oleh admin" },
+          include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
+        });
+        await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin kembalikan ke draf: ${article.status} → DRAFT. Artikel: ${article.title}`);
+        return successResponse(updated);
+      }
+
       // Admin "Kembalikan ke Editor": APPROVED -> IN_REVIEW
       if (data.status === "IN_REVIEW" && article.status === "APPROVED") {
         const updated = await prisma.article.update({

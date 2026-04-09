@@ -888,7 +888,7 @@ export default function EditArticlePage() {
               <button onClick={() => handleAdminStatusChange("APPROVED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-goto-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-goto-dark disabled:opacity-50">
                 <CheckCircle size={16} /> Langsung Setujui
               </button>
-              <button onClick={handleAdminPublish} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-goto-green px-5 py-2.5 text-sm font-semibold text-goto-green hover:bg-goto-50 disabled:opacity-50">
+              <button onClick={() => handleAdminStatusChange("PUBLISHED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-goto-green px-5 py-2.5 text-sm font-semibold text-goto-green hover:bg-goto-50 disabled:opacity-50">
                 <Upload size={16} /> Langsung Publish
               </button>
             </div>
@@ -907,7 +907,7 @@ export default function EditArticlePage() {
               <button onClick={() => handleAdminStatusChange("APPROVED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-goto-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-goto-dark disabled:opacity-50">
                 <CheckCircle size={16} /> Setujui
               </button>
-              <button onClick={handleAdminPublish} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-goto-green px-5 py-2.5 text-sm font-semibold text-goto-green hover:bg-goto-50 disabled:opacity-50">
+              <button onClick={() => handleAdminStatusChange("PUBLISHED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-goto-green px-5 py-2.5 text-sm font-semibold text-goto-green hover:bg-goto-50 disabled:opacity-50">
                 <Upload size={16} /> Langsung Publish
               </button>
               <button onClick={() => { setShowReturnNote(!showReturnNote); }} className="flex items-center gap-1.5 rounded-[12px] border border-red-300 bg-red-50 px-5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100">
