@@ -424,9 +424,9 @@ export default function KategoriPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-[12px] border border-border bg-surface shadow-card">
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[calc(100vh-300px)]">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="border-b border-border bg-surface-secondary text-left">
                       <th className="w-10 px-2 py-3.5"></th>
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
@@ -588,9 +588,9 @@ export default function KategoriPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-[12px] border border-border bg-surface shadow-card">
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[calc(100vh-300px)]">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="border-b border-border bg-surface-secondary text-left">
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
