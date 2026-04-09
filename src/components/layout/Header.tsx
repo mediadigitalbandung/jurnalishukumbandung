@@ -15,28 +15,45 @@ import {
   Bookmark,
 } from "lucide-react";
 
-const categoryNavMain = [
-  { name: "Terkini", href: "/" },
-  { name: "Hukum Pidana", href: "/kategori/hukum-pidana" },
-  { name: "Hukum Perdata", href: "/kategori/hukum-perdata" },
-  { name: "Tata Negara", href: "/kategori/hukum-tata-negara" },
-  { name: "HAM", href: "/kategori/ham" },
-  { name: "Hukum Bisnis", href: "/kategori/hukum-bisnis" },
-  { name: "Opini", href: "/kategori/opini" },
-  { name: "Daerah", href: "/kategori/berita-bandung" },
-];
-
-const categoryNavMore = [
-  { name: "Lingkungan", href: "/kategori/hukum-lingkungan" },
-  { name: "Ketenagakerjaan", href: "/kategori/ketenagakerjaan" },
-  { name: "Infografis", href: "/kategori/infografis" },
-  { name: "Hukum Administrasi", href: "/kategori/hukum-administrasi" },
+// Static nav items (selalu ada, bukan kategori)
+const staticNavExtra = [
   { name: "Koreksi & Klarifikasi", href: "/kode-etik" },
 ];
 
-// All mobile categories combined from main + more (no duplicates needed)
+interface CategoryNav {
+  name: string;
+  href: string;
+}
 
 export default function Header() {
+  const [categories, setCategories] = useState<CategoryNav[]>([]);
+
+  // Fetch kategori dari database agar otomatis sync dengan panel admin
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((res) => {
+        const data = res.data || res;
+        if (Array.isArray(data)) {
+          const cats = data.map((c: { name: string; slug: string }) => ({
+            name: c.name,
+            href: `/kategori/${c.slug}`,
+          }));
+          setCategories(cats);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Split: 7 kategori pertama di nav utama, sisanya di "Lainnya"
+  const categoryNavMain: CategoryNav[] = [
+    { name: "Terkini", href: "/" },
+    ...categories.slice(0, 7),
+  ];
+  const categoryNavMore: CategoryNav[] = [
+    ...categories.slice(7),
+    ...staticNavExtra,
+  ];
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
