@@ -123,6 +123,7 @@ export default function EditArticlePage() {
   const [articleAuthorId, setArticleAuthorId] = useState("");
   const [articleAuthorName, setArticleAuthorName] = useState("");
   const [articleCreatedAt, setArticleCreatedAt] = useState("");
+  const [articleSlug, setArticleSlug] = useState("");
 
   // Author/Editor selection state
   const [allUsers, setAllUsers] = useState<{id: string; name: string; role: string}[]>([]);
@@ -335,6 +336,7 @@ export default function EditArticlePage() {
       setArticleAuthorId(article.authorId || article.author?.id || "");
       setArticleAuthorName(article.author?.name || "");
       setArticleCreatedAt(article.createdAt || "");
+      setArticleSlug(article.slug || "");
       setSelectedAuthorId(article.authorId || article.author?.id || "");
       setSelectedEditorId(article.reviewedBy || article.assignedEditorId || "");
 
@@ -1044,11 +1046,23 @@ export default function EditArticlePage() {
         )}
 
         {currentStatus === "PUBLISHED" && (
-          <div className="mb-6 rounded-[12px] border border-goto-green/30 bg-goto-50 p-5">
+          <div className="mb-6 rounded-[12px] border-2 border-goto-green/30 bg-goto-50 p-5">
             <h3 className="flex items-center gap-2 text-base font-bold text-goto-dark">
               <CheckCircle size={18} />
               Artikel Sudah Dipublikasikan
             </h3>
+            <p className="mt-1 text-sm text-goto-green">Artikel ini sudah live dan bisa diakses publik.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a href={`/berita/${articleSlug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 rounded-[12px] bg-goto-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-goto-dark">
+                <Eye size={16} /> Lihat Artikel
+              </a>
+              <button onClick={() => handleAdminStatusChange("DRAFT")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-red-300 bg-red-50 px-5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                <XCircle size={16} /> Takedown (Kembali ke Draf)
+              </button>
+              <button onClick={() => handleAdminStatusChange("ARCHIVED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-yellow-300 bg-yellow-50 px-5 py-2.5 text-sm font-semibold text-yellow-700 hover:bg-yellow-100 disabled:opacity-50">
+                <Undo2 size={16} /> Arsipkan
+              </button>
+            </div>
           </div>
         )}
 
