@@ -20,16 +20,18 @@ jobs:
             git pull origin master
             npm install
 
-            # Migrasi role lama ke baru sebelum schema push
+            # Migrasi role lama ke baru SEBELUM schema push (pakai raw SQL via prisma)
             node -e "
-            const { Pool } = require('pg');
-            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            const { PrismaClient } = require('@prisma/client');
+            const p = new PrismaClient();
             (async () => {
-              await pool.query(\"UPDATE users SET role = 'EDITOR' WHERE role = 'CHIEF_EDITOR'\");
-              await pool.query(\"UPDATE users SET role = 'JOURNALIST' WHERE role = 'SENIOR_JOURNALIST'\");
-              console.log('Role migration done');
-              await pool.end();
-            })().catch(e => console.log('Role migration skipped:', e.message));
+              try {
+                await p.\$executeRawUnsafe(\"UPDATE users SET role = 'EDITOR' WHERE role = 'CHIEF_EDITOR'\");
+                await p.\$executeRawUnsafe(\"UPDATE users SET role = 'JOURNALIST' WHERE role = 'SENIOR_JOURNALIST'\");
+                console.log('Role migration done');
+              } catch(e) { console.log('Migration note:', e.message); }
+              await p.\$disconnect();
+            })();
             " || true
 
             npx prisma db push --accept-data-loss
