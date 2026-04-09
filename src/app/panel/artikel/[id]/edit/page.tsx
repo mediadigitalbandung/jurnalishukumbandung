@@ -1203,6 +1203,21 @@ export default function EditArticlePage() {
                 <img src={featuredImage} alt="Featured" className="mt-1 max-h-48 rounded-[8px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               </div>
             )}
+
+            {/* Pengaturan SEO */}
+            <div className="rounded-[12px] border border-border bg-surface">
+              <div className="px-4 py-3 text-xs font-medium text-txt-muted uppercase tracking-wider border-b border-border">Pengaturan SEO</div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-txt-primary">Judul SEO ({seoTitle.length}/150)</label>
+                  <input type="text" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={150} placeholder={title || "Judul untuk mesin pencari"} className="input w-full text-sm mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-txt-primary">Deskripsi SEO ({seoDescription.length}/300)</label>
+                  <textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={300} rows={2} placeholder="Deskripsi singkat untuk hasil pencarian" className="input w-full text-sm mt-1" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
