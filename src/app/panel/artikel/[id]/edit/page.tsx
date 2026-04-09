@@ -609,6 +609,10 @@ export default function EditArticlePage() {
 
   // --- ADMIN HANDLERS ---
   const handleAdminPublish = async () => {
+    if (!seoTitle && !seoDescription) {
+      const lanjut = window.confirm("Pengaturan SEO belum diisi. Tetap publish?");
+      if (!lanjut) return;
+    }
     const ok = await confirm({ message: "Publikasi artikel ini sekarang? Artikel akan tampil di halaman publik.", variant: "warning", title: "Konfirmasi" });
     if (!ok) return;
     setSaving(true);
@@ -740,6 +744,11 @@ export default function EditArticlePage() {
   };
 
   const handleAdminStatusChange = async (newStatus: string) => {
+    // Peringatan jika SEO kosong saat mau publish atau setujui
+    if (["PUBLISHED", "APPROVED"].includes(newStatus) && !seoTitle && !seoDescription) {
+      const lanjut = window.confirm("Pengaturan SEO belum diisi. Tetap lanjutkan?");
+      if (!lanjut) return;
+    }
     setSaving(true);
     try {
       const body: Record<string, string> = { status: newStatus };
@@ -1205,16 +1214,32 @@ export default function EditArticlePage() {
             )}
 
             {/* Pengaturan SEO */}
-            <div className="rounded-[12px] border border-border bg-surface">
-              <div className="px-4 py-3 text-xs font-medium text-txt-muted uppercase tracking-wider border-b border-border">Pengaturan SEO</div>
+            <div className={`rounded-[12px] border-2 ${!seoTitle && !seoDescription ? "border-yellow-300 bg-yellow-50/50" : "border-border bg-surface"}`}>
+              <div className="px-4 py-3 text-xs font-medium text-txt-muted uppercase tracking-wider border-b border-border flex items-center justify-between">
+                <span>Pengaturan SEO</span>
+                {!seoTitle && !seoDescription && (
+                  <span className="text-yellow-600 text-xs font-semibold normal-case">⚠ Belum diisi</span>
+                )}
+              </div>
               <div className="p-4 space-y-3">
+                {!seoTitle && !seoDescription && (
+                  <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-700">
+                    Pengaturan SEO wajib diisi sebelum publish. Gunakan tombol Generate AI untuk mengisi otomatis.
+                  </div>
+                )}
                 <div>
-                  <label className="text-sm font-medium text-txt-primary">Judul SEO ({seoTitle.length}/150)</label>
-                  <input type="text" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={150} placeholder={title || "Judul untuk mesin pencari"} className="input w-full text-sm mt-1" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium text-txt-primary">Judul SEO ({seoTitle.length}/150)</label>
+                    <AiButton feature="seo_title" setter={setSeoTitle} />
+                  </div>
+                  <input type="text" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={150} placeholder={title || "Judul untuk mesin pencari"} className="input w-full text-sm" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-txt-primary">Deskripsi SEO ({seoDescription.length}/300)</label>
-                  <textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={300} rows={2} placeholder="Deskripsi singkat untuk hasil pencarian" className="input w-full text-sm mt-1" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium text-txt-primary">Deskripsi SEO ({seoDescription.length}/300)</label>
+                    <AiButton feature="meta_description" setter={setSeoDescription} />
+                  </div>
+                  <textarea value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={300} rows={2} placeholder="Deskripsi singkat untuk hasil pencarian" className="input w-full text-sm" />
                 </div>
               </div>
             </div>
