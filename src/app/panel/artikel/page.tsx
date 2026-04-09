@@ -585,9 +585,7 @@ export default function ArtikelPage() {
                         </td>
                         <td className="max-w-[200px] sm:max-w-[300px] px-3 sm:px-5 py-4">
                           <a
-                            href={`/berita/${article.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={`/panel/artikel/${article.id}/edit`}
                             className="truncate block font-medium text-txt-primary text-sm hover:text-goto-green transition-colors cursor-pointer"
                           >
                             {article.title}
