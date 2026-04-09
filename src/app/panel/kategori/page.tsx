@@ -110,6 +110,9 @@ export default function KategoriPage() {
   const [tagSubmitting, setTagSubmitting] = useState(false);
   const [tagDeleting, setTagDeleting] = useState<string | null>(null);
   const [tagForm, setTagForm] = useState({ name: "", slug: "" });
+  const [tagPage, setTagPage] = useState(1);
+  const [tagSearch, setTagSearch] = useState("");
+  const TAG_PER_PAGE = 20;
 
   // ── Drag & Drop state ──
   const dragItem = useRef<number | null>(null);
@@ -586,11 +589,29 @@ export default function KategoriPage() {
             <div className="rounded-[12px] border border-border bg-surface p-4 sm:p-8 text-center text-txt-secondary">
               Belum ada tag. Klik &quot;Tambah Tag&quot; untuk memulai.
             </div>
-          ) : (
+          ) : (() => {
+            const filtered = tagSearch
+              ? tags.filter((t) => t.name.toLowerCase().includes(tagSearch.toLowerCase()) || t.slug.toLowerCase().includes(tagSearch.toLowerCase()))
+              : tags;
+            const totalPages = Math.ceil(filtered.length / TAG_PER_PAGE);
+            const paginated = filtered.slice((tagPage - 1) * TAG_PER_PAGE, tagPage * TAG_PER_PAGE);
+            return (
+            <>
+            {/* Search bar */}
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={tagSearch}
+                onChange={(e) => { setTagSearch(e.target.value); setTagPage(1); }}
+                placeholder="Cari tag..."
+                className="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-txt-muted focus:border-goto-green focus:outline-none focus:ring-1 focus:ring-goto-green"
+              />
+              <span className="text-sm text-txt-secondary">{filtered.length} tag</span>
+            </div>
             <div className="overflow-hidden rounded-[12px] border border-border bg-surface shadow-card">
-              <div className="overflow-auto max-h-[calc(100vh-300px)]">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-10">
+                  <thead>
                     <tr className="border-b border-border bg-surface-secondary text-left">
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
@@ -599,7 +620,7 @@ export default function KategoriPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tags.map((tag) => (
+                    {paginated.map((tag) => (
                       <tr key={tag.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50 transition-colors">
                         <td className="px-5 py-4 text-sm font-medium text-txt-primary">{tag.name}</td>
                         <td className="px-5 py-4 text-sm text-txt-secondary">{tag.slug}</td>
@@ -635,7 +656,33 @@ export default function KategoriPage() {
                 </table>
               </div>
             </div>
-          )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-txt-secondary">
+                  Halaman {tagPage} dari {totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTagPage((p) => Math.max(1, p - 1))}
+                    disabled={tagPage <= 1}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-txt-secondary hover:bg-surface-secondary transition-colors disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setTagPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={tagPage >= totalPages}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-txt-secondary hover:bg-surface-secondary transition-colors disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
+            );
+          })()}
 
           {/* Tag modal */}
           <Modal
