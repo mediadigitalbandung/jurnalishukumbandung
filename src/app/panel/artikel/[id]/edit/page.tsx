@@ -112,7 +112,7 @@ export default function EditArticlePage() {
   const [sources, setSources] = useState<Source[]>([{ name: "", title: "", institution: "", url: "" }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [showSeo, setShowSeo] = useState(false);
+  const [showSeo, setShowSeo] = useState(true);
   const [showChecklist, setShowChecklist] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [currentStatus, setCurrentStatus] = useState("");

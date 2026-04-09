@@ -61,12 +61,15 @@ export default function NewArticlePage() {
   const [sources, setSources] = useState<Source[]>([{ name: "", title: "", institution: "", url: "" }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [showSeo, setShowSeo] = useState(false);
+  const [showSeo, setShowSeo] = useState(true);
   const [showChecklist, setShowChecklist] = useState(false);
   const [showAutosaveBanner, setShowAutosaveBanner] = useState(false);
   const [users, setUsers] = useState<{id: string; name: string; role: string}[]>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState("");
   const [selectedEditorId, setSelectedEditorId] = useState("");
+  const [savedArticleId, setSavedArticleId] = useState<string | null>(null);
+  const [savedStatus, setSavedStatus] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   // Word counter calculations
   const plainText = content.replace(/<[^>]*>/g, "").trim();
   const wordCount = plainText ? plainText.split(/\s+/).length : 0;
@@ -306,14 +309,122 @@ export default function NewArticlePage() {
 
       // Clear auto-save after successful creation
       try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
+      const articleId = data.data?.id;
       success(status === "IN_REVIEW" ? "Artikel berhasil dikirim untuk review" : "Artikel berhasil disimpan sebagai draf");
-      router.push("/panel/artikel");
-      router.refresh();
+
+      // Jika Editor/Super Admin, tampilkan panel aksi inline
+      if (articleId && EDITOR_ROLES.includes(userRole)) {
+        setSavedArticleId(articleId);
+        setSavedStatus(status === "IN_REVIEW" ? "IN_REVIEW" : "DRAFT");
+        setSaving(false);
+      } else {
+        router.push("/panel/artikel");
+        router.refresh();
+      }
     } catch {
       setError("Terjadi kesalahan. Silakan coba lagi.");
       setSaving(false);
     }
   };
+
+  // ── Workflow actions (approve/reject/publish) ──
+  async function handleWorkflowAction(newStatus: string, reviewNote?: string) {
+    if (!savedArticleId) return;
+    setActionLoading(true);
+    try {
+      const body: Record<string, string> = { status: newStatus };
+      if (reviewNote) body.reviewNote = reviewNote;
+      const res = await fetch(`/api/articles/${savedArticleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showError(data.error || "Gagal mengubah status");
+      } else {
+        setSavedStatus(newStatus);
+        const labels: Record<string, string> = {
+          APPROVED: "Artikel disetujui",
+          PUBLISHED: "Artikel berhasil dipublikasikan",
+          REJECTED: "Artikel ditolak dan dikembalikan ke draf",
+          IN_REVIEW: "Artikel dikembalikan ke review",
+          DRAFT: "Artikel dikembalikan ke draf",
+        };
+        success(labels[newStatus] || "Status berhasil diubah");
+      }
+    } catch {
+      showError("Terjadi kesalahan");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // ── Jika artikel sudah tersimpan, tampilkan panel aksi workflow ──
+  if (savedArticleId && savedStatus) {
+    return (
+      <div className="mx-auto max-w-xl py-12">
+        <div className="rounded-[12px] border border-border bg-surface p-6 sm:p-8 shadow-card text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-goto-green/10">
+            <svg className="h-7 w-7 text-goto-green" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          </div>
+          <h2 className="text-xl font-bold text-txt-primary mb-2">Artikel Berhasil Disimpan</h2>
+          <p className="text-sm text-txt-secondary mb-1">&ldquo;{title}&rdquo;</p>
+          <p className="text-sm font-medium text-txt-secondary mb-6">
+            Status: <span className="text-goto-green font-semibold">{savedStatus === "IN_REVIEW" ? "Menunggu Review" : savedStatus === "APPROVED" ? "Disetujui" : savedStatus === "PUBLISHED" ? "Dipublikasikan" : savedStatus === "REJECTED" ? "Ditolak" : "Draf"}</span>
+          </p>
+
+          <div className="flex flex-col gap-3">
+            {/* IN_REVIEW → Setujui atau Tolak */}
+            {savedStatus === "IN_REVIEW" && (
+              <>
+                <button onClick={() => handleWorkflowAction("APPROVED")} disabled={actionLoading} className="btn-primary w-full py-3">
+                  {actionLoading ? "Memproses..." : "Setujui Artikel"}
+                </button>
+                <button onClick={async () => {
+                  const note = prompt("Alasan penolakan (opsional):");
+                  await handleWorkflowAction("DRAFT", note || undefined);
+                }} disabled={actionLoading} className="w-full rounded-full border-2 border-red-500 px-6 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors">
+                  Tolak & Kembalikan ke Draf
+                </button>
+              </>
+            )}
+
+            {/* APPROVED → Publish atau Tolak */}
+            {savedStatus === "APPROVED" && (
+              <>
+                <button onClick={() => handleWorkflowAction("PUBLISHED")} disabled={actionLoading} className="btn-primary w-full py-3">
+                  {actionLoading ? "Memproses..." : "Publikasikan Sekarang"}
+                </button>
+                <button onClick={() => handleWorkflowAction("IN_REVIEW")} disabled={actionLoading} className="w-full rounded-full border-2 border-yellow-500 px-6 py-3 text-sm font-semibold text-yellow-600 hover:bg-yellow-50 transition-colors">
+                  Kembalikan ke Review
+                </button>
+              </>
+            )}
+
+            {/* PUBLISHED → Selesai */}
+            {savedStatus === "PUBLISHED" && (
+              <p className="text-sm text-goto-green font-medium">Artikel sudah live!</p>
+            )}
+
+            {/* REJECTED/DRAFT → Info */}
+            {savedStatus === "DRAFT" && (
+              <p className="text-sm text-txt-secondary">Artikel dikembalikan ke draf untuk direvisi penulis.</p>
+            )}
+
+            <div className="flex gap-3 mt-2">
+              <button onClick={() => router.push(`/panel/artikel/${savedArticleId}/edit`)} className="btn-secondary flex-1 py-2.5">
+                Edit Artikel
+              </button>
+              <button onClick={() => router.push("/panel/artikel")} className="btn-ghost flex-1 py-2.5">
+                Ke Daftar Artikel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl">
