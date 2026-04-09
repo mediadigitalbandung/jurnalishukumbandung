@@ -431,7 +431,7 @@ export default function ArtikelPage() {
 
       {/* Floating bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full bg-surface-dark px-6 py-3 shadow-lg border border-white/10">
+        <div className="sticky top-0 z-30 flex items-center justify-center gap-3 rounded-[12px] bg-surface-dark px-6 py-3 shadow-lg border border-white/10 mb-3">
           <span className="text-sm text-white">{selectedIds.size} dipilih</span>
           {isEditor && (
             <button
