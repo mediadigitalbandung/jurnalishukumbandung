@@ -739,6 +739,38 @@ export default function EditArticlePage() {
     }
   };
 
+  const handleAdminStatusChange = async (newStatus: string) => {
+    setSaving(true);
+    try {
+      const body: Record<string, string> = { status: newStatus };
+      if (newStatus === "DRAFT" && returnNote) body.reviewNote = returnNote;
+      const res = await fetch(`/api/articles/${articleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || "Gagal mengubah status");
+      } else {
+        const labels: Record<string, string> = {
+          IN_REVIEW: "Artikel dikirim untuk review",
+          APPROVED: "Artikel disetujui",
+          PUBLISHED: "Artikel dipublikasikan",
+          DRAFT: "Artikel ditolak dan dikembalikan ke draf",
+        };
+        success(labels[newStatus] || "Status berhasil diubah");
+        setCurrentStatus(newStatus);
+        setShowReturnNote(false);
+        setReturnNote("");
+      }
+    } catch {
+      setError("Terjadi kesalahan");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return <LoadingSkeleton />;
   }
@@ -841,7 +873,60 @@ export default function EditArticlePage() {
           </div>
         </div>
 
-        {/* Admin Actions */}
+        {/* Admin Actions — DRAFT: kirim ke review */}
+        {currentStatus === "DRAFT" && (
+          <div className="mb-6 rounded-[12px] border-2 border-blue-200 bg-blue-50 p-5">
+            <h3 className="flex items-center gap-2 text-base font-bold text-blue-700">
+              <Send size={18} />
+              Artikel Masih Draf
+            </h3>
+            <p className="mt-1 text-sm text-blue-600">Artikel ini masih draf. Anda bisa mengedit lalu mengirim untuk review atau langsung publish.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button onClick={() => handleAdminStatusChange("IN_REVIEW")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                <Send size={16} /> Kirim untuk Review
+              </button>
+              <button onClick={() => handleAdminStatusChange("APPROVED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-goto-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-goto-dark disabled:opacity-50">
+                <CheckCircle size={16} /> Langsung Setujui
+              </button>
+              <button onClick={handleAdminPublish} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-goto-green px-5 py-2.5 text-sm font-semibold text-goto-green hover:bg-goto-50 disabled:opacity-50">
+                <Upload size={16} /> Langsung Publish
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Admin Actions — IN_REVIEW: setujui atau tolak */}
+        {currentStatus === "IN_REVIEW" && (
+          <div className="mb-6 rounded-[12px] border-2 border-yellow-200 bg-yellow-50 p-5">
+            <h3 className="flex items-center gap-2 text-base font-bold text-yellow-700">
+              <MessageSquare size={18} />
+              Menunggu Review
+            </h3>
+            <p className="mt-1 text-sm text-yellow-600">Artikel ini menunggu review. Anda bisa menyetujui, menolak, atau langsung publish.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button onClick={() => handleAdminStatusChange("APPROVED")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-goto-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-goto-dark disabled:opacity-50">
+                <CheckCircle size={16} /> Setujui
+              </button>
+              <button onClick={handleAdminPublish} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-goto-green px-5 py-2.5 text-sm font-semibold text-goto-green hover:bg-goto-50 disabled:opacity-50">
+                <Upload size={16} /> Langsung Publish
+              </button>
+              <button onClick={() => { setShowReturnNote(!showReturnNote); }} className="flex items-center gap-1.5 rounded-[12px] border border-red-300 bg-red-50 px-5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100">
+                <XCircle size={16} /> Tolak & Kembalikan ke Draf
+              </button>
+            </div>
+            {showReturnNote && (
+              <div className="mt-3 rounded-[12px] border border-red-200 bg-red-50 p-4">
+                <label className="mb-2 block text-sm font-medium text-red-800">Alasan penolakan</label>
+                <textarea value={returnNote} onChange={(e) => setReturnNote(e.target.value)} rows={2} placeholder="Tulis alasan penolakan..." className="input w-full text-sm" />
+                <button onClick={() => handleAdminStatusChange("DRAFT")} disabled={saving} className="mt-2 rounded-[12px] bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+                  {saving ? "Memproses..." : "Konfirmasi Tolak"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Admin Actions — APPROVED */}
         {currentStatus === "APPROVED" && (
           <div className="mb-6 rounded-[12px] border-2 border-goto-green/30 bg-goto-50 p-5">
             <h3 className="flex items-center gap-2 text-base font-bold text-goto-dark">
