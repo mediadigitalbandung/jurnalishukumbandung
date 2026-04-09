@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef, FormEvent } from "react";
 import { useSession } from "next-auth/react";
-import { Plus, Edit, Trash2, Tag, FolderOpen, X } from "lucide-react";
+import { Plus, Edit, Trash2, Tag, FolderOpen, X, GripVertical } from "lucide-react";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
@@ -110,6 +110,54 @@ export default function KategoriPage() {
   const [tagSubmitting, setTagSubmitting] = useState(false);
   const [tagDeleting, setTagDeleting] = useState<string | null>(null);
   const [tagForm, setTagForm] = useState({ name: "", slug: "" });
+
+  // ── Drag & Drop state ──
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function handleDragStart(index: number) {
+    dragItem.current = index;
+    setIsDragging(true);
+  }
+
+  function handleDragEnter(index: number) {
+    dragOverItem.current = index;
+  }
+
+  async function handleDragEnd() {
+    setIsDragging(false);
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    if (dragItem.current === dragOverItem.current) return;
+
+    const reordered = [...categories];
+    const [removed] = reordered.splice(dragItem.current, 1);
+    reordered.splice(dragOverItem.current, 0, removed);
+
+    // Update order values
+    const updated = reordered.map((cat, i) => ({ ...cat, order: i }));
+    setCategories(updated);
+
+    dragItem.current = null;
+    dragOverItem.current = null;
+
+    // Save new order to database
+    try {
+      await Promise.all(
+        updated.map((cat, i) =>
+          fetch(`/api/categories/${cat.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: cat.name, slug: cat.slug, order: i }),
+          })
+        )
+      );
+      showFeedback("success", "Urutan kategori berhasil diperbarui");
+    } catch {
+      showFeedback("error", "Gagal menyimpan urutan");
+      fetchCategories();
+    }
+  }
 
   const isAllowed =
     session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "CHIEF_EDITOR";
@@ -380,6 +428,7 @@ export default function KategoriPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-secondary text-left">
+                      <th className="w-10 px-2 py-3.5"></th>
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
                       <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
                       <th className="hidden px-5 py-3.5 text-sm font-medium text-txt-secondary md:table-cell">Deskripsi</th>
@@ -389,14 +438,29 @@ export default function KategoriPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {categories.map((cat) => (
-                      <tr key={cat.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50 transition-colors">
+                    {categories.map((cat, index) => (
+                      <tr
+                        key={cat.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragEnter={() => handleDragEnter(index)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={(e) => e.preventDefault()}
+                        className={`border-b border-border last:border-0 transition-colors cursor-grab active:cursor-grabbing ${
+                          isDragging && dragItem.current === index
+                            ? "opacity-50 bg-goto-green/5"
+                            : "hover:bg-surface-secondary/50"
+                        }`}
+                      >
+                        <td className="px-2 py-4 text-center">
+                          <GripVertical size={16} className="text-txt-muted mx-auto" />
+                        </td>
                         <td className="px-5 py-4 text-sm font-medium text-txt-primary">{cat.name}</td>
                         <td className="px-5 py-4 text-sm text-txt-secondary">{cat.slug}</td>
                         <td className="hidden px-5 py-4 text-sm text-txt-secondary md:table-cell">
                           {cat.description ? (cat.description.length > 40 ? cat.description.slice(0, 40) + "..." : cat.description) : "-"}
                         </td>
-                        <td className="px-5 py-4 text-center text-sm text-txt-secondary">{cat.order}</td>
+                        <td className="px-5 py-4 text-center text-sm text-txt-secondary">{index}</td>
                         <td className="px-5 py-4 text-center">
                           <span className="inline-flex items-center rounded-full bg-goto-green/10 px-3 py-0.5 text-sm font-medium text-goto-green">
                             {cat._count.articles}
