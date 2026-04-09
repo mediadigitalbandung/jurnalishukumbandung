@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
     const role = session.user.role;
-    const isEditor = ["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"].includes(role);
+    const isEditor = ["SUPER_ADMIN", "EDITOR"].includes(role);
 
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 // PATCH /api/reports — update report status (editor+)
 export async function PATCH(request: NextRequest) {
   try {
-    await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"]);
+    await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const body = await request.json();
     const data = updateReportSchema.parse(body);

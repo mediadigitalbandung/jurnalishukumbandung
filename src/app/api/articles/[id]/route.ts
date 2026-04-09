@@ -98,7 +98,7 @@ export async function PUT(
 
     const isOwner = article.authorId === session.user.id;
     const isEditor = canApproveArticles(session.user.role);
-    const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "CHIEF_EDITOR";
+    const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "EDITOR";
     const isAssignedEditor = isEditor && article.reviewedBy === session.user.id;
 
     if (!isOwner && !isEditor) {
@@ -157,7 +157,7 @@ export async function PUT(
       if (data.status === "IN_REVIEW" && !data.assignedEditorId) {
         const editors = await prisma.user.findMany({
           where: {
-            role: { in: ["EDITOR", "CHIEF_EDITOR"] },
+            role: { in: ["EDITOR"] },
             isActive: true,
           },
           select: { id: true },
@@ -430,7 +430,7 @@ export async function PUT(
       return successResponse(updated);
     }
 
-    // --- ADMIN (SUPER_ADMIN / CHIEF_EDITOR) ---
+    // --- ADMIN (SUPER_ADMIN / EDITOR) ---
     if (isAdmin) {
       // Admin "Kembalikan ke Editor": APPROVED -> IN_REVIEW
       if (data.status === "IN_REVIEW" && article.status === "APPROVED") {
@@ -711,7 +711,7 @@ export async function PATCH(
 ) {
   try {
     const session = await requireAuth();
-    const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "CHIEF_EDITOR";
+    const isAdmin = session.user.role === "SUPER_ADMIN" || session.user.role === "EDITOR";
 
     if (!isAdmin) {
       throw new ApiError("Hanya admin/chief editor yang dapat menugaskan editor", 403);
@@ -739,7 +739,7 @@ export async function PATCH(
         throw new ApiError("User tidak ditemukan", 404);
       }
 
-      if (!["EDITOR", "CHIEF_EDITOR"].includes(editor.role)) {
+      if (!["EDITOR"].includes(editor.role)) {
         throw new ApiError("User yang ditugaskan harus memiliki role Editor atau Chief Editor", 400);
       }
 

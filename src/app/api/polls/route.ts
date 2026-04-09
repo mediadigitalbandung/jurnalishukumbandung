@@ -57,7 +57,7 @@ const createSchema = z.object({
 // POST /api/polls — admin only
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const body = await request.json();
     const data = createSchema.parse(body);
 

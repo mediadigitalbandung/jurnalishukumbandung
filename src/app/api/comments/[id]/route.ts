@@ -7,7 +7,7 @@ import {
   ApiError,
 } from "@/lib/api-utils";
 
-const ALLOWED_ROLES = ["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"] as const;
+const ALLOWED_ROLES = ["SUPER_ADMIN", "EDITOR"] as const;
 
 // PUT /api/comments/:id — approve/reject (admin/editor only)
 export async function PUT(

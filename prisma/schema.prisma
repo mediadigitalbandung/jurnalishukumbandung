@@ -9,9 +9,7 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
-  CHIEF_EDITOR
   EDITOR
-  SENIOR_JOURNALIST
   JOURNALIST
   CONTRIBUTOR
 }

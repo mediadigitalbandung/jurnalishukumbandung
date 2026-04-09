@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const isAdmin =
       session?.user?.role === "SUPER_ADMIN" ||
-      session?.user?.role === "CHIEF_EDITOR";
+      session?.user?.role === "EDITOR";
 
     const now = new Date();
 
@@ -55,7 +55,7 @@ const createAdSchema = z.object({
 // POST /api/ads
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const body = await request.json();
     const data = createAdSchema.parse(body);
 

@@ -130,19 +130,17 @@ export const authOptions: NextAuthOptions = {
 
 const EDITOR_ROLES: Role[] = [
   "SUPER_ADMIN",
-  "CHIEF_EDITOR",
   "EDITOR",
 ];
 
 const WRITER_ROLES: Role[] = [
   ...EDITOR_ROLES,
-  "SENIOR_JOURNALIST",
   "JOURNALIST",
   "CONTRIBUTOR",
 ];
 
 export function canPublishDirectly(role: Role): boolean {
-  return role === "SUPER_ADMIN" || role === "CHIEF_EDITOR" || role === "EDITOR" || role === "SENIOR_JOURNALIST";
+  return role === "SUPER_ADMIN" || role === "EDITOR" || role === "JOURNALIST";
 }
 
 export function canApproveArticles(role: Role): boolean {
@@ -158,5 +156,5 @@ export function canManageUsers(role: Role): boolean {
 }
 
 export function canManageAds(role: Role): boolean {
-  return role === "SUPER_ADMIN" || role === "CHIEF_EDITOR";
+  return role === "SUPER_ADMIN" || role === "EDITOR";
 }

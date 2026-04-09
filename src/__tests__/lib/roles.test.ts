@@ -6,20 +6,20 @@ describe("Role Constants", () => {
     expect(EDITOR_ROLES).toContain("SUPER_ADMIN");
   });
 
-  it("EDITOR_ROLES includes CHIEF_EDITOR and EDITOR", () => {
-    expect(EDITOR_ROLES).toContain("CHIEF_EDITOR");
+  it("EDITOR_ROLES includes EDITOR and EDITOR", () => {
+    expect(EDITOR_ROLES).toContain("EDITOR");
     expect(EDITOR_ROLES).toContain("EDITOR");
   });
 
   it("CREATOR_ROLES includes all content creators", () => {
     expect(CREATOR_ROLES).toContain("JOURNALIST");
-    expect(CREATOR_ROLES).toContain("SENIOR_JOURNALIST");
+    expect(CREATOR_ROLES).toContain("JOURNALIST");
     expect(CREATOR_ROLES).toContain("CONTRIBUTOR");
   });
 
   it("CREATOR_ROLES does not include editor roles", () => {
     expect(CREATOR_ROLES).not.toContain("SUPER_ADMIN");
-    expect(CREATOR_ROLES).not.toContain("CHIEF_EDITOR");
+    expect(CREATOR_ROLES).not.toContain("EDITOR");
     expect(CREATOR_ROLES).not.toContain("EDITOR");
   });
 
@@ -31,15 +31,15 @@ describe("Role Constants", () => {
     expect(ADMIN_ROLES).toEqual(["SUPER_ADMIN"]);
   });
 
-  it("MANAGEMENT_ROLES contains SUPER_ADMIN and CHIEF_EDITOR", () => {
-    expect(MANAGEMENT_ROLES).toEqual(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+  it("MANAGEMENT_ROLES contains SUPER_ADMIN and EDITOR", () => {
+    expect(MANAGEMENT_ROLES).toEqual(["SUPER_ADMIN", "EDITOR"]);
   });
 
   it("CAN_SUBMIT_REVIEW includes editors and senior journalists", () => {
     expect(CAN_SUBMIT_REVIEW).toContain("SUPER_ADMIN");
-    expect(CAN_SUBMIT_REVIEW).toContain("CHIEF_EDITOR");
     expect(CAN_SUBMIT_REVIEW).toContain("EDITOR");
-    expect(CAN_SUBMIT_REVIEW).toContain("SENIOR_JOURNALIST");
+    expect(CAN_SUBMIT_REVIEW).toContain("EDITOR");
+    expect(CAN_SUBMIT_REVIEW).toContain("JOURNALIST");
     expect(CAN_SUBMIT_REVIEW).toContain("JOURNALIST");
     expect(CAN_SUBMIT_REVIEW).not.toContain("CONTRIBUTOR");
   });

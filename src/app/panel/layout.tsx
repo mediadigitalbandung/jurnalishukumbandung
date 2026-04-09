@@ -39,7 +39,7 @@ interface MenuItem {
   href: string;
   icon: React.ElementType;
   superAdminOnly?: boolean; // Only SUPER_ADMIN
-  adminOnly?: boolean;      // SUPER_ADMIN + CHIEF_EDITOR
+  adminOnly?: boolean;      // SUPER_ADMIN + EDITOR
   editorOnly?: boolean;     // EDITOR roles
 }
 
@@ -112,7 +112,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
 
   const userRole = session?.user?.role || "";
   const isSuperAdmin = userRole === "SUPER_ADMIN";
-  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "CHIEF_EDITOR";
+  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "EDITOR";
   const isEditor = EDITOR_ROLES.includes(userRole);
 
   const fetchNotifications = useCallback(async () => {

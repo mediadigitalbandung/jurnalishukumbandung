@@ -25,7 +25,7 @@ const createTagSchema = z.object({
 // POST /api/tags
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const body = await request.json();
     const data = createTagSchema.parse(body);
 
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/tags
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         email: "editor@jurnalishukumbandung.com",
         password: editorPassword,
         name: "Editor Kepala",
-        role: "CHIEF_EDITOR",
+        role: "EDITOR",
         bio: "Editor Kepala Jurnalis Hukum Bandung",
       },
     });
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         email: "jurnalis@jurnalishukumbandung.com",
         password: journalistPassword,
         name: "Ahmad Fauzi",
-        role: "SENIOR_JOURNALIST",
+        role: "JOURNALIST",
         bio: "Jurnalis hukum senior dengan pengalaman 10 tahun meliput berita hukum di wilayah Bandung.",
         specialization: "Hukum Tata Negara",
       },

@@ -8,7 +8,7 @@ import { successResponse, errorResponse, requireRole, requireAuth, logAudit, Api
 export async function GET() {
   try {
     const session = await requireAuth();
-    const isAdmin = ["SUPER_ADMIN", "CHIEF_EDITOR"].includes(session.user.role);
+    const isAdmin = ["SUPER_ADMIN", "EDITOR"].includes(session.user.role);
 
     if (isAdmin) {
       // Admin: return full data
@@ -51,7 +51,7 @@ const createUserSchema = z.object({
   email: z.string().email("Email tidak valid"),
   password: z.string().min(8, "Password minimal 8 karakter"),
   name: z.string().min(2).max(100),
-  role: z.enum(["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR", "SENIOR_JOURNALIST", "JOURNALIST", "CONTRIBUTOR"]),
+  role: z.enum(["SUPER_ADMIN", "EDITOR", "JOURNALIST", "CONTRIBUTOR"]),
   specialization: z.string().optional(),
   bio: z.string().optional(),
   phone: z.string().optional(),

@@ -14,7 +14,7 @@ const updateUserSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  role: z.enum(["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR", "SENIOR_JOURNALIST", "JOURNALIST", "CONTRIBUTOR"]).optional(),
+  role: z.enum(["SUPER_ADMIN", "EDITOR", "JOURNALIST", "CONTRIBUTOR"]).optional(),
   specialization: z.string().max(100).optional(),
   avatar: z.string().url().nullable().optional(),
   isActive: z.boolean().optional(),
@@ -26,7 +26,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const user = await prisma.user.findUnique({
       where: { id: params.id },

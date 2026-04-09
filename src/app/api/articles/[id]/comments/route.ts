@@ -34,7 +34,7 @@ export async function GET(
     // Check if user is admin/editor
     const session = await getSession();
     const role = session?.user?.role || "";
-    const isEditorOrAdmin = ["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"].includes(role);
+    const isEditorOrAdmin = ["SUPER_ADMIN", "EDITOR"].includes(role);
 
     const comments = await prisma.comment.findMany({
       where: {

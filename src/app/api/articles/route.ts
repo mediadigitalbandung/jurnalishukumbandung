@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     if (finalStatus === "IN_REVIEW" && !assignedReviewerId) {
       const editors = await prisma.user.findMany({
         where: {
-          role: { in: ["EDITOR", "CHIEF_EDITOR"] },
+          role: { in: ["EDITOR"] },
           isActive: true,
         },
         select: { id: true },

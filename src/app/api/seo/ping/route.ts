@@ -3,7 +3,7 @@ import { pingSitemapToSearchEngines, submitUrlToGoogle } from "@/lib/seo-utils";
 
 export async function POST(req: Request) {
   try {
-    await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const body = await req.json().catch(() => ({}));
     const { slug } = body as { slug?: string };

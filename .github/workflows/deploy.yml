@@ -19,6 +19,20 @@ jobs:
             cd /var/www/jhb
             git pull origin master
             npm install
+
+            # Migrasi role lama ke baru sebelum schema push
+            node -e "
+            const { Pool } = require('pg');
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            (async () => {
+              await pool.query(\"UPDATE users SET role = 'EDITOR' WHERE role = 'CHIEF_EDITOR'\");
+              await pool.query(\"UPDATE users SET role = 'JOURNALIST' WHERE role = 'SENIOR_JOURNALIST'\");
+              console.log('Role migration done');
+              await pool.end();
+            })().catch(e => console.log('Role migration skipped:', e.message));
+            " || true
+
+            npx prisma db push --accept-data-loss
             rm -rf .next node_modules/.cache
             npx next build || { echo "Build failed, retrying..."; rm -rf .next; npx next build; }
             pm2 restart jhb

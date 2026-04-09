@@ -1747,7 +1747,7 @@ export default function EditArticlePage() {
                 >
                   <option value="">Saya sendiri</option>
                   {allUsers
-                    .filter(u => ["JOURNALIST", "SENIOR_JOURNALIST", "CONTRIBUTOR", "EDITOR", "CHIEF_EDITOR", "SUPER_ADMIN"].includes(u.role))
+                    .filter(u => ["JOURNALIST", "CONTRIBUTOR", "EDITOR", "SUPER_ADMIN"].includes(u.role))
                     .map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({roleLabelsMap[u.role] || u.role})</option>
                     ))
@@ -1767,7 +1767,7 @@ export default function EditArticlePage() {
               >
                 <option value="">Otomatis (random)</option>
                 {allUsers
-                  .filter(u => ["EDITOR", "CHIEF_EDITOR", "SUPER_ADMIN"].includes(u.role))
+                  .filter(u => ["EDITOR", "SUPER_ADMIN"].includes(u.role))
                   .map(u => (
                     <option key={u.id} value={u.id}>{u.name} ({roleLabelsMap[u.role] || u.role})</option>
                   ))

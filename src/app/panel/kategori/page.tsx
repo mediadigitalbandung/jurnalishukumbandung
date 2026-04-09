@@ -163,7 +163,7 @@ export default function KategoriPage() {
   }
 
   const isAllowed =
-    session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "CHIEF_EDITOR";
+    session?.user?.role === "SUPER_ADMIN" || session?.user?.role === "EDITOR";
 
   /* ── Fetch categories ── */
   const fetchCategories = useCallback(async () => {

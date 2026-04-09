@@ -76,7 +76,7 @@ export default function AIPage() {
     sessionStatus !== "loading" &&
     session &&
     userRole !== "SUPER_ADMIN" &&
-    userRole !== "CHIEF_EDITOR"
+    userRole !== "EDITOR"
   ) {
     redirect("/panel/dashboard");
   }

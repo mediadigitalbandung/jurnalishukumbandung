@@ -15,7 +15,7 @@ const updateSchema = z.object({
 // PUT /api/redaksi/:id
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const existing = await prisma.redaksiMember.findUnique({ where: { id: params.id } });
     if (!existing) throw new ApiError("Anggota redaksi tidak ditemukan", 404);
 
@@ -37,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // DELETE /api/redaksi/:id
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const existing = await prisma.redaksiMember.findUnique({ where: { id: params.id } });
     if (!existing) throw new ApiError("Anggota redaksi tidak ditemukan", 404);
 

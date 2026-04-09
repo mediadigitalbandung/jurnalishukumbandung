@@ -5,7 +5,7 @@ import { successResponse, errorResponse, requireRole } from "@/lib/api-utils";
 // GET /api/comments — list all comments with pagination (admin/editor only)
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"]);
+    await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));

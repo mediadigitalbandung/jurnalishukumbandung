@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     // Get DeepSeek API key
     const setting = await prisma.systemSetting.findUnique({

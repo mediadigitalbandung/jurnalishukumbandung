@@ -19,7 +19,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const report = await prisma.report.findUnique({
       where: { id: params.id },

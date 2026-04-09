@@ -161,7 +161,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     const session = await getServerSession(authOptions);
     const userRole = session?.user?.role || "";
     const isAuthor = session?.user?.id === article.authorId;
-    const hasAccess = isAuthor || ["SUPER_ADMIN", "CHIEF_EDITOR", "EDITOR"].includes(userRole);
+    const hasAccess = isAuthor || ["SUPER_ADMIN", "EDITOR"].includes(userRole);
 
     if (!hasAccess) {
       notFound();

@@ -1058,7 +1058,7 @@ export default function DashboardPage() {
                 </span>
               </Link>
             )}
-            {(isAdmin || userRole === "CHIEF_EDITOR") && (
+            {(isAdmin || userRole === "EDITOR") && (
               <>
                 <Link
                   href="/panel/pengguna"

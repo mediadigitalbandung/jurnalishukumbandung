@@ -34,9 +34,7 @@ interface UserOption {
 
 const roleLabels: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
-  CHIEF_EDITOR: "Pemimpin Redaksi",
   EDITOR: "Editor",
-  SENIOR_JOURNALIST: "Jurnalis Senior",
   JOURNALIST: "Jurnalis",
   CONTRIBUTOR: "Kontributor",
 };

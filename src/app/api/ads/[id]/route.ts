@@ -28,7 +28,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const ad = await prisma.ad.findUnique({
       where: { id: params.id },
@@ -70,7 +70,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
     const ad = await prisma.ad.findUnique({
       where: { id: params.id },

@@ -14,7 +14,7 @@ const updateSchema = z.object({
 // PUT /api/polls/:id
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const existing = await prisma.poll.findUnique({ where: { id: params.id } });
     if (!existing) throw new ApiError("Polling tidak ditemukan", 404);
 
@@ -32,7 +32,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // DELETE /api/polls/:id
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await requireRole(["SUPER_ADMIN", "CHIEF_EDITOR"]);
+    const session = await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const existing = await prisma.poll.findUnique({ where: { id: params.id } });
     if (!existing) throw new ApiError("Polling tidak ditemukan", 404);
 

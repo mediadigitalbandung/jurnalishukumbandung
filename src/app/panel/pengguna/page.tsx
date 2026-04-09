@@ -31,10 +31,8 @@ interface User {
 
 const roleLabels: Record<string, { label: string; color: string }> = {
   SUPER_ADMIN: { label: "Super Admin", color: "bg-red-50 text-red-600" },
-  CHIEF_EDITOR: { label: "Editor Kepala", color: "bg-purple-50 text-purple-600" },
   EDITOR: { label: "Editor", color: "bg-blue-50 text-blue-600" },
-  SENIOR_JOURNALIST: { label: "Jurnalis Senior", color: "bg-goto-light text-goto-green" },
-  JOURNALIST: { label: "Jurnalis", color: "bg-blue-50 text-blue-600" },
+  JOURNALIST: { label: "Jurnalis", color: "bg-goto-light text-goto-green" },
   CONTRIBUTOR: { label: "Kontributor", color: "bg-surface-tertiary text-txt-secondary" },
 };
 
@@ -238,13 +236,13 @@ export default function PenggunaPage() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedUsers = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  if (session && session.user.role !== "SUPER_ADMIN" && session.user.role !== "CHIEF_EDITOR") {
+  if (session && session.user.role !== "SUPER_ADMIN" && session.user.role !== "EDITOR") {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
         <ShieldAlert size={48} className="mb-4 text-red-400" />
         <h1 className="text-xl font-bold text-txt-primary">Akses Ditolak</h1>
         <p className="mt-2 text-base text-txt-secondary">
-          Halaman ini hanya dapat diakses oleh Super Admin atau Editor Kepala.
+          Halaman ini hanya dapat diakses oleh Super Admin.
         </p>
       </div>
     );
