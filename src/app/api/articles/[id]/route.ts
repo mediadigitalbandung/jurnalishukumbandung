@@ -432,8 +432,8 @@ export async function PUT(
 
     // --- ADMIN (SUPER_ADMIN / EDITOR) ---
     if (isAdmin) {
-      // Admin: DRAFT → IN_REVIEW (kirim untuk review)
-      if (data.status === "IN_REVIEW" && article.status === "DRAFT") {
+      // Admin: DRAFT/REJECTED → IN_REVIEW (kirim untuk review)
+      if (data.status === "IN_REVIEW" && ["DRAFT", "REJECTED"].includes(article.status)) {
         let assignedReviewerId: string | null = null;
         const editors = await prisma.user.findMany({ where: { role: { in: ["EDITOR"] }, isActive: true }, select: { id: true } });
         if (editors.length > 0) assignedReviewerId = editors[Math.floor(Math.random() * editors.length)].id;
@@ -446,8 +446,8 @@ export async function PUT(
         return successResponse(updated);
       }
 
-      // Admin: DRAFT → APPROVED (langsung setujui, skip review)
-      if (data.status === "APPROVED" && article.status === "DRAFT") {
+      // Admin: DRAFT/REJECTED → APPROVED (langsung setujui, skip review)
+      if (data.status === "APPROVED" && ["DRAFT", "REJECTED"].includes(article.status)) {
         const updated = await prisma.article.update({
           where: { id: params.id },
           data: { status: "APPROVED", verificationLabel: "VERIFIED", reviewedBy: session.user.id, reviewedAt: new Date() },
@@ -457,8 +457,8 @@ export async function PUT(
         return successResponse(updated);
       }
 
-      // Admin: DRAFT/IN_REVIEW → PUBLISHED (langsung publish, skip semua)
-      if (data.status === "PUBLISHED" && ["DRAFT", "IN_REVIEW"].includes(article.status)) {
+      // Admin: DRAFT/IN_REVIEW/REJECTED → PUBLISHED (langsung publish, skip semua)
+      if (data.status === "PUBLISHED" && ["DRAFT", "IN_REVIEW", "REJECTED"].includes(article.status)) {
         const updated = await prisma.article.update({
           where: { id: params.id },
           data: { status: "PUBLISHED", verificationLabel: "VERIFIED", publishedAt: new Date(), reviewedBy: session.user.id, reviewedAt: new Date() },

@@ -882,14 +882,18 @@ export default function EditArticlePage() {
           </div>
         </div>
 
-        {/* Admin Actions — DRAFT: kirim ke review */}
-        {currentStatus === "DRAFT" && (
+        {/* Admin Actions — DRAFT/REJECTED: kirim ke review */}
+        {(currentStatus === "DRAFT" || currentStatus === "REJECTED") && (
           <div className="mb-6 rounded-[12px] border-2 border-blue-200 bg-blue-50 p-5">
             <h3 className="flex items-center gap-2 text-base font-bold text-blue-700">
               <Send size={18} />
-              Artikel Masih Draf
+              {currentStatus === "REJECTED" ? "Artikel Ditolak" : "Artikel Masih Draf"}
             </h3>
-            <p className="mt-1 text-sm text-blue-600">Artikel ini masih draf. Anda bisa mengedit lalu mengirim untuk review atau langsung publish.</p>
+            <p className="mt-1 text-sm text-blue-600">
+              {currentStatus === "REJECTED"
+                ? "Artikel ini ditolak. Anda bisa mengedit, mengirim ulang untuk review, atau langsung publish."
+                : "Artikel ini masih draf. Anda bisa mengedit lalu mengirim untuk review atau langsung publish."}
+            </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <button onClick={() => handleAdminStatusChange("IN_REVIEW")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                 <Send size={16} /> Kirim untuk Review
