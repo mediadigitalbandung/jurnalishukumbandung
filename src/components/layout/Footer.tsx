@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { ShieldCheck } from "lucide-react";
 
 const footerLinks = {
   tentang: [
@@ -76,13 +77,20 @@ export default function Footer() {
 
         {/* Verifikasi Dewan Pers */}
         <div className="mt-8 border-t border-white/10 pt-6">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <p className="text-sm font-semibold text-white/80">
-              Telah diverifikasi oleh Dewan Pers
-            </p>
-            <p className="text-xs text-white/50">
-              Sertifikat Nomor 608/DP-Verifikasi/K/XI/2020
-            </p>
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-3 rounded-full border border-blue-400/20 bg-blue-500/10 px-5 py-2.5 backdrop-blur-sm">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                <ShieldCheck className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold leading-tight text-white">
+                  Terverifikasi Dewan Pers
+                </p>
+                <p className="text-xs leading-tight text-blue-200/70">
+                  Sertifikat No. 608/DP-Verifikasi/K/XI/2020
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
