@@ -34,7 +34,7 @@ import {
   Printer,
   StickyNote,
 } from "lucide-react";
-import ImageUploader from "@/components/editor/ImageUploader";
+// ImageUploader removed — images now inserted inline via RichTextEditor
 import { stripHtml, downloadTextFile, exportArticlePdf } from "@/lib/export-utils";
 
 const RichTextEditor = dynamic(
@@ -158,6 +158,12 @@ export default function EditArticlePage() {
   const charCount = plainText.length;
   const readTime = Math.max(1, Math.ceil(wordCount / 200));
 
+  // Auto-extract featured image from first image in content (if any)
+  useEffect(() => {
+    const match = content.match(/<img[^>]+src="([^"]+)"/);
+    if (match) setFeaturedImage(match[1]);
+  }, [content]);
+
   // Auto-save every 30 seconds (only when status is DRAFT)
   useEffect(() => {
     if (loading) return;
@@ -166,7 +172,7 @@ export default function EditArticlePage() {
     autosaveTimerRef.current = setInterval(() => {
       if (title.trim() || content.trim()) {
         try {
-          const draft = { title, content, categoryId, excerpt, tags, featuredImage, sources };
+          const draft = { title, content, categoryId, excerpt, tags, sources };
           localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
           setAutoSaveIndicator("Draft tersimpan otomatis");
           setTimeout(() => setAutoSaveIndicator(""), 3000);
@@ -179,7 +185,7 @@ export default function EditArticlePage() {
     return () => {
       if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
     };
-  }, [loading, currentStatus, title, content, categoryId, excerpt, tags, featuredImage, sources, AUTOSAVE_KEY]);
+  }, [loading, currentStatus, title, content, categoryId, excerpt, tags, sources, AUTOSAVE_KEY]);
 
   // Clear auto-save helper
   const clearAutosave = useCallback(() => {
@@ -1541,14 +1547,6 @@ export default function EditArticlePage() {
                 <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={3} className="input w-full" placeholder="Ringkasan singkat artikel" maxLength={500} />
               </div>
               <div className="rounded-[12px] border border-border bg-surface p-5">
-                <label className="mb-2 block text-sm font-medium text-txt-primary">Gambar Utama</label>
-                <ImageUploader onUpload={(url: string) => setFeaturedImage(url)} currentImage={featuredImage} />
-                <div className="mt-2">
-                  <input type="url" value={featuredImage} onChange={(e) => setFeaturedImage(e.target.value)} placeholder="Atau paste URL gambar" className="input w-full text-xs" />
-                </div>
-                {/* Caption removed duplikat preview — ImageUploader sudah punya */}
-              </div>
-              <div className="rounded-[12px] border border-border bg-surface p-5">
                 <div className="mb-2 flex items-center justify-between">
                   <label className="text-sm font-medium text-txt-primary">SEO Title</label>
                   <AiButton feature="seo_title" setter={setSeoTitle} />
@@ -1931,16 +1929,6 @@ export default function EditArticlePage() {
                 <AiButton feature="summary" setter={setExcerpt} />
               </div>
               <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={3} placeholder="Ringkasan singkat artikel" maxLength={500} className="input w-full" />
-            </div>
-            <div className="rounded-[12px] border border-border bg-surface p-6">
-              <label className="mb-2 block text-sm font-medium text-txt-primary">Gambar Utama</label>
-              <ImageUploader onUpload={(url: string) => setFeaturedImage(url)} currentImage={featuredImage} />
-              <div className="mt-2">
-                <input type="url" value={featuredImage} onChange={(e) => setFeaturedImage(e.target.value)} placeholder="Atau paste URL gambar" className="input w-full text-xs" />
-              </div>
-              {featuredImage && !featuredImage.startsWith("data:") && (
-                <Image src={featuredImage} alt="Preview" width={800} height={400} className="mt-2 w-full rounded-[8px] object-cover" style={{ maxHeight: 200 }} unoptimized />
-              )}
             </div>
             {/* Journalism Checklist */}
             <div className="rounded-[12px] border border-goto-green/20 bg-goto-50 p-4">

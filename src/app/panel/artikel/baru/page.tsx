@@ -19,7 +19,7 @@ import {
   TrendingUp,
   Lightbulb,
 } from "lucide-react";
-import ImageUploader from "@/components/editor/ImageUploader";
+// ImageUploader removed — images now inserted inline via RichTextEditor
 
 const RichTextEditor = dynamic(
   () => import("@/components/editor/RichTextEditor"),
@@ -55,7 +55,6 @@ export default function NewArticlePage() {
   const [categoryId, setCategoryId] = useState("");
   const [tags, setTags] = useState("");
   const [featuredImage, setFeaturedImage] = useState("");
-  const [imageCaption, setImageCaption] = useState("");
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [sources, setSources] = useState<Source[]>([{ name: "", title: "", institution: "", url: "" }]);
@@ -79,6 +78,12 @@ export default function NewArticlePage() {
 
   const AUTOSAVE_KEY = "autosave_draft_new";
 
+  // Auto-extract featured image from first image in content
+  useEffect(() => {
+    const match = content.match(/<img[^>]+src="([^"]+)"/);
+    setFeaturedImage(match ? match[1] : "");
+  }, [content]);
+
   // Check for auto-saved draft on mount
   useEffect(() => {
     try {
@@ -96,7 +101,7 @@ export default function NewArticlePage() {
     autosaveTimerRef.current = setInterval(() => {
       if (title.trim() || content.trim()) {
         try {
-          const draft = { title, content, categoryId, excerpt, tags, featuredImage, sources };
+          const draft = { title, content, categoryId, excerpt, tags, sources };
           localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
         } catch {
           // localStorage not available
@@ -107,7 +112,7 @@ export default function NewArticlePage() {
     return () => {
       if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
     };
-  }, [title, content, categoryId, excerpt, tags, featuredImage, sources]);
+  }, [title, content, categoryId, excerpt, tags, sources]);
 
   function loadAutosaveDraft() {
     try {
@@ -119,7 +124,6 @@ export default function NewArticlePage() {
         if (draft.categoryId) setCategoryId(draft.categoryId);
         if (draft.excerpt) setExcerpt(draft.excerpt);
         if (draft.tags) setTags(draft.tags);
-        if (draft.featuredImage) setFeaturedImage(draft.featuredImage);
         if (draft.sources) setSources(draft.sources);
       }
     } catch {
@@ -750,62 +754,6 @@ export default function NewArticlePage() {
               maxLength={500}
               className="input w-full"
             />
-          </div>
-
-          {/* Featured Image */}
-          <div className="rounded-[12px] border border-border bg-surface p-6">
-            <label className="mb-2 block text-sm font-medium text-txt-primary">
-              Gambar Utama
-            </label>
-            <ImageUploader
-              onUpload={(url: string) => setFeaturedImage(url)}
-              currentImage={featuredImage}
-            />
-            <div className="mt-2">
-              <input
-                type="url"
-                value={featuredImage}
-                onChange={(e) => setFeaturedImage(e.target.value)}
-                placeholder="Atau paste URL gambar"
-                className="input w-full text-xs"
-              />
-            </div>
-            {/* Caption / Judul Foto */}
-            {featuredImage && (
-              <div className="mt-3">
-                <label className="mb-1 block text-xs font-medium text-txt-secondary">
-                  Judul Foto / Caption
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={imageCaption}
-                    onChange={(e) => setImageCaption(e.target.value)}
-                    placeholder="Contoh: Suasana sidang di PN Bandung"
-                    className="input w-full text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!title) return;
-                      try {
-                        const res = await fetch("/api/ai/generate", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ feature: "image_caption", title, content: content || title }),
-                        });
-                        const data = await res.json();
-                        if (data.data?.result) setImageCaption(data.data.result);
-                      } catch {}
-                    }}
-                    className="shrink-0 rounded-lg bg-goto-green/10 px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green/20 transition-colors"
-                    title="Generate caption dengan AI"
-                  >
-                    AI
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Journalism Checklist */}

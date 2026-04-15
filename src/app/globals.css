@@ -211,6 +211,14 @@
 .article-content li { @apply text-txt-primary/80 leading-[1.8]; }
 .article-content a { @apply text-goto-green font-medium underline underline-offset-2 decoration-goto-green/30 hover:decoration-goto-green transition-colors; }
 .article-content img { @apply my-6 rounded-[12px]; }
+.article-content figure { @apply my-8; }
+.article-content figure img { @apply my-0 w-full rounded-[12px]; }
+.article-content figure figcaption {
+  @apply mt-2.5 text-center text-sm italic leading-relaxed text-txt-secondary;
+}
+.article-content figure figcaption .img-source {
+  @apply not-italic font-medium text-txt-muted;
+}
 .article-content table { @apply my-6 w-full border-collapse overflow-hidden rounded-[12px] border border-border; }
 .article-content th, .article-content td { @apply border border-border px-4 py-3 text-left text-sm; }
 .article-content th { @apply bg-surface-secondary font-semibold text-txt-primary; }

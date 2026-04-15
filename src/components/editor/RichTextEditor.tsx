@@ -3,7 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
+import LinkExt from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
@@ -29,16 +29,88 @@ import {
   Redo,
   Code,
   Minus,
+  Upload,
+  Images,
+  X,
+  Loader2,
+  ImagePlus,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCallback } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 
+/* ─── Custom Image extension with caption & source attributes ─── */
+const CustomImage = ImageExtension.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      "data-caption": {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute("data-caption"),
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs["data-caption"] ? { "data-caption": attrs["data-caption"] } : {},
+      },
+      "data-source": {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute("data-source"),
+        renderHTML: (attrs: Record<string, unknown>) =>
+          attrs["data-source"] ? { "data-source": attrs["data-source"] } : {},
+      },
+    };
+  },
+});
+
+/* ─── Image compression (WebP, max 1200px) ─── */
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_W = 1200;
+        let w = img.width,
+          h = img.height;
+        if (w > MAX_W) {
+          h = (h * MAX_W) / w;
+          w = MAX_W;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("No canvas"));
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("Blob failed"))),
+          "image/webp",
+          0.8
+        );
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ─── Types ─── */
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
 }
 
+interface MediaItem {
+  id: string;
+  filename: string;
+  url: string;
+  type: string;
+  size: number;
+  createdAt: string;
+}
+
+/* ─── Toolbar Button ─── */
 function ToolbarButton({
   onClick,
   active,
@@ -71,27 +143,39 @@ function ToolbarButton({
   );
 }
 
+/* ─── Main Component ─── */
 export default function RichTextEditor({
   content,
   onChange,
   placeholder = "Tulis artikel Anda di sini...",
 }: RichTextEditorProps) {
+  /* Modal state */
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"upload" | "library">("upload");
+  const [selectedUrl, setSelectedUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [caption, setCaption] = useState("");
+  const [source, setSource] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [mediaList, setMediaList] = useState<MediaItem[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline.configure({}),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: 'text-goto-green hover:underline' } }),
-      ImageExtension.configure({ inline: false }),
+      LinkExt.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: "text-goto-green hover:underline" },
+      }),
+      CustomImage.configure({ inline: false }),
       Youtube.configure({ width: 640, height: 360 }),
       Placeholder.configure({ placeholder }),
     ],
     content,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-    },
+    onUpdate: ({ editor: e }) => onChange(e.getHTML()),
     editorProps: {
       attributes: {
         class:
@@ -100,32 +184,115 @@ export default function RichTextEditor({
     },
   });
 
-  const addImage = useCallback(() => {
-    const url = window.prompt("Masukkan URL gambar:");
-    if (url && editor) {
-      editor.chain().focus().setImage({ src: url }).run();
+  /* ── Fetch media library ── */
+  const fetchMedia = useCallback(async () => {
+    setLoadingMedia(true);
+    try {
+      const res = await fetch("/api/media?limit=60");
+      const data = await res.json();
+      if (data.success) setMediaList(data.data || []);
+    } catch {
+      /* ignore */
     }
-  }, [editor]);
+    setLoadingMedia(false);
+  }, []);
 
+  useEffect(() => {
+    if (showImageModal && activeTab === "library") fetchMedia();
+  }, [showImageModal, activeTab, fetchMedia]);
+
+  /* ── Open modal (reset state) ── */
+  const openImageModal = useCallback(() => {
+    setSelectedUrl("");
+    setPreviewUrl("");
+    setCaption("");
+    setSource("");
+    setActiveTab("upload");
+    setShowImageModal(true);
+  }, []);
+
+  /* ── Handle file upload ── */
+  const handleFile = async (file: File) => {
+    if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+      alert("Format tidak didukung. Gunakan JPEG, PNG, atau WebP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Ukuran file terlalu besar (maks 10MB).");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      if (compressed.size > 2 * 1024 * 1024) {
+        alert("Gambar masih terlalu besar setelah kompresi.");
+        setUploading(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", compressed, `image-${Date.now()}.webp`);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (data.url) {
+        setSelectedUrl(data.url);
+        setPreviewUrl(data.url);
+
+        // Register in media library (fire & forget)
+        fetch("/api/media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            url: data.url,
+            type: "image/webp",
+            size: compressed.size,
+          }),
+        }).catch(() => {});
+      } else {
+        alert("Gagal mengupload gambar.");
+      }
+    } catch {
+      alert("Gagal mengupload gambar.");
+    }
+    setUploading(false);
+  };
+
+  /* ── Insert image into editor ── */
+  const insertImage = () => {
+    if (!selectedUrl || !editor) return;
+
+    const attrs = {
+      src: selectedUrl,
+      alt: caption || "",
+      "data-caption": caption || null,
+      "data-source": source || null,
+    };
+    // @ts-ignore — custom attributes from extended Image extension
+    editor.chain().focus().setImage(attrs).run();
+
+    setShowImageModal(false);
+  };
+
+  /* ── Other toolbar actions ── */
   const addLink = useCallback(() => {
     const url = window.prompt("Masukkan URL link:");
-    if (url && editor) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
+    if (url && editor) editor.chain().focus().setLink({ href: url }).run();
   }, [editor]);
 
   const addYoutube = useCallback(() => {
     const url = window.prompt("Masukkan URL video YouTube:");
-    if (url && editor) {
-      editor.chain().focus().setYoutubeVideo({ src: url }).run();
-    }
+    if (url && editor) editor.chain().focus().setYoutubeVideo({ src: url }).run();
   }, [editor]);
 
   if (!editor) return null;
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      {/* Toolbar */}
+      {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-2 py-1.5">
         {/* Text formatting */}
         <ToolbarButton
@@ -248,10 +415,14 @@ export default function RichTextEditor({
         <div className="mx-1 h-6 w-px bg-border" />
 
         {/* Media */}
-        <ToolbarButton onClick={addImage} title="Sisipkan Gambar">
+        <ToolbarButton onClick={openImageModal} title="Sisipkan Gambar">
           <ImageIcon size={16} />
         </ToolbarButton>
-        <ToolbarButton onClick={addLink} active={editor.isActive("link")} title="Sisipkan Link">
+        <ToolbarButton
+          onClick={addLink}
+          active={editor.isActive("link")}
+          title="Sisipkan Link"
+        >
           <LinkIcon size={16} />
         </ToolbarButton>
         <ToolbarButton onClick={addYoutube} title="Sisipkan Video YouTube">
@@ -277,15 +448,259 @@ export default function RichTextEditor({
         </ToolbarButton>
       </div>
 
-      {/* Editor content */}
+      {/* ── Editor content ── */}
       <EditorContent editor={editor} />
 
-      {/* Word count */}
+      {/* ── Word count ── */}
       <div className="border-t border-border px-4 py-2 text-xs text-txt-muted">
         {editor.storage.characterCount?.words?.() ?? 0} kata &middot;{" "}
-        {editor.storage.characterCount?.characters?.() ?? 0} karakter &middot;{" "}
-        ~{Math.max(1, Math.ceil((editor.storage.characterCount?.words?.() ?? 0) / 200))} menit baca
+        {editor.storage.characterCount?.characters?.() ?? 0} karakter &middot; ~
+        {Math.max(1, Math.ceil((editor.storage.characterCount?.words?.() ?? 0) / 200))}{" "}
+        menit baca
       </div>
+
+      {/* ════════════════════════════════════════════════════════════════
+          IMAGE MODAL — Upload baru + Media Library + Caption/Source
+         ════════════════════════════════════════════════════════════════ */}
+      {showImageModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div
+            className="flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
+            style={{ maxHeight: "85vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b px-6 py-4">
+              <h3 className="text-lg font-bold text-txt-primary">Sisipkan Gambar</h3>
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="rounded-full p-1.5 text-txt-secondary hover:bg-surface-secondary"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex shrink-0 border-b px-6">
+              <button
+                onClick={() => setActiveTab("upload")}
+                className={cn(
+                  "-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                  activeTab === "upload"
+                    ? "border-goto-green text-goto-green"
+                    : "border-transparent text-txt-secondary hover:text-txt-primary"
+                )}
+              >
+                <Upload size={15} className="-mt-0.5 mr-1.5 inline" />
+                Upload Baru
+              </button>
+              <button
+                onClick={() => setActiveTab("library")}
+                className={cn(
+                  "-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                  activeTab === "library"
+                    ? "border-goto-green text-goto-green"
+                    : "border-transparent text-txt-secondary hover:text-txt-primary"
+                )}
+              >
+                <Images size={15} className="-mt-0.5 mr-1.5 inline" />
+                Media Library
+              </button>
+            </div>
+
+            {/* Body (scrollable) */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* ── Upload Tab ── */}
+              {activeTab === "upload" && (
+                <div>
+                  {!previewUrl ? (
+                    <div
+                      className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-10 transition-colors hover:border-goto-green/50 hover:bg-goto-green/5"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add("border-goto-green", "bg-goto-green/5");
+                      }}
+                      onDragLeave={(e) => {
+                        e.currentTarget.classList.remove("border-goto-green", "bg-goto-green/5");
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove("border-goto-green", "bg-goto-green/5");
+                        const f = e.dataTransfer.files[0];
+                        if (f) handleFile(f);
+                      }}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 size={40} className="mb-3 animate-spin text-goto-green" />
+                          <p className="text-sm text-txt-secondary">Mengupload & mengompresi...</p>
+                        </>
+                      ) : (
+                        <>
+                          <ImagePlus size={40} className="mb-3 text-txt-muted" />
+                          <p className="text-sm font-medium text-txt-primary">
+                            Klik atau drag gambar ke sini
+                          </p>
+                          <p className="mt-1 text-xs text-txt-muted">
+                            JPEG, PNG, WebP — Maks 10MB (otomatis dikompres)
+                          </p>
+                        </>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleFile(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-full max-h-64 rounded-xl bg-surface-secondary object-contain"
+                      />
+                      <button
+                        onClick={() => {
+                          setPreviewUrl("");
+                          setSelectedUrl("");
+                        }}
+                        className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Media Library Tab ── */}
+              {activeTab === "library" && (
+                <div>
+                  {loadingMedia ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 size={32} className="animate-spin text-goto-green" />
+                    </div>
+                  ) : mediaList.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <Images size={40} className="mx-auto mb-3 text-txt-muted" />
+                      <p className="text-sm text-txt-muted">
+                        Belum ada gambar di media library.
+                      </p>
+                      <button
+                        onClick={() => setActiveTab("upload")}
+                        className="mt-3 text-sm font-medium text-goto-green hover:underline"
+                      >
+                        Upload gambar baru
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Selected preview */}
+                      {previewUrl && activeTab === "library" && (
+                        <div className="mb-4">
+                          <img
+                            src={previewUrl}
+                            alt="Selected"
+                            className="w-full max-h-48 rounded-xl bg-surface-secondary object-contain"
+                          />
+                        </div>
+                      )}
+                      <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                        {mediaList
+                          .filter((m) => m.type?.startsWith("image"))
+                          .map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedUrl(m.url);
+                                setPreviewUrl(m.url);
+                              }}
+                              className={cn(
+                                "relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
+                                selectedUrl === m.url
+                                  ? "border-goto-green ring-2 ring-goto-green/30"
+                                  : "border-transparent hover:border-border"
+                              )}
+                            >
+                              <img
+                                src={m.url}
+                                alt={m.filename}
+                                className="h-full w-full object-cover"
+                              />
+                              {selectedUrl === m.url && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-goto-green/20">
+                                  <Check
+                                    size={24}
+                                    className="text-white drop-shadow-md"
+                                  />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Caption & Source (when image is selected) ── */}
+              {selectedUrl && (
+                <div className="mt-5 space-y-3 border-t border-border pt-5">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-txt-primary">
+                      Judul / Caption Gambar
+                    </label>
+                    <input
+                      value={caption}
+                      onChange={(e) => setCaption(e.target.value)}
+                      placeholder="Contoh: Suasana sidang di PN Bandung"
+                      className="input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-txt-primary">
+                      Sumber Gambar
+                    </label>
+                    <input
+                      value={source}
+                      onChange={(e) => setSource(e.target.value)}
+                      placeholder="Contoh: Dok. JHB / Nama Fotografer"
+                      className="input w-full"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t px-6 py-4">
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="rounded-full border border-border px-4 py-2 text-sm font-medium text-txt-secondary hover:bg-surface-secondary"
+              >
+                Batal
+              </button>
+              <button
+                onClick={insertImage}
+                disabled={!selectedUrl}
+                className="rounded-full bg-goto-green px-5 py-2 text-sm font-medium text-white hover:bg-goto-green-dark disabled:opacity-40"
+              >
+                Sisipkan Gambar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

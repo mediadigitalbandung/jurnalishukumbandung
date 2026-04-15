@@ -20,6 +20,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 // Note: DOMPurify removed — content sanitized at input via API validation
 import { slugify } from "@/lib/utils";
+import { generateInternalLinksHtml } from "@/lib/seo-utils";
 
 async function getArticle(slug: string) {
   const article = await prisma.article.findUnique({
@@ -104,6 +105,32 @@ function injectInlineAds(html: string): string {
 
   return result;
 }
+
+function injectInternalLinks(html: string, related: any[]): string {
+  if (!html || related.length === 0) return html;
+  
+  // Pisahkan blok berdasarkan paragraf
+  const blocks = html.split(/(<\/p>)/gi);
+  if (blocks.length < 5) return html; // Jika terlalu pendek, jangan inject
+  
+  let result = "";
+  let injected = false;
+  
+  for (let i = 0; i < blocks.length; i++) {
+    result += blocks[i];
+    
+    // Inject setelah paragraf ke-3
+    if (blocks[i] === "</p>" && !injected && i >= 5) {
+      result += `<div class="my-6 p-5 rounded-lg border-l-4 border-goto-green bg-surface-secondary shadow-sm">
+        ${generateInternalLinksHtml(related)}
+      </div>`;
+      injected = true;
+    }
+  }
+  
+  return result;
+}
+
 
 function splitContentIntoPages(html: string): string[] {
   if (!html) return [html];
@@ -231,7 +258,24 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
   const totalPages = contentPages.length;
   const currentPage = Math.min(Math.max(1, parseInt(searchParams.page || "1") || 1), totalPages);
   // Inject ads per page (after pagination) so every page gets an ad in the middle
-  const sanitizedContent = injectInlineAds(contentPages[currentPage - 1] || article.content);
+  let sanitizedContent = injectInlineAds(contentPages[currentPage - 1] || article.content);
+  sanitizedContent = injectInternalLinks(sanitizedContent, relatedArticles);
+
+  // Transform img with data-caption/data-source into figure/figcaption
+  sanitizedContent = sanitizedContent.replace(
+    /<img\s+([^>]*?)\/?\s*>/g,
+    (fullMatch: string, attrs: string) => {
+      const captionMatch = attrs.match(/data-caption="([^"]*)"/);
+      const sourceMatch = attrs.match(/data-source="([^"]*)"/);
+      if (!captionMatch || !captionMatch[1]) return fullMatch;
+      const cap = captionMatch[1];
+      const src = sourceMatch?.[1];
+      const captionHtml = src
+        ? `${cap} <span class="img-source">— Sumber: ${src}</span>`
+        : cap;
+      return `<figure>${fullMatch}<figcaption>${captionHtml}</figcaption></figure>`;
+    }
+  );
 
   const plainContent = article.content.replace(/<[^>]*>/g, "");
   const wordCount = plainContent.split(/\s+/).filter(Boolean).length;
@@ -379,8 +423,8 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                 <BannerAd slot="HEADER" noWrapper />
               </div>
 
-              {/* Featured Image */}
-              {article.featuredImage && (
+              {/* Featured Image — only show standalone if not already in content */}
+              {article.featuredImage && !article.content?.includes(article.featuredImage) && (
                 <div className="relative mt-6 aspect-[16/9] overflow-hidden rounded-[12px]">
                   <Image src={article.featuredImage} alt={article.title} fill className="object-cover" />
                 </div>
