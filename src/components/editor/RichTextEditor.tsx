@@ -93,6 +93,8 @@ interface MediaItem {
   url: string;
   type: string;
   size: number;
+  caption?: string | null;
+  source?: string | null;
   createdAt: string;
 }
 
@@ -256,6 +258,18 @@ export default function RichTextEditor({
       alt: caption || "",
       title: source || "",
     }).run();
+
+    // Save caption/source to media record (fire & forget)
+    if (caption || source) {
+      const selected = mediaList.find((m) => m.url === selectedUrl);
+      if (selected) {
+        fetch(`/api/media/${selected.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caption, source }),
+        }).catch(() => {});
+      }
+    }
 
     setShowImageModal(false);
   };
@@ -607,6 +621,8 @@ export default function RichTextEditor({
                               onClick={() => {
                                 setSelectedUrl(m.url);
                                 setPreviewUrl(m.url);
+                                if (m.caption) setCaption(m.caption);
+                                if (m.source) setSource(m.source);
                               }}
                               className={cn(
                                 "relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
