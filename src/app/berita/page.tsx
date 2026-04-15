@@ -6,18 +6,28 @@ import { ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-rea
 import ArticleCard from "@/components/artikel/ArticleCard";
 import { prisma } from "@/lib/prisma";
 
-export const metadata: Metadata = {
-  title: "Semua Berita",
-  description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
-  openGraph: {
-    title: "Semua Berita - Jurnalis Hukum Bandung",
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const page = parseInt(searchParams.page || "1");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+  const canonicalUrl = page > 1 ? `${appUrl}/berita?page=${page}` : `${appUrl}/berita`;
+
+  return {
+    title: page > 1 ? `Semua Berita — Halaman ${page}` : "Semua Berita",
     description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
-    type: "website",
-  },
-  alternates: {
-    canonical: "/berita",
-  },
-};
+    openGraph: {
+      title: "Semua Berita - Jurnalis Hukum Bandung",
+      description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
+      type: "website",
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    // Page 2+ should not compete with page 1 in search results
+    ...(page > 1 && {
+      robots: { index: false, follow: true },
+    }),
+  };
+}
 
 const PER_PAGE = 12;
 

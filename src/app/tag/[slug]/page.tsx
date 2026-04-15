@@ -15,15 +15,27 @@ interface PageProps {
   searchParams: { page?: string };
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const tag = await prisma.tag.findUnique({ where: { slug: params.slug } });
   if (!tag) return { title: "Tag Tidak Ditemukan" };
+
+  const page = parseInt(searchParams.page || "1");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+  const canonicalUrl = page > 1
+    ? `${appUrl}/tag/${params.slug}?page=${page}`
+    : `${appUrl}/tag/${params.slug}`;
+
   return {
-    title: `Berita ${tag.name} Terbaru - Jurnalis Hukum Bandung`,
+    title: page > 1
+      ? `Berita ${tag.name} Terbaru — Halaman ${page}`
+      : `Berita ${tag.name} Terbaru - Jurnalis Hukum Bandung`,
     description: `Baca berita terbaru tentang ${tag.name}. Kumpulan artikel dan analisis hukum terkait ${tag.name} di Bandung dan Indonesia.`,
     alternates: {
-      canonical: `/tag/${params.slug}`,
+      canonical: canonicalUrl,
     },
+    ...(page > 1 && {
+      robots: { index: false, follow: true },
+    }),
   };
 }
 
