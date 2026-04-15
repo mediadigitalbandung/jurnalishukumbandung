@@ -34,6 +34,21 @@ export default function Footer() {
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/50">
               Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.
             </p>
+
+            {/* Verifikasi Dewan Pers */}
+            <div className="mt-5 inline-flex items-center gap-3.5 rounded-2xl border border-blue-400/20 bg-blue-500/10 px-5 py-3 backdrop-blur-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-base font-bold leading-tight text-white">
+                  Terverifikasi Dewan Pers
+                </p>
+                <p className="mt-0.5 text-sm leading-tight text-blue-200/70">
+                  Sertifikat No. 608/DP-Verifikasi/K/XI/2020
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Tentang */}
@@ -75,27 +90,8 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Verifikasi Dewan Pers */}
-        <div className="mt-8 border-t border-white/10 pt-6">
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-3 rounded-full border border-blue-400/20 bg-blue-500/10 px-5 py-2.5 backdrop-blur-sm">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                <ShieldCheck className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold leading-tight text-white">
-                  Terverifikasi Dewan Pers
-                </p>
-                <p className="text-xs leading-tight text-blue-200/70">
-                  Sertifikat No. 608/DP-Verifikasi/K/XI/2020
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Bottom bar */}
-        <div className="mt-5 border-t border-white/10 pt-5">
+        <div className="mt-8 border-t border-white/10 pt-5">
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
             <p className="text-xs text-white/40">
               &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung. Seluruh hak cipta dilindungi.
