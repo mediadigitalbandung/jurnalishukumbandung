@@ -35,6 +35,9 @@ import {
   Loader2,
   ImagePlus,
   Check,
+  Eye,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useState, useRef, useEffect } from "react";
@@ -144,6 +147,11 @@ export default function RichTextEditor({
   const [previewUrl, setPreviewUrl] = useState("");
   const [caption, setCaption] = useState("");
   const [source, setSource] = useState("");
+  const [viewingMedia, setViewingMedia] = useState<MediaItem | null>(null);
+  const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
+  const [editCaption, setEditCaption] = useState("");
+  const [editSource, setEditSource] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -195,9 +203,46 @@ export default function RichTextEditor({
     setPreviewUrl("");
     setCaption("");
     setSource("");
+    setViewingMedia(null);
+    setEditingMedia(null);
     setActiveTab("upload");
     setShowImageModal(true);
   }, []);
+
+  /* ── Save edited caption/source ── */
+  const saveMediaEdit = async () => {
+    if (!editingMedia) return;
+    setSavingEdit(true);
+    try {
+      await fetch(`/api/media/${editingMedia.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption: editCaption, source: editSource }),
+      });
+      setMediaList((prev) =>
+        prev.map((m) =>
+          m.id === editingMedia.id ? { ...m, caption: editCaption, source: editSource } : m
+        )
+      );
+      setEditingMedia(null);
+    } catch { /* ignore */ }
+    setSavingEdit(false);
+  };
+
+  /* ── Delete media ── */
+  const deleteMedia = async (media: MediaItem) => {
+    if (!confirm("Hapus gambar ini dari library?")) return;
+    try {
+      await fetch(`/api/media?id=${media.id}`, { method: "DELETE" });
+      setMediaList((prev) => prev.filter((m) => m.id !== media.id));
+      if (selectedUrl === media.url) {
+        setSelectedUrl("");
+        setPreviewUrl("");
+        setCaption("");
+        setSource("");
+      }
+    } catch { /* ignore */ }
+  };
 
   /* ── Handle file upload ── */
   const handleFile = async (file: File) => {
@@ -601,53 +646,76 @@ export default function RichTextEditor({
                       </button>
                     </div>
                   ) : (
-                    <>
-                      {/* Selected preview */}
-                      {previewUrl && activeTab === "library" && (
-                        <div className="mb-4">
-                          <img
-                            src={previewUrl}
-                            alt="Selected"
-                            className="w-full max-h-48 rounded-xl bg-surface-secondary object-contain"
-                          />
-                        </div>
-                      )}
-                      <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
-                        {mediaList
-                          .filter((m) => m.type?.startsWith("image"))
-                          .map((m) => (
+                    <div className="grid max-h-[420px] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">
+                      {mediaList
+                        .filter((m) => m.type?.startsWith("image"))
+                        .map((m) => (
+                          <div
+                            key={m.id}
+                            className={cn(
+                              "group overflow-hidden rounded-xl border-2 bg-surface transition-all",
+                              selectedUrl === m.url
+                                ? "border-goto-green ring-2 ring-goto-green/20"
+                                : "border-border hover:border-goto-green/40"
+                            )}
+                          >
+                            {/* Thumbnail — click to select */}
                             <button
-                              key={m.id}
+                              type="button"
                               onClick={() => {
                                 setSelectedUrl(m.url);
                                 setPreviewUrl(m.url);
                                 if (m.caption) setCaption(m.caption);
                                 if (m.source) setSource(m.source);
                               }}
-                              className={cn(
-                                "relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
-                                selectedUrl === m.url
-                                  ? "border-goto-green ring-2 ring-goto-green/30"
-                                  : "border-transparent hover:border-border"
-                              )}
+                              className="relative block w-full aspect-square overflow-hidden"
                             >
-                              <img
-                                src={m.url}
-                                alt={m.filename}
-                                className="h-full w-full object-cover"
-                              />
+                              <img src={m.url} alt={m.caption || m.filename} className="h-full w-full object-cover" />
                               {selectedUrl === m.url && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-goto-green/20">
-                                  <Check
-                                    size={24}
-                                    className="text-white drop-shadow-md"
-                                  />
+                                  <Check size={24} className="text-white drop-shadow-md" />
                                 </div>
                               )}
                             </button>
-                          ))}
-                      </div>
-                    </>
+
+                            {/* Info + Actions */}
+                            <div className="p-2">
+                              <p className="truncate text-xs font-medium text-txt-primary" title={m.caption || m.filename}>
+                                {m.caption || m.filename}
+                              </p>
+                              {m.source && (
+                                <p className="truncate text-[11px] text-txt-muted">{m.source}</p>
+                              )}
+                              <div className="mt-1.5 flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingMedia(m)}
+                                  title="Lihat"
+                                  className="rounded-md p-1 text-txt-muted hover:bg-surface-secondary hover:text-blue-500"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingMedia(m); setEditCaption(m.caption || ""); setEditSource(m.source || ""); }}
+                                  title="Edit Caption"
+                                  className="rounded-md p-1 text-txt-muted hover:bg-surface-secondary hover:text-goto-green"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteMedia(m)}
+                                  title="Hapus"
+                                  className="rounded-md p-1 text-txt-muted hover:bg-red-50 hover:text-red-500"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   )}
                 </div>
               )}
@@ -695,6 +763,52 @@ export default function RichTextEditor({
                 className="rounded-full bg-goto-green px-5 py-2 text-sm font-medium text-white hover:bg-goto-green-dark disabled:opacity-40"
               >
                 Sisipkan Gambar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── View Lightbox ── */}
+      {viewingMedia && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={() => setViewingMedia(null)}>
+          <div className="relative max-h-[90vh] max-w-4xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setViewingMedia(null)} className="absolute -right-2 -top-2 z-10 rounded-full bg-black/70 p-1.5 text-white hover:bg-black">
+              <X size={18} />
+            </button>
+            <img src={viewingMedia.url} alt={viewingMedia.caption || ""} className="max-h-[80vh] rounded-xl object-contain" />
+            {(viewingMedia.caption || viewingMedia.source) && (
+              <div className="mt-3 text-center">
+                {viewingMedia.caption && <p className="text-sm font-medium text-white">{viewingMedia.caption}</p>}
+                {viewingMedia.source && <p className="text-xs text-white/60">{viewingMedia.source}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Caption/Source Overlay ── */}
+      {editingMedia && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setEditingMedia(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h4 className="mb-4 text-base font-bold text-txt-primary">Edit Info Gambar</h4>
+            <div className="mb-3 flex justify-center">
+              <img src={editingMedia.url} alt="" className="max-h-32 rounded-lg object-contain" />
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-txt-primary">Caption</label>
+                <input value={editCaption} onChange={(e) => setEditCaption(e.target.value)} className="input w-full" placeholder="Judul / keterangan gambar" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-txt-primary">Sumber</label>
+                <input value={editSource} onChange={(e) => setEditSource(e.target.value)} className="input w-full" placeholder="Dok. JHB / Nama Fotografer" />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setEditingMedia(null)} className="rounded-full border border-border px-4 py-2 text-sm text-txt-secondary hover:bg-surface-secondary">Batal</button>
+              <button onClick={saveMediaEdit} disabled={savingEdit} className="rounded-full bg-goto-green px-5 py-2 text-sm font-medium text-white hover:bg-goto-green-dark disabled:opacity-50">
+                {savingEdit ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
           </div>
