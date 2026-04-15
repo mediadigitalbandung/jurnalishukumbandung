@@ -15,11 +15,14 @@ const ALLOWED_KEYS = [
   "enable_comments",
   "enable_ai",
   "maintenance_mode",
+  // Google SEO Automation
+  "google_credentials_json",
+  "google_indexing_enabled",
 ] as const;
 
 const settingSchema = z.object({
   key: z.string().min(1, "Key wajib diisi").max(100),
-  value: z.string().max(5000),
+  value: z.string().max(10000), // Increased for Google credentials JSON (~2-3KB)
 });
 
 export async function GET() {

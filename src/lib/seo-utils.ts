@@ -1,6 +1,44 @@
 import { prisma } from "@/lib/prisma";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+const SITE_URL = "https://jurnalishukumbandung.com";
+
+/* ── 0. Load Google credentials (DB first, env fallback) ─────────── */
+
+async function getGoogleCredentials(): Promise<any | null> {
+  try {
+    // 1. Try DB (admin panel setting)
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: "google_credentials_json" },
+    });
+    if (setting?.value) {
+      return JSON.parse(setting.value);
+    }
+
+    // 2. Fallback to env var
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      return JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[SEO] Failed to load Google credentials:", error);
+    return null;
+  }
+}
+
+async function isGoogleIndexingEnabled(): Promise<boolean> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: "google_indexing_enabled" },
+    });
+    // Default enabled if credentials exist
+    if (!setting) return true;
+    return setting.value === "true";
+  } catch {
+    return true;
+  }
+}
 
 /* ── 1. Ping Google & Bing sitemap (both main + news sitemap) ──── */
 
@@ -26,28 +64,35 @@ export async function pingSitemapToSearchEngines() {
   );
 }
 
-/* ── 2. Submit URL to Google Indexing API (Cepat) & IndexNow ────── */
+/* ── 2. Submit URL to Google Indexing API + IndexNow ──────────────── */
 
 export async function submitUrlToGoogle(articleSlug: string, categorySlug?: string) {
   const articleUrl = `${BASE_URL}/berita/${articleSlug}`;
-
   const tasks: Promise<any>[] = [];
 
-  // Google Indexing API — fastest way to get indexed (minutes, not hours)
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    // Submit the article URL
+  // Google Indexing API — fastest way to get indexed (minutes!)
+  const credentials = await getGoogleCredentials();
+  const enabled = await isGoogleIndexingEnabled();
+
+  if (credentials && enabled) {
+    // Submit article URL
     tasks.push(
-      submitToGoogleIndexingApi(articleUrl)
+      submitToGoogleIndexingApi(articleUrl, credentials)
         .then(r => ({ engine: "google-indexing-api", url: articleUrl, data: r }))
     );
-    // Also notify Google about homepage update (new article appears there)
+    // Notify Google about homepage update
     tasks.push(
-      submitToGoogleIndexingApi(BASE_URL)
+      submitToGoogleIndexingApi(BASE_URL, credentials)
         .then(r => ({ engine: "google-indexing-api", url: BASE_URL, data: r }))
+    );
+    // Submit sitemaps via Search Console API
+    tasks.push(
+      submitSitemapToSearchConsole(credentials)
+        .then(r => ({ engine: "search-console-sitemap", data: r }))
     );
   }
 
-  // IndexNow — submit to Bing, Yandex, Seznam, Naver simultaneously
+  // IndexNow — batch submit to Bing, Yandex, Seznam, Naver
   const indexNowUrls = [
     articleUrl,
     BASE_URL,
@@ -57,19 +102,14 @@ export async function submitUrlToGoogle(articleSlug: string, categorySlug?: stri
   tasks.push(submitToIndexNow(indexNowUrls));
 
   const results = await Promise.allSettled(tasks);
-
   return results.map((r) =>
     r.status === "fulfilled" ? r.value : { engine: "unknown", status: 0 }
   );
 }
 
-async function submitToGoogleIndexingApi(url: string) {
+/** Google Indexing API — submit single URL for instant indexing */
+async function submitToGoogleIndexingApi(url: string, credentials: any) {
   try {
-    const jsonStr = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    if (!jsonStr) return null;
-
-    const credentials = JSON.parse(jsonStr);
-
     const { google } = await import("googleapis");
     const auth = new google.auth.JWT({
       email: credentials.client_email,
@@ -85,8 +125,99 @@ async function submitToGoogleIndexingApi(url: string) {
     console.log(`[SEO] Google Indexing API submitted: ${url}`);
     return res.data;
   } catch (error) {
-    console.error("[SEO] Google Indexing API Error:", error);
+    console.error(`[SEO] Google Indexing API Error for ${url}:`, error);
     return null;
+  }
+}
+
+/** Google Search Console API — submit sitemaps programmatically */
+export async function submitSitemapToSearchConsole(credentials?: any) {
+  try {
+    const creds = credentials || await getGoogleCredentials();
+    if (!creds) return { error: "No credentials" };
+
+    const { google } = await import("googleapis");
+    const auth = new google.auth.JWT({
+      email: creds.client_email,
+      key: creds.private_key,
+      scopes: ["https://www.googleapis.com/auth/webmasters"],
+    });
+
+    const searchConsole = google.searchconsole({ version: "v1", auth });
+
+    const sitemaps = [
+      `${SITE_URL}/sitemap.xml`,
+      `${SITE_URL}/news-sitemap.xml`,
+    ];
+
+    const results = await Promise.allSettled(
+      sitemaps.map(async (sitemapUrl) => {
+        await searchConsole.sitemaps.submit({
+          siteUrl: SITE_URL,
+          feedpath: sitemapUrl,
+        });
+        console.log(`[SEO] Search Console: sitemap submitted — ${sitemapUrl}`);
+        return { sitemap: sitemapUrl, status: "submitted" };
+      })
+    );
+
+    return results.map((r) =>
+      r.status === "fulfilled" ? r.value : { sitemap: "unknown", status: "error", error: String(r.reason) }
+    );
+  } catch (error) {
+    console.error("[SEO] Search Console sitemap submit error:", error);
+    return { error: String(error) };
+  }
+}
+
+/** Test Google credentials — validate auth works */
+export async function testGoogleCredentials(credentialsJson: string): Promise<{
+  valid: boolean;
+  email?: string;
+  indexingApi: boolean;
+  searchConsole: boolean;
+  error?: string;
+}> {
+  try {
+    const credentials = JSON.parse(credentialsJson);
+    if (!credentials.client_email || !credentials.private_key) {
+      return { valid: false, indexingApi: false, searchConsole: false, error: "Missing client_email or private_key" };
+    }
+
+    const { google } = await import("googleapis");
+
+    // Test Indexing API
+    let indexingApi = false;
+    try {
+      const authIndexing = new google.auth.JWT({
+        email: credentials.client_email,
+        key: credentials.private_key,
+        scopes: ["https://www.googleapis.com/auth/indexing"],
+      });
+      await authIndexing.authorize();
+      indexingApi = true;
+    } catch { /* Indexing API not enabled */ }
+
+    // Test Search Console API
+    let searchConsole = false;
+    try {
+      const authSC = new google.auth.JWT({
+        email: credentials.client_email,
+        key: credentials.private_key,
+        scopes: ["https://www.googleapis.com/auth/webmasters"],
+      });
+      await authSC.authorize();
+      searchConsole = true;
+    } catch { /* Search Console not enabled */ }
+
+    return {
+      valid: indexingApi || searchConsole,
+      email: credentials.client_email,
+      indexingApi,
+      searchConsole,
+    };
+  } catch (error) {
+    return { valid: false, indexingApi: false, searchConsole: false, error: "Invalid JSON format" };
   }
 }
 
@@ -110,6 +241,33 @@ async function submitToIndexNow(urls: string[]) {
     console.error("[SEO] IndexNow Error:", error);
     return { engine: "indexnow", status: 0 };
   }
+}
+
+/* ── 2.5 Full SEO re-ping (for cron) ──────────────────────────────── */
+
+export async function runFullSeoPing() {
+  const credentials = await getGoogleCredentials();
+  const enabled = await isGoogleIndexingEnabled();
+
+  const tasks: Promise<any>[] = [
+    pingSitemapToSearchEngines().catch(() => null),
+    submitToIndexNow([
+      BASE_URL,
+      `${BASE_URL}/berita`,
+      `${BASE_URL}/sitemap.xml`,
+      `${BASE_URL}/news-sitemap.xml`,
+    ]).catch(() => null),
+  ];
+
+  if (credentials && enabled) {
+    tasks.push(submitSitemapToSearchConsole(credentials).catch(() => null));
+  }
+
+  const results = await Promise.allSettled(tasks);
+  console.log(`[SEO CRON] Full re-ping completed. ${results.length} tasks.`);
+  return results.map((r) =>
+    r.status === "fulfilled" ? r.value : { error: String(r.reason) }
+  );
 }
 
 /* ── 2.5 Cloudflare Auto-Purge Cache ────────────────────────────── */
