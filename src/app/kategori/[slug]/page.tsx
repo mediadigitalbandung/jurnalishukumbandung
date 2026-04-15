@@ -159,6 +159,11 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           }),
         }}
       />
+      {/* Banner Ad — right below trending tags */}
+      <div className="py-4">
+        <BannerAd slot="HEADER" />
+      </div>
+
       <div className="container-main py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-sm text-txt-muted">
@@ -175,11 +180,6 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           <p className="mt-1 text-sm text-txt-muted">
             Kumpulan berita {category.name.toLowerCase()} terbaru dan terpercaya
           </p>
-        </div>
-
-        {/* Banner Ad — Leaderboard */}
-        <div className="mb-6">
-          <BannerAd slot="HEADER" noWrapper />
         </div>
 
         {/* Headline slider */}
