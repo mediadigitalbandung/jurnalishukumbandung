@@ -261,15 +261,15 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
   let sanitizedContent = injectInlineAds(contentPages[currentPage - 1] || article.content);
   sanitizedContent = injectInternalLinks(sanitizedContent, relatedArticles);
 
-  // Transform img with data-caption/data-source into figure/figcaption
+  // Transform img with alt (caption) and title (source) into figure/figcaption
   sanitizedContent = sanitizedContent.replace(
     /<img\s+([^>]*?)\/?\s*>/g,
     (fullMatch: string, attrs: string) => {
-      const captionMatch = attrs.match(/data-caption="([^"]*)"/);
-      const sourceMatch = attrs.match(/data-source="([^"]*)"/);
-      if (!captionMatch || !captionMatch[1]) return fullMatch;
-      const cap = captionMatch[1];
-      const src = sourceMatch?.[1];
+      const altMatch = attrs.match(/alt="([^"]+)"/);
+      if (!altMatch || !altMatch[1]) return fullMatch;
+      const cap = altMatch[1];
+      const titleMatch = attrs.match(/title="([^"]+)"/);
+      const src = titleMatch?.[1];
       const captionHtml = src
         ? `${cap} <span class="img-source">— Sumber: ${src}</span>`
         : cap;

@@ -39,30 +39,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useCallback, useState, useRef, useEffect } from "react";
 
-/* ─── Custom Image extension with caption & source attributes ─── */
-const CustomImage = ImageExtension.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      "data-caption": {
-        default: null,
-        parseHTML: (element: Element) => element.getAttribute("data-caption"),
-        renderHTML: (attributes: Record<string, string | null>) => {
-          if (!attributes["data-caption"]) return {};
-          return { "data-caption": attributes["data-caption"] };
-        },
-      },
-      "data-source": {
-        default: null,
-        parseHTML: (element: Element) => element.getAttribute("data-source"),
-        renderHTML: (attributes: Record<string, string | null>) => {
-          if (!attributes["data-source"]) return {};
-          return { "data-source": attributes["data-source"] };
-        },
-      },
-    };
-  },
-});
+/*
+ * Caption strategy: use standard img attributes that TipTap already supports.
+ *   alt  = caption text (also good for accessibility)
+ *   title = source / photographer name
+ * In the public article view, img[alt] is transformed into <figure>/<figcaption>.
+ */
 
 /* ─── Image compression (WebP, max 1200px) ─── */
 async function compressImage(file: File): Promise<Blob> {
@@ -174,7 +156,7 @@ export default function RichTextEditor({
         openOnClick: false,
         HTMLAttributes: { class: "text-goto-green hover:underline" },
       }),
-      CustomImage.configure({ inline: false }),
+      ImageExtension.configure({ inline: false }),
       Youtube.configure({ width: 640, height: 360 }),
       Placeholder.configure({ placeholder }),
     ],
@@ -269,12 +251,11 @@ export default function RichTextEditor({
   const insertImage = () => {
     if (!selectedUrl || !editor) return;
 
-    // Build img attributes
-    let imgAttrs = `src="${selectedUrl}" alt="${caption || ""}"`;
-    if (caption) imgAttrs += ` data-caption="${caption}"`;
-    if (source) imgAttrs += ` data-source="${source}"`;
-
-    editor.chain().focus().insertContent(`<img ${imgAttrs}>`).run();
+    editor.chain().focus().setImage({
+      src: selectedUrl,
+      alt: caption || "",
+      title: source || "",
+    }).run();
 
     setShowImageModal(false);
   };
