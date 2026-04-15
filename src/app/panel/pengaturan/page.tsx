@@ -744,6 +744,31 @@ export default function PengaturanPage() {
                 </div>
               )}
             </div>
+
+            {/* Auto Re-Index Schedule Info */}
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="text-base font-medium text-txt-primary">Jadwal Auto Re-Index (Cron)</p>
+              <p className="text-sm text-txt-muted mt-1">
+                Sistem otomatis re-index semua artikel <strong>3x sehari</strong> di jam prime time pembaca berita:
+              </p>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-[12px] bg-surface-secondary border border-border px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-goto-green">06:00</p>
+                  <p className="text-xs text-txt-muted mt-1">Pagi — orang baca berita sambil sarapan</p>
+                </div>
+                <div className="rounded-[12px] bg-surface-secondary border border-border px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-goto-green">12:00</p>
+                  <p className="text-xs text-txt-muted mt-1">Siang — jam istirahat, cek berita</p>
+                </div>
+                <div className="rounded-[12px] bg-surface-secondary border border-border px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-goto-green">19:00</p>
+                  <p className="text-xs text-txt-muted mt-1">Malam — prime time browsing</p>
+                </div>
+              </div>
+              <p className="text-xs text-txt-muted mt-3">
+                Ditambah light ping (sitemap saja) setiap 30 menit. Semua berjalan otomatis di VPS.
+              </p>
+            </div>
           </div>
         </div>
       </div>
