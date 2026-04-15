@@ -22,21 +22,85 @@ export async function pingSitemapToSearchEngines() {
   );
 }
 
-/* ── 2. Submit URL to Google Indexing (via simple ping) ─────────── */
+/* ── 2. Submit URL to Google Indexing API (Cepat) & Ping ─────────── */
 
 export async function submitUrlToGoogle(articleSlug: string) {
   const articleUrl = `${BASE_URL}/berita/${articleSlug}`;
   const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(`${BASE_URL}/sitemap.xml`)}`;
 
-  // Also try IndexNow (Bing/Yandex instant indexing — free, no API key needed for basic)
-  const indexNowResults = await Promise.allSettled([
+  const tasks: Promise<any>[] = [
     fetch(pingUrl).then((r) => ({ engine: "google-ping", status: r.status })),
     fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(articleUrl)}&key=jurnalishukumbandung`).then((r) => ({ engine: "bing-indexnow", status: r.status })),
-  ]);
+  ];
 
-  return indexNowResults.map((r) =>
+  // Try Google Indexing API if configured
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    tasks.push(submitToGoogleIndexingApi(articleUrl).then(r => ({ engine: "google-indexing-api", data: r })));
+  }
+
+  const results = await Promise.allSettled(tasks);
+
+  return results.map((r) =>
     r.status === "fulfilled" ? r.value : { engine: "unknown", status: 0 }
   );
+}
+
+async function submitToGoogleIndexingApi(url: string) {
+  try {
+    const jsonStr = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    if (!jsonStr) return null;
+    
+    const credentials = JSON.parse(jsonStr);
+    
+    // Import googleapis dynamically to avoid blocking standard API edges
+    const { google } = await import("googleapis");
+    const auth = new google.auth.JWT({
+      email: credentials.client_email,
+      key: credentials.private_key,
+      scopes: ["https://www.googleapis.com/auth/indexing"],
+    });
+
+    const indexing = google.indexing({ version: "v3", auth });
+    const res = await indexing.urlNotifications.publish({
+      requestBody: { url, type: "URL_UPDATED" },
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("[SEO] Google Indexing API Error:", error);
+    return null;
+  }
+}
+
+/* ── 2.5 Cloudflare Auto-Purge Cache ────────────────────────────── */
+
+export async function purgeCloudflareCache(urls?: string[]) {
+  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  
+  if (!zoneId || !token) return null;
+  
+  try {
+    const payload = urls && urls.length > 0 
+      ? { files: urls } 
+      : { purge_everything: true }; // Flush all cache if no specific URLs
+      
+    const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/purge_cache`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    console.log("[SEO] Cloudflare Purged:", data.success);
+    return data;
+  } catch (error) {
+    console.error("[SEO] Cloudflare Purge API Error:", error);
+    return null;
+  }
 }
 
 /* ── 3. Auto-generate SEO title & description via AI ───────────── */
@@ -148,9 +212,17 @@ export function generateInternalLinksHtml(
 
 export async function onArticlePublished(slug: string, articleId: string, categoryId: string) {
   // Run all SEO tasks in parallel (non-blocking)
+  const articleUrl = `${BASE_URL}/berita/${slug}`;
   const tasks = [
     pingSitemapToSearchEngines().catch(() => null),
     submitUrlToGoogle(slug).catch(() => null),
+    purgeCloudflareCache([
+      BASE_URL, 
+      `${BASE_URL}/`, 
+      `${BASE_URL}/berita`, 
+      `${BASE_URL}/kategori/${categoryId}`, 
+      articleUrl
+    ]).catch(() => null),
   ];
 
   // Get related articles for internal linking data
@@ -165,7 +237,7 @@ export async function onArticlePublished(slug: string, articleId: string, catego
   // Store related article IDs for display (no content modification)
   if (related.length > 0) {
     // Log the SEO automation
-    console.log(`[SEO] Article published: ${slug}, pinged search engines, ${related.length} related articles found`);
+    console.log(`[SEO] Article published: ${slug}, pinged search engines & cleared cache. ${related.length} related articles found`);
   }
 
   await Promise.allSettled(tasks);

@@ -74,8 +74,20 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Verifikasi Dewan Pers */}
+        <div className="mt-8 border-t border-white/10 pt-6">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <p className="text-sm font-semibold text-white/80">
+              Telah diverifikasi oleh Dewan Pers
+            </p>
+            <p className="text-xs text-white/50">
+              Sertifikat Nomor 608/DP-Verifikasi/K/XI/2020
+            </p>
+          </div>
+        </div>
+
         {/* Bottom bar */}
-        <div className="mt-8 border-t border-white/10 pt-5">
+        <div className="mt-5 border-t border-white/10 pt-5">
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
             <p className="text-xs text-white/40">
               &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung. Seluruh hak cipta dilindungi.
