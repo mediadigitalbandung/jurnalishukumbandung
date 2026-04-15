@@ -40,6 +40,26 @@ async function fetchTrendingTags(): Promise<TrendingTag[]> {
   ];
 }
 
+function TagItem({ tag }: { tag: TrendingTag }) {
+  return (
+    <Link
+      href={tag.href}
+      className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium transition-all duration-200 ${
+        tag.hot
+          ? "bg-red-50 text-red-600 hover:bg-red-100"
+          : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary hover:text-txt-primary"
+      }`}
+    >
+      {tag.hot ? (
+        <Flame size={10} className="text-red-500" />
+      ) : (
+        <Hash size={10} className="text-txt-muted" />
+      )}
+      {tag.label}
+    </Link>
+  );
+}
+
 export default function TrendingTags() {
   const [tags, setTags] = useState<TrendingTag[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -56,7 +76,7 @@ export default function TrendingTags() {
   return (
     <div className="bg-surface border-b border-border">
       <div className="container-main py-2">
-        <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-3 overflow-hidden">
           {/* Label */}
           <div className="flex shrink-0 items-center gap-1.5 text-txt-muted">
             <TrendingUp size={14} />
@@ -64,26 +84,26 @@ export default function TrendingTags() {
           </div>
           <div className="h-4 w-px bg-border shrink-0" />
 
-          {/* Tags */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-            {tags.map((tag) => (
-              <Link
-                key={tag.label}
-                href={tag.href}
-                className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium transition-all duration-200 ${
-                  tag.hot
-                    ? "bg-red-50 text-red-600 hover:bg-red-100"
-                    : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary hover:text-txt-primary"
-                }`}
-              >
-                {tag.hot ? (
-                  <Flame size={10} className="text-red-500" />
-                ) : (
-                  <Hash size={10} className="text-txt-muted" />
-                )}
-                {tag.label}
-              </Link>
-            ))}
+          {/* Marquee Tags */}
+          <div className="relative flex-1 overflow-hidden">
+            {/* Fade edges */}
+            <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-8 bg-gradient-to-r from-surface to-transparent" />
+            <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-8 bg-gradient-to-l from-surface to-transparent" />
+
+            <div className="group flex w-max animate-marquee hover:[animation-play-state:paused]">
+              {/* First set */}
+              <div className="flex items-center gap-2 pr-6">
+                {tags.map((tag) => (
+                  <TagItem key={tag.label} tag={tag} />
+                ))}
+              </div>
+              {/* Duplicate for seamless loop */}
+              <div className="flex items-center gap-2 pr-6">
+                {tags.map((tag) => (
+                  <TagItem key={`dup-${tag.label}`} tag={tag} />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
