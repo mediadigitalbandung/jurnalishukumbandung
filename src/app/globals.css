@@ -191,11 +191,14 @@
 }
 
 /* Article content typography */
+.article-content h1 {
+  @apply mt-10 mb-5 text-2xl sm:text-3xl font-bold leading-tight text-txt-primary;
+}
 .article-content h2 {
-  @apply mt-10 mb-4 text-xl font-bold text-txt-primary;
+  @apply mt-10 mb-4 text-xl sm:text-2xl font-bold leading-snug text-txt-primary;
 }
 .article-content h3 {
-  @apply mt-8 mb-3 text-lg font-bold text-txt-primary;
+  @apply mt-8 mb-3 text-lg sm:text-xl font-bold leading-snug text-txt-primary;
 }
 .article-content p {
   @apply mb-5 text-base leading-[1.8] text-txt-primary/80;
@@ -211,6 +214,29 @@
 .article-content li { @apply text-txt-primary/80 leading-[1.8]; }
 .article-content a { @apply text-goto-green font-medium underline underline-offset-2 decoration-goto-green/30 hover:decoration-goto-green transition-colors; }
 .article-content img { @apply my-6 rounded-[12px]; }
+.article-content img[style*="width"] { @apply h-auto; }
+
+/* TipTap image resize handles */
+.image-resizer {
+  display: inline-flex;
+  position: relative;
+  cursor: default;
+}
+.image-resizer img {
+  @apply rounded-[12px];
+}
+.image-resizer .resize-trigger {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  background: #00AA13;
+  border: 2px solid white;
+  border-radius: 3px;
+  cursor: nwse-resize;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
 .article-content figure { @apply my-8; }
 .article-content figure img { @apply my-0 w-full rounded-[12px]; }
 .article-content figure figcaption {

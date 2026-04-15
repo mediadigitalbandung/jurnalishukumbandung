@@ -2,7 +2,7 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import ImageExtension from "@tiptap/extension-image";
+import ImageResize from "tiptap-extension-resize-image";
 import LinkExt from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
@@ -25,6 +25,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignJustify,
   Undo,
   Redo,
   Code,
@@ -164,12 +165,12 @@ export default function RichTextEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline.configure({}),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
       LinkExt.configure({
         openOnClick: false,
         HTMLAttributes: { class: "text-goto-green hover:underline" },
       }),
-      ImageExtension.configure({ inline: false }),
+      ImageResize.configure({ inline: false }),
       Youtube.configure({ width: 640, height: 360 }),
       Placeholder.configure({ placeholder }),
     ],
@@ -312,11 +313,11 @@ export default function RichTextEditor({
   const insertImage = () => {
     if (!selectedUrl || !editor) return;
 
-    editor.chain().focus().setImage({
-      src: selectedUrl,
-      alt: caption || "",
-      title: source || "",
-    }).run();
+    const alt = caption ? ` alt="${caption}"` : "";
+    const titleAttr = source ? ` title="${source}"` : "";
+    editor.chain().focus().insertContent(
+      `<img src="${selectedUrl}"${alt}${titleAttr} style="width: 100%">`
+    ).run();
 
     // Save caption/source to media record (fire & forget)
     if (caption || source) {
@@ -466,6 +467,13 @@ export default function RichTextEditor({
           title="Rata Kanan"
         >
           <AlignRight size={16} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+          active={editor.isActive({ textAlign: "justify" })}
+          title="Rata Kiri Kanan"
+        >
+          <AlignJustify size={16} />
         </ToolbarButton>
 
         <div className="mx-1 h-6 w-px bg-border" />
