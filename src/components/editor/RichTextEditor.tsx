@@ -38,6 +38,7 @@ import {
   Eye,
   Pencil,
   Trash2,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useState, useRef, useEffect } from "react";
@@ -98,6 +99,7 @@ interface MediaItem {
   size: number;
   caption?: string | null;
   source?: string | null;
+  usedIn?: string[];
   createdAt: string;
 }
 
@@ -147,6 +149,7 @@ export default function RichTextEditor({
   const [previewUrl, setPreviewUrl] = useState("");
   const [caption, setCaption] = useState("");
   const [source, setSource] = useState("");
+  const [mediaSearch, setMediaSearch] = useState("");
   const [viewingMedia, setViewingMedia] = useState<MediaItem | null>(null);
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
   const [editCaption, setEditCaption] = useState("");
@@ -185,11 +188,12 @@ export default function RichTextEditor({
   const [hasMoreMedia, setHasMoreMedia] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchMedia = useCallback(async (page = 1, append = false) => {
+  const fetchMedia = useCallback(async (page = 1, append = false, query = "") => {
     if (page === 1) setLoadingMedia(true);
     else setLoadingMore(true);
     try {
-      const res = await fetch(`/api/media?limit=48&page=${page}`);
+      const q = query ? `&q=${encodeURIComponent(query)}` : "";
+      const res = await fetch(`/api/media?limit=48&page=${page}${q}`);
       const data = await res.json();
       const items = data.data?.media || data.data || [];
       const pagination = data.data?.pagination;
@@ -214,6 +218,7 @@ export default function RichTextEditor({
     setSource("");
     setViewingMedia(null);
     setEditingMedia(null);
+    setMediaSearch("");
     setActiveTab("upload");
     setShowImageModal(true);
   }, []);
@@ -637,6 +642,24 @@ export default function RichTextEditor({
               {/* ── Media Library Tab ── */}
               {activeTab === "library" && (
                 <div>
+                  {/* Search */}
+                  <div className="relative mb-4">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
+                    <input
+                      value={mediaSearch}
+                      onChange={(e) => setMediaSearch(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") fetchMedia(1, false, mediaSearch); }}
+                      placeholder="Cari gambar berdasarkan caption, sumber, atau nama file..."
+                      className="input w-full pl-9 pr-16 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fetchMedia(1, false, mediaSearch)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg bg-goto-green px-3 py-1 text-xs font-medium text-white hover:bg-goto-green-dark"
+                    >
+                      Cari
+                    </button>
+                  </div>
                   {loadingMedia ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 size={32} className="animate-spin text-goto-green" />
@@ -696,6 +719,11 @@ export default function RichTextEditor({
                               {m.source && (
                                 <p className="truncate text-[11px] text-txt-muted">{m.source}</p>
                               )}
+                              {m.usedIn && m.usedIn.length > 0 && (
+                                <p className="mt-0.5 truncate text-[10px] text-blue-500" title={m.usedIn.join(", ")}>
+                                  Dipakai di {m.usedIn.length} artikel
+                                </p>
+                              )}
                               <div className="mt-1.5 flex gap-1">
                                 <button
                                   type="button"
@@ -730,7 +758,7 @@ export default function RichTextEditor({
                       <div className="mt-3 text-center">
                         <button
                           type="button"
-                          onClick={() => fetchMedia(mediaPage + 1, true)}
+                          onClick={() => fetchMedia(mediaPage + 1, true, mediaSearch)}
                           disabled={loadingMore}
                           className="rounded-full border border-border px-5 py-2 text-sm font-medium text-txt-secondary hover:bg-surface-secondary disabled:opacity-50"
                         >
@@ -800,12 +828,18 @@ export default function RichTextEditor({
               <X size={18} />
             </button>
             <img src={viewingMedia.url} alt={viewingMedia.caption || ""} className="max-h-[80vh] rounded-xl object-contain" />
-            {(viewingMedia.caption || viewingMedia.source) && (
-              <div className="mt-3 text-center">
-                {viewingMedia.caption && <p className="text-sm font-medium text-white">{viewingMedia.caption}</p>}
-                {viewingMedia.source && <p className="text-xs text-white/60">{viewingMedia.source}</p>}
-              </div>
-            )}
+            <div className="mt-3 text-center">
+              {viewingMedia.caption && <p className="text-sm font-medium text-white">{viewingMedia.caption}</p>}
+              {viewingMedia.source && <p className="text-xs text-white/60">{viewingMedia.source}</p>}
+              {viewingMedia.usedIn && viewingMedia.usedIn.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-white/40">Dipakai di:</p>
+                  {viewingMedia.usedIn.map((title, i) => (
+                    <p key={i} className="text-xs text-blue-300">{title}</p>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

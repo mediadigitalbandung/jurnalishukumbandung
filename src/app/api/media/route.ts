@@ -15,7 +15,7 @@ const createMediaSchema = z.object({
   size: z.number().int().min(0),
 });
 
-// GET /api/media — list all media, paginated
+// GET /api/media — list all media, paginated, with search & usedIn
 export async function GET(request: NextRequest) {
   try {
     await requireAuth();
@@ -24,8 +24,17 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "50")));
     const uploadedBy = searchParams.get("uploadedBy") || undefined;
+    const search = searchParams.get("q")?.trim() || "";
 
-    const where = uploadedBy ? { uploadedBy } : {};
+    const where: Record<string, unknown> = {};
+    if (uploadedBy) where.uploadedBy = uploadedBy;
+    if (search) {
+      where.OR = [
+        { caption: { contains: search, mode: "insensitive" } },
+        { source: { contains: search, mode: "insensitive" } },
+        { filename: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
     const [media, total] = await Promise.all([
       prisma.media.findMany({
@@ -37,14 +46,37 @@ export async function GET(request: NextRequest) {
       prisma.media.count({ where }),
     ]);
 
-    return successResponse({
-      media,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+    // Find which articles use each image
+    const mediaUrls = media.map((m) => m.url);
+    const articles = await prisma.article.findMany({
+      where: {
+        OR: [
+          { featuredImage: { in: mediaUrls } },
+          ...mediaUrls.map((url) => ({ content: { contains: url } })),
+        ],
       },
+      select: { title: true, featuredImage: true, content: true },
+    });
+
+    // Map URL -> article titles
+    const urlToTitles: Record<string, string[]> = {};
+    for (const a of articles) {
+      for (const url of mediaUrls) {
+        if (a.featuredImage === url || (a.content && a.content.includes(url))) {
+          if (!urlToTitles[url]) urlToTitles[url] = [];
+          if (!urlToTitles[url].includes(a.title)) urlToTitles[url].push(a.title);
+        }
+      }
+    }
+
+    const enriched = media.map((m) => ({
+      ...m,
+      usedIn: urlToTitles[m.url] || [],
+    }));
+
+    return successResponse({
+      media: enriched,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
     return errorResponse(error);
