@@ -129,7 +129,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     viewCount: a.viewCount,
   }));
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
   return (
     <div className="bg-surface min-h-screen">

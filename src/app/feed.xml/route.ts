@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const siteUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://jurnalis-hukum-bandung.vercel.app";
+    "https://jurnalishukumbandung.com";
 
   const articles = await prisma.article.findMany({
     where: { status: "PUBLISHED" },

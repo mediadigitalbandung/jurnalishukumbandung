@@ -225,6 +225,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <h1 className="sr-only">Jurnalis Hukum Bandung - Portal Berita Hukum Digital Terpercaya Terkini di Jawa Barat</h1>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -232,16 +233,16 @@ export default async function HomePage() {
             "@context": "https://schema.org",
             "@type": "NewsMediaOrganization",
             name: "Jurnalis Hukum Bandung",
-            url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app",
+            url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com",
             logo: {
               "@type": "ImageObject",
-              url: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"}/logo-jhb.png`,
+              url: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/logo-jhb.png`,
               width: 512,
               height: 512,
             },
             description: "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
             foundingDate: "2024",
-            publishingPrinciples: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"}/kode-etik`,
+            publishingPrinciples: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/kode-etik`,
             sameAs: [],
             address: {
               "@type": "PostalAddress",
@@ -265,12 +266,12 @@ export default async function HomePage() {
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "Jurnalis Hukum Bandung",
-            url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app",
+            url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com",
             potentialAction: {
               "@type": "SearchAction",
               target: {
                 "@type": "EntryPoint",
-                urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalis-hukum-bandung.vercel.app"}/search?q={search_term_string}`,
+                urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/search?q={search_term_string}`,
               },
               "query-input": "required name=search_term_string",
             },
