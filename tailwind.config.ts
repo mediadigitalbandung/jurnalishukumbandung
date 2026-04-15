@@ -47,7 +47,7 @@ const config: Config = {
         "fade-in": "fadeIn 0.4s ease-out",
         "fade-up": "fadeUp 0.5s ease-out",
         "scroll-x": "scrollX 35s linear infinite",
-        marquee: "marquee 30s linear infinite",
+        marquee: "marquee 60s linear infinite",
       },
       keyframes: {
         fadeIn: {
