@@ -180,21 +180,30 @@ export default function RichTextEditor({
     },
   });
 
-  /* ── Fetch media library ── */
-  const fetchMedia = useCallback(async () => {
-    setLoadingMedia(true);
+  /* ── Fetch media library (with pagination) ── */
+  const [mediaPage, setMediaPage] = useState(1);
+  const [hasMoreMedia, setHasMoreMedia] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchMedia = useCallback(async (page = 1, append = false) => {
+    if (page === 1) setLoadingMedia(true);
+    else setLoadingMore(true);
     try {
-      const res = await fetch("/api/media?limit=50");
+      const res = await fetch(`/api/media?limit=48&page=${page}`);
       const data = await res.json();
-      if (data.success) setMediaList(data.data?.media || data.data || []);
-    } catch {
-      /* ignore */
-    }
+      const items = data.data?.media || data.data || [];
+      const pagination = data.data?.pagination;
+      if (append) setMediaList((prev) => [...prev, ...items]);
+      else setMediaList(items);
+      setMediaPage(page);
+      setHasMoreMedia(pagination ? page < pagination.totalPages : false);
+    } catch { /* ignore */ }
     setLoadingMedia(false);
+    setLoadingMore(false);
   }, []);
 
   useEffect(() => {
-    if (showImageModal && activeTab === "library") fetchMedia();
+    if (showImageModal && activeTab === "library") fetchMedia(1);
   }, [showImageModal, activeTab, fetchMedia]);
 
   /* ── Open modal (reset state) ── */
@@ -646,7 +655,8 @@ export default function RichTextEditor({
                       </button>
                     </div>
                   ) : (
-                    <div className="grid max-h-[420px] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">
+                    <div className="max-h-[420px] overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                       {mediaList
                         .filter((m) => m.type?.startsWith("image"))
                         .map((m) => (
@@ -715,6 +725,19 @@ export default function RichTextEditor({
                             </div>
                           </div>
                         ))}
+                    </div>
+                    {hasMoreMedia && (
+                      <div className="mt-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => fetchMedia(mediaPage + 1, true)}
+                          disabled={loadingMore}
+                          className="rounded-full border border-border px-5 py-2 text-sm font-medium text-txt-secondary hover:bg-surface-secondary disabled:opacity-50"
+                        >
+                          {loadingMore ? "Memuat..." : "Muat Lebih Banyak"}
+                        </button>
+                      </div>
+                    )}
                     </div>
                   )}
                 </div>
