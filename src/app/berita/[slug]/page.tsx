@@ -621,7 +621,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
               {/* Ad — after tags */}
               <div className="mt-6">
-                <BannerAd slot="BETWEEN_SECTIONS" />
+                <BannerAd slot="BETWEEN_SECTIONS" noWrapper />
               </div>
 
               {/* Report button */}

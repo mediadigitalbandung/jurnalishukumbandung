@@ -21,7 +21,7 @@ export default function VideoStory({ items }: VideoStoryProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const animRef = useRef<number | null>(null);
-  const speedRef = useRef(0.5); // px per frame
+  const speedRef = useRef(0.2); // px per frame
 
   // Duplicate items for seamless loop
   const loopedItems = [...items, ...items];

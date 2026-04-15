@@ -179,7 +179,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
         {/* Banner Ad — Leaderboard */}
         <div className="mb-6">
-          <BannerAd slot="HEADER" />
+          <BannerAd slot="HEADER" noWrapper />
         </div>
 
         {/* Headline slider */}
@@ -238,7 +238,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
         {/* Banner Ad — below polling */}
         <div className="mb-6">
-          <BannerAd slot="BETWEEN_SECTIONS" />
+          <BannerAd slot="BETWEEN_SECTIONS" noWrapper />
         </div>
 
         {/* Video Story */}
@@ -282,7 +282,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
         {/* Banner Ad — Bottom full width */}
         <div className="mt-8">
-          <BannerAd slot="IN_ARTICLE" />
+          <BannerAd slot="IN_ARTICLE" noWrapper />
         </div>
 
         {/* Semua Berita — searchable list view */}
@@ -300,7 +300,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
         {/* Banner Ad — paling bawah */}
         <div className="mt-8">
-          <BannerAd slot="FOOTER" />
+          <BannerAd slot="FOOTER" noWrapper />
         </div>
       </div>
     </div>

@@ -100,7 +100,7 @@ export default function BannerAd({ size, slot, className = "", noWrapper }: Bann
 
   return (
     <div className={className}>
-      <div className="mx-auto max-w-6xl sm:px-8 lg:px-8">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <AdContent ad={ad} />
       </div>
     </div>

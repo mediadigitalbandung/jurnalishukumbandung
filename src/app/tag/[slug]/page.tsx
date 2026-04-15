@@ -86,7 +86,9 @@ export default async function TagPage({ params, searchParams }: PageProps) {
         </div>
 
         {/* Ad slot above articles */}
-        <BannerAd size="slim" />
+        <div className="mb-6">
+          <BannerAd size="slim" noWrapper />
+        </div>
 
         {/* Article grid */}
         {articles.length > 0 ? (
@@ -106,7 +108,9 @@ export default async function TagPage({ params, searchParams }: PageProps) {
         )}
 
         {/* Ad slot below articles */}
-        <BannerAd size="slim" />
+        <div className="mt-6">
+          <BannerAd size="slim" noWrapper />
+        </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
