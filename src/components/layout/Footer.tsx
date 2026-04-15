@@ -24,9 +24,9 @@ export default function Footer() {
   return (
     <footer className="bg-surface-dark text-white" role="contentinfo" aria-label="Footer situs">
       <div className="container-main py-10">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
-          <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+          <div className="col-span-1 sm:col-span-2">
             <div className="flex items-center gap-2.5">
               <Image src="/logo-jhb.png" alt="Logo JHB" width={36} height={36} className="rounded-full" />
               <span className="text-base font-bold">Jurnalis Hukum Bandung</span>
