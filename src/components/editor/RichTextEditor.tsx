@@ -46,15 +46,19 @@ const CustomImage = ImageExtension.extend({
       ...this.parent?.(),
       "data-caption": {
         default: null,
-        parseHTML: (el: HTMLElement) => el.getAttribute("data-caption"),
-        renderHTML: (attrs: Record<string, unknown>) =>
-          attrs["data-caption"] ? { "data-caption": attrs["data-caption"] } : {},
+        parseHTML: (element: Element) => element.getAttribute("data-caption"),
+        renderHTML: (attributes: Record<string, string | null>) => {
+          if (!attributes["data-caption"]) return {};
+          return { "data-caption": attributes["data-caption"] };
+        },
       },
       "data-source": {
         default: null,
-        parseHTML: (el: HTMLElement) => el.getAttribute("data-source"),
-        renderHTML: (attrs: Record<string, unknown>) =>
-          attrs["data-source"] ? { "data-source": attrs["data-source"] } : {},
+        parseHTML: (element: Element) => element.getAttribute("data-source"),
+        renderHTML: (attributes: Record<string, string | null>) => {
+          if (!attributes["data-source"]) return {};
+          return { "data-source": attributes["data-source"] };
+        },
       },
     };
   },
@@ -265,14 +269,12 @@ export default function RichTextEditor({
   const insertImage = () => {
     if (!selectedUrl || !editor) return;
 
-    const attrs = {
-      src: selectedUrl,
-      alt: caption || "",
-      "data-caption": caption || null,
-      "data-source": source || null,
-    };
-    // @ts-ignore — custom attributes from extended Image extension
-    editor.chain().focus().setImage(attrs).run();
+    // Build img attributes
+    let imgAttrs = `src="${selectedUrl}" alt="${caption || ""}"`;
+    if (caption) imgAttrs += ` data-caption="${caption}"`;
+    if (source) imgAttrs += ` data-source="${source}"`;
+
+    editor.chain().focus().insertContent(`<img ${imgAttrs}>`).run();
 
     setShowImageModal(false);
   };
