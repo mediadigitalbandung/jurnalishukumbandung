@@ -25,6 +25,7 @@ const createArticleSchema = z.object({
   status: z.enum(["DRAFT", "IN_REVIEW"]).optional(),
   authorId: z.string().optional(),
   assignedEditorId: z.string().optional(),
+  coAuthors: z.string().optional().nullable(),
   sources: z
     .array(
       z.object({
@@ -217,6 +218,7 @@ export async function POST(request: NextRequest) {
         seoDescription: seoFields.seoDescription,
         publishedAt: null,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
+        coAuthors: data.coAuthors || null,
         tags: { connect: tagConnections },
         sources: data.sources
           ? { create: data.sources }

@@ -32,6 +32,7 @@ const updateArticleSchema = z.object({
   reviewNote: z.string().max(1000).optional().nullable(),
   assignedEditorId: z.string().optional().nullable(),
   authorId: z.string().optional(),
+  coAuthors: z.string().optional().nullable(),
 });
 
 // GET /api/articles/:id

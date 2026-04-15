@@ -475,7 +475,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
               {/* Meta bar */}
               <div className="mt-4 text-sm text-txt-muted">
-                <span>Penulis: <span className="text-txt-primary font-medium">{article.author.name}</span></span>
+                <span>Penulis: <span className="text-txt-primary font-medium">{article.coAuthors ? "Tim Redaksi" : article.author.name}</span></span>
                 {editorName && (
                   <>
                     <span className="mx-2">&middot;</span>
@@ -634,24 +634,57 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
               {/* Author box */}
               <div id="author" className="mt-8 rounded-[12px] border border-border bg-surface p-6 shadow-card">
-                <div className="flex gap-5">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-goto-green text-xl font-bold text-white">
-                    {article.author.name.charAt(0)}
+                {article.coAuthors ? (
+                  /* Tim Redaksi view */
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-goto-green text-lg font-bold text-white">
+                        TR
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-txt-primary">Tim Redaksi</h3>
+                        <p className="text-sm text-goto-green font-medium">Jurnalis Hukum Bandung</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-lg bg-surface-secondary p-4">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-txt-muted">Penulis</p>
+                      <div className="flex flex-wrap gap-2">
+                        {article.coAuthors.split(",").map((name: string, i: number) => (
+                          <Link
+                            key={i}
+                            href={`/penulis/${slugify(name.trim())}`}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-surface border border-border px-3 py-1.5 text-sm font-medium text-txt-primary hover:border-goto-green hover:text-goto-green transition-colors"
+                          >
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-goto-green/10 text-[10px] font-bold text-goto-green">
+                              {name.trim().charAt(0)}
+                            </span>
+                            {name.trim()}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-txt-primary">{article.author.name}</h3>
-                    <p className="text-sm text-goto-green font-medium">Jurnalis</p>
-                    <p className="mt-2 text-sm leading-relaxed text-txt-secondary">
-                      {article.author.bio}
-                    </p>
-                    <Link
-                      href={`/penulis/${slugify(article.author.name)}`}
-                      className="mt-3 inline-block text-sm font-medium text-goto-green transition-colors hover:text-goto-dark"
-                    >
-                      Lihat semua artikel &rarr;
-                    </Link>
+                ) : (
+                  /* Single author view */
+                  <div className="flex gap-5">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-goto-green text-xl font-bold text-white">
+                      {article.author.name.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-txt-primary">{article.author.name}</h3>
+                      <p className="text-sm text-goto-green font-medium">Jurnalis</p>
+                      <p className="mt-2 text-sm leading-relaxed text-txt-secondary">
+                        {article.author.bio}
+                      </p>
+                      <Link
+                        href={`/penulis/${slugify(article.author.name)}`}
+                        className="mt-3 inline-block text-sm font-medium text-goto-green transition-colors hover:text-goto-dark"
+                      >
+                        Lihat semua artikel &rarr;
+                      </Link>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Ad — before related */}

@@ -120,6 +120,7 @@ model Article {
   reviewedBy        String?
   reviewedAt        DateTime?
   assignedEditorId  String?
+  coAuthors         String?           @db.Text
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

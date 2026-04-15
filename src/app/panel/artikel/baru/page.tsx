@@ -66,6 +66,8 @@ export default function NewArticlePage() {
   const [users, setUsers] = useState<{id: string; name: string; role: string}[]>([]);
   const [selectedAuthorId, setSelectedAuthorId] = useState("");
   const [selectedEditorId, setSelectedEditorId] = useState("");
+  const [isTeamArticle, setIsTeamArticle] = useState(false);
+  const [coAuthorIds, setCoAuthorIds] = useState<string[]>([]);
   const [savedArticleId, setSavedArticleId] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -300,6 +302,9 @@ export default function NewArticlePage() {
           sources: validSources.length > 0 ? validSources : undefined,
           authorId: selectedAuthorId || undefined,
           assignedEditorId: selectedEditorId || undefined,
+          coAuthors: isTeamArticle && coAuthorIds.length > 0
+            ? coAuthorIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(", ")
+            : undefined,
         }),
       });
 
@@ -703,6 +708,51 @@ export default function NewArticlePage() {
               </select>
             </div>
           )}
+
+          {/* Tim Redaksi — co-authors */}
+          <div className="rounded-[12px] border border-border bg-surface p-6">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-txt-primary">Tim Redaksi</label>
+              <button
+                type="button"
+                onClick={() => { setIsTeamArticle(!isTeamArticle); if (isTeamArticle) setCoAuthorIds([]); }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${isTeamArticle ? "bg-goto-green" : "bg-gray-200"}`}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${isTeamArticle ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-txt-muted">Aktifkan jika artikel ditulis oleh lebih dari satu penulis</p>
+            {isTeamArticle && (
+              <div className="mt-3 space-y-2">
+                <label className="text-xs font-medium text-txt-secondary">Pilih anggota tim:</label>
+                <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
+                  {users
+                    .filter(u => ["JOURNALIST", "CONTRIBUTOR", "EDITOR", "SUPER_ADMIN"].includes(u.role))
+                    .map(u => (
+                      <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-secondary">
+                        <input
+                          type="checkbox"
+                          checked={coAuthorIds.includes(u.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setCoAuthorIds([...coAuthorIds, u.id]);
+                            else setCoAuthorIds(coAuthorIds.filter(id => id !== u.id));
+                          }}
+                          className="h-4 w-4 rounded border-border text-goto-green focus:ring-goto-green"
+                        />
+                        <span className="text-sm text-txt-primary">{u.name}</span>
+                        <span className="text-xs text-txt-muted">({roleLabelsMap[u.role] || u.role})</span>
+                      </label>
+                    ))
+                  }
+                </div>
+                {coAuthorIds.length > 0 && (
+                  <p className="text-xs text-goto-green">
+                    {coAuthorIds.length} penulis dipilih: {coAuthorIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Pilih Editor — for all roles */}
           <div className="rounded-[12px] border border-border bg-surface p-6">
