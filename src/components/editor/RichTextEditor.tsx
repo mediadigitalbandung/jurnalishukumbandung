@@ -174,9 +174,9 @@ export default function RichTextEditor({
   const fetchMedia = useCallback(async () => {
     setLoadingMedia(true);
     try {
-      const res = await fetch("/api/media?limit=60");
+      const res = await fetch("/api/media?limit=50");
       const data = await res.json();
-      if (data.success) setMediaList(data.data || []);
+      if (data.success) setMediaList(data.data?.media || data.data || []);
     } catch {
       /* ignore */
     }
