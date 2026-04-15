@@ -67,6 +67,13 @@ export default function PengaturanPage() {
   } | null>(null);
   const [seoPinging, setSeoPinging] = useState(false);
   const [seoPingResult, setSeoPingResult] = useState<string | null>(null);
+  const [bulkReindexing, setBulkReindexing] = useState(false);
+  const [bulkReindexResult, setBulkReindexResult] = useState<{
+    message?: string;
+    totalArticles?: number;
+    googleIndexingApi?: { submitted: number; errors: number };
+    indexNow?: { submitted: number };
+  } | null>(null);
 
   // Redirect non-super-admin
   if (sessionStatus !== "loading" && session && userRole !== "SUPER_ADMIN") {
@@ -223,6 +230,29 @@ export default function PengaturanPage() {
       setSeoPingResult("Gagal menghubungi server");
     } finally {
       setSeoPinging(false);
+    }
+  };
+
+  const handleBulkReindex = async () => {
+    setBulkReindexing(true);
+    setBulkReindexResult(null);
+    try {
+      const res = await fetch("/api/seo/bulk-reindex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 200 }),
+      });
+      const json = await res.json();
+      if (json?.data) {
+        setBulkReindexResult(json.data);
+        showToast(`${json.data.totalArticles || 0} artikel berhasil di-submit ke Google!`);
+      } else {
+        showToast("Gagal melakukan bulk re-index");
+      }
+    } catch {
+      showToast("Gagal menghubungi server");
+    } finally {
+      setBulkReindexing(false);
     }
   };
 
@@ -679,6 +709,39 @@ export default function PengaturanPage() {
               </div>
               {seoPingResult && (
                 <p className="mt-2 text-sm text-goto-green font-medium">{seoPingResult}</p>
+              )}
+            </div>
+
+            {/* Bulk Re-Index */}
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base font-medium text-txt-primary">Bulk Re-Index Semua Artikel</p>
+                  <p className="text-sm text-txt-muted">
+                    Submit semua artikel yang sudah published ke Google Indexing API &amp; IndexNow (Bing, Yandex). Maks 200 artikel/hari.
+                  </p>
+                </div>
+                <button
+                  onClick={handleBulkReindex}
+                  disabled={bulkReindexing}
+                  className="btn-primary text-sm"
+                >
+                  <Zap size={14} className={bulkReindexing ? "animate-pulse" : ""} />
+                  {bulkReindexing ? "Mengirim..." : "Re-Index Semua"}
+                </button>
+              </div>
+              {bulkReindexResult && (
+                <div className="mt-3 rounded-[12px] border border-goto-green/30 bg-goto-light p-4">
+                  <p className="text-sm font-semibold text-goto-green">{bulkReindexResult.message}</p>
+                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-txt-secondary">
+                    {bulkReindexResult.googleIndexingApi && (
+                      <span>Google Indexing: <strong className="text-goto-green">{bulkReindexResult.googleIndexingApi.submitted}</strong> submitted{bulkReindexResult.googleIndexingApi.errors > 0 && <>, <strong className="text-red-500">{bulkReindexResult.googleIndexingApi.errors}</strong> errors</>}</span>
+                    )}
+                    {bulkReindexResult.indexNow && (
+                      <span>IndexNow (Bing): <strong className="text-goto-green">{bulkReindexResult.indexNow.submitted}</strong> submitted</span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
