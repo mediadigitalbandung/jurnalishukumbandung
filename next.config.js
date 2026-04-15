@@ -78,6 +78,8 @@ const nextConfig = {
           },
           // Prevent DNS prefetch abuse
           { key: "X-DNS-Prefetch-Control", value: "on" },
+          // HSTS — enforce HTTPS (trust signal for Google)
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           // Cross-Origin policies
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },

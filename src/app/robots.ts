@@ -7,12 +7,35 @@ export default function robots(): MetadataRoute.Robots {
 
   return {
     rules: [
+      // Googlebot — allow everything public, max crawl
+      {
+        userAgent: "Googlebot",
+        allow: "/",
+        disallow: ["/panel/", "/api/", "/login", "/offline"],
+      },
+      // Googlebot-News — specifically for Google News indexing
+      {
+        userAgent: "Googlebot-News",
+        allow: ["/berita/", "/kategori/", "/tag/"],
+        disallow: ["/panel/", "/api/", "/login"],
+      },
+      // Bingbot
+      {
+        userAgent: "Bingbot",
+        allow: "/",
+        disallow: ["/panel/", "/api/", "/login", "/offline"],
+      },
+      // All other crawlers
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/panel/", "/api/", "/login"],
+        disallow: ["/panel/", "/api/", "/login", "/offline"],
       },
     ],
-    sitemap: [`${siteUrl}/sitemap.xml`, `${siteUrl}/news-sitemap.xml`],
+    sitemap: [
+      `${siteUrl}/sitemap.xml`,
+      `${siteUrl}/news-sitemap.xml`,
+    ],
+    host: siteUrl,
   };
 }

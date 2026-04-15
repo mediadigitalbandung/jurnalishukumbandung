@@ -34,32 +34,57 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const article = await getArticle(params.slug);
   if (!article) return { title: "Artikel Tidak Ditemukan" };
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.excerpt || "";
+  const imageUrl = article.featuredImage
+    ? (article.featuredImage.startsWith("http") ? article.featuredImage : `${appUrl}${article.featuredImage}`)
+    : `${appUrl}/logo-jhb.png`;
 
   return {
     title: article.title,
     description,
+    keywords: article.tags?.map((t: { name: string }) => t.name).join(", "),
+    authors: [{ name: article.author.name, url: `${appUrl}/penulis/${slugify(article.author.name)}` }],
     openGraph: {
       title,
       description,
       type: "article",
+      url: `${appUrl}/berita/${params.slug}`,
+      siteName: "Jurnalis Hukum Bandung",
+      locale: "id_ID",
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
       authors: [article.author.name],
       section: article.category.name,
-      ...(article.featuredImage && {
-        images: [{ url: article.featuredImage, width: 1200, height: 630, alt: article.title }],
-      }),
+      tags: article.tags?.map((t: { name: string }) => t.name),
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: article.title, type: "image/jpeg" }],
     },
     twitter: {
       card: "summary_large_image",
+      site: "@jurnalishukumbdg",
+      creator: "@jurnalishukumbdg",
       title,
       description,
-      ...(article.featuredImage && { images: [article.featuredImage] }),
+      images: [{ url: imageUrl, alt: article.title }],
     },
     alternates: {
-      canonical: `/berita/${params.slug}`,
+      canonical: `${appUrl}/berita/${params.slug}`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large" as const,
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+    other: {
+      // Google News specific meta tags
+      "news_keywords": article.tags?.map((t: { name: string }) => t.name).join(", ") || "",
+      "article:published_time": article.publishedAt?.toISOString() || "",
+      "article:modified_time": article.updatedAt.toISOString(),
+      "article:author": article.author.name,
+      "article:section": article.category.name,
     },
   };
 }
@@ -280,27 +305,78 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
   const plainContent = article.content.replace(/<[^>]*>/g, "");
   const wordCount = plainContent.split(/\s+/).filter(Boolean).length;
 
+  // Count approved comments for engagement signal
+  const commentCount = await prisma.comment.count({
+    where: { articleId: article.id, isApproved: true },
+  });
+
+  // Full image URL for structured data
+  const imageUrl = article.featuredImage
+    ? (article.featuredImage.startsWith("http") ? article.featuredImage : `${appUrl}${article.featuredImage}`)
+    : `${appUrl}/logo-jhb.png`;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: article.seoTitle || article.title,
+    alternativeHeadline: article.title,
     description: article.seoDescription || article.excerpt || "",
-    image: article.featuredImage ? [article.featuredImage] : [],
+    image: {
+      "@type": "ImageObject",
+      url: imageUrl,
+      width: 1200,
+      height: 630,
+    },
     datePublished: article.publishedAt?.toISOString(),
     dateModified: article.updatedAt.toISOString(),
-    author: { "@type": "Person", name: article.author.name },
+    author: {
+      "@type": "Person",
+      name: article.author.name,
+      url: `${appUrl}/penulis/${slugify(article.author.name)}`,
+      ...(article.author.bio && { description: article.author.bio }),
+    },
+    ...(editorName && {
+      editor: {
+        "@type": "Person",
+        name: editorName,
+      },
+    }),
     publisher: {
       "@type": "NewsMediaOrganization",
       name: "Jurnalis Hukum Bandung",
-      logo: { "@type": "ImageObject", url: `${appUrl}/logo-jhb.png`, width: 512, height: 512 },
       url: appUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: `${appUrl}/logo-jhb.png`,
+        width: 512,
+        height: 512,
+      },
+      sameAs: [
+        "https://twitter.com/jurnalishukumbdg",
+      ],
+      publishingPrinciples: `${appUrl}/kode-etik`,
     },
-    mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": articleUrl,
+    },
     articleSection: article.category.name,
+    articleBody: plainContent.slice(0, 500),
     keywords: article.tags?.map((t: { name: string }) => t.name).join(", ") || "",
     wordCount,
+    commentCount,
     isAccessibleForFree: true,
     inLanguage: "id-ID",
+    copyrightHolder: {
+      "@type": "Organization",
+      name: "Jurnalis Hukum Bandung",
+    },
+    copyrightYear: article.publishedAt ? new Date(article.publishedAt).getFullYear() : new Date().getFullYear(),
+    // Speakable — helps Google Assistant read key parts of news
+    speakable: {
+      "@type": "SpeakableSpecification",
+      cssSelector: ["h1", ".article-content p:first-of-type"],
+    },
   };
 
   const breadcrumbLd = {
@@ -308,8 +384,9 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Beranda", item: appUrl },
-      { "@type": "ListItem", position: 2, name: article.category.name, item: `${appUrl}/kategori/${article.category.slug}` },
-      { "@type": "ListItem", position: 3, name: article.title },
+      { "@type": "ListItem", position: 2, name: "Berita", item: `${appUrl}/berita` },
+      { "@type": "ListItem", position: 3, name: article.category.name, item: `${appUrl}/kategori/${article.category.slug}` },
+      { "@type": "ListItem", position: 4, name: article.title },
     ],
   };
 

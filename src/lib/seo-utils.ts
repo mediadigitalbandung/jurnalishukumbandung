@@ -2,13 +2,17 @@ import { prisma } from "@/lib/prisma";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
-/* ── 1. Ping Google & Bing sitemap ─────────────────────────────── */
+/* ── 1. Ping Google & Bing sitemap (both main + news sitemap) ──── */
 
 export async function pingSitemapToSearchEngines() {
-  const sitemapUrl = encodeURIComponent(`${BASE_URL}/sitemap.xml`);
+  const mainSitemap = encodeURIComponent(`${BASE_URL}/sitemap.xml`);
+  const newsSitemap = encodeURIComponent(`${BASE_URL}/news-sitemap.xml`);
+
   const pings = [
-    `https://www.google.com/ping?sitemap=${sitemapUrl}`,
-    `https://www.bing.com/ping?sitemap=${sitemapUrl}`,
+    `https://www.google.com/ping?sitemap=${mainSitemap}`,
+    `https://www.google.com/ping?sitemap=${newsSitemap}`,
+    `https://www.bing.com/ping?sitemap=${mainSitemap}`,
+    `https://www.bing.com/ping?sitemap=${newsSitemap}`,
   ];
 
   const results = await Promise.allSettled(
@@ -22,21 +26,35 @@ export async function pingSitemapToSearchEngines() {
   );
 }
 
-/* ── 2. Submit URL to Google Indexing API (Cepat) & Ping ─────────── */
+/* ── 2. Submit URL to Google Indexing API (Cepat) & IndexNow ────── */
 
-export async function submitUrlToGoogle(articleSlug: string) {
+export async function submitUrlToGoogle(articleSlug: string, categorySlug?: string) {
   const articleUrl = `${BASE_URL}/berita/${articleSlug}`;
-  const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(`${BASE_URL}/sitemap.xml`)}`;
 
-  const tasks: Promise<any>[] = [
-    fetch(pingUrl).then((r) => ({ engine: "google-ping", status: r.status })),
-    fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(articleUrl)}&key=jurnalishukumbandung`).then((r) => ({ engine: "bing-indexnow", status: r.status })),
-  ];
+  const tasks: Promise<any>[] = [];
 
-  // Try Google Indexing API if configured
+  // Google Indexing API — fastest way to get indexed (minutes, not hours)
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    tasks.push(submitToGoogleIndexingApi(articleUrl).then(r => ({ engine: "google-indexing-api", data: r })));
+    // Submit the article URL
+    tasks.push(
+      submitToGoogleIndexingApi(articleUrl)
+        .then(r => ({ engine: "google-indexing-api", url: articleUrl, data: r }))
+    );
+    // Also notify Google about homepage update (new article appears there)
+    tasks.push(
+      submitToGoogleIndexingApi(BASE_URL)
+        .then(r => ({ engine: "google-indexing-api", url: BASE_URL, data: r }))
+    );
   }
+
+  // IndexNow — submit to Bing, Yandex, Seznam, Naver simultaneously
+  const indexNowUrls = [
+    articleUrl,
+    BASE_URL,
+    `${BASE_URL}/berita`,
+    ...(categorySlug ? [`${BASE_URL}/kategori/${categorySlug}`] : []),
+  ];
+  tasks.push(submitToIndexNow(indexNowUrls));
 
   const results = await Promise.allSettled(tasks);
 
@@ -49,10 +67,9 @@ async function submitToGoogleIndexingApi(url: string) {
   try {
     const jsonStr = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
     if (!jsonStr) return null;
-    
+
     const credentials = JSON.parse(jsonStr);
-    
-    // Import googleapis dynamically to avoid blocking standard API edges
+
     const { google } = await import("googleapis");
     const auth = new google.auth.JWT({
       email: credentials.client_email,
@@ -64,11 +81,34 @@ async function submitToGoogleIndexingApi(url: string) {
     const res = await indexing.urlNotifications.publish({
       requestBody: { url, type: "URL_UPDATED" },
     });
-    
+
+    console.log(`[SEO] Google Indexing API submitted: ${url}`);
     return res.data;
   } catch (error) {
     console.error("[SEO] Google Indexing API Error:", error);
     return null;
+  }
+}
+
+/** IndexNow — instant indexing for Bing, Yandex, Seznam, Naver */
+async function submitToIndexNow(urls: string[]) {
+  const key = "jurnalishukumbandung";
+  try {
+    const res = await fetch("https://api.indexnow.org/indexnow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        host: "jurnalishukumbandung.com",
+        key,
+        keyLocation: `${BASE_URL}/${key}.txt`,
+        urlList: urls,
+      }),
+    });
+    console.log(`[SEO] IndexNow submitted ${urls.length} URLs, status: ${res.status}`);
+    return { engine: "indexnow", status: res.status, urls: urls.length };
+  } catch (error) {
+    console.error("[SEO] IndexNow Error:", error);
+    return { engine: "indexnow", status: 0 };
   }
 }
 
@@ -211,17 +251,28 @@ export function generateInternalLinksHtml(
 /* ── 6. Full SEO automation on publish ─────────────────────────── */
 
 export async function onArticlePublished(slug: string, articleId: string, categoryId: string) {
+  // Resolve category slug for IndexNow
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { slug: true },
+  });
+  const categorySlug = category?.slug;
+
   // Run all SEO tasks in parallel (non-blocking)
   const articleUrl = `${BASE_URL}/berita/${slug}`;
   const tasks = [
     pingSitemapToSearchEngines().catch(() => null),
-    submitUrlToGoogle(slug).catch(() => null),
+    submitUrlToGoogle(slug, categorySlug).catch(() => null),
     purgeCloudflareCache([
-      BASE_URL, 
-      `${BASE_URL}/`, 
-      `${BASE_URL}/berita`, 
-      `${BASE_URL}/kategori/${categoryId}`, 
-      articleUrl
+      BASE_URL,
+      `${BASE_URL}/`,
+      `${BASE_URL}/berita`,
+      ...(categorySlug ? [`${BASE_URL}/kategori/${categorySlug}`] : []),
+      articleUrl,
+      // Also purge sitemaps so crawlers get fresh data
+      `${BASE_URL}/sitemap.xml`,
+      `${BASE_URL}/news-sitemap.xml`,
+      `${BASE_URL}/feed.xml`,
     ]).catch(() => null),
   ];
 
@@ -234,11 +285,7 @@ export async function onArticlePublished(slug: string, articleId: string, catego
 
   const related = await getRelatedArticleSuggestions(articleId, categoryId, tagIds);
 
-  // Store related article IDs for display (no content modification)
-  if (related.length > 0) {
-    // Log the SEO automation
-    console.log(`[SEO] Article published: ${slug}, pinged search engines & cleared cache. ${related.length} related articles found`);
-  }
+  console.log(`[SEO] Article published: ${slug}, submitting to Google Indexing API + IndexNow + ping sitemaps + purge cache. ${related.length} related articles found`);
 
   await Promise.allSettled(tasks);
 

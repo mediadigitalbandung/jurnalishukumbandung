@@ -76,7 +76,16 @@ export const metadata: Metadata = {
       follow: true,
       "max-image-preview": "large",
       "max-snippet": -1,
+      "max-video-preview": -1,
     },
+  },
+  alternates: {
+    types: {
+      "application/rss+xml": "/feed.xml",
+    },
+  },
+  other: {
+    "google-site-verification": "aOYlnEshfJKwCD4v8OePC3vgPACRIRt2bO5s9dziFj0",
   },
 };
 
@@ -85,9 +94,69 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+
+  // Organization + WebSite structured data for Google Knowledge Panel & Sitelinks Search Box
+  const organizationLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsMediaOrganization",
+    "@id": `${appUrl}/#organization`,
+    name: "Jurnalis Hukum Bandung",
+    alternateName: "JHB",
+    url: appUrl,
+    logo: {
+      "@type": "ImageObject",
+      url: `${appUrl}/logo-jhb.png`,
+      width: 512,
+      height: 512,
+    },
+    description: "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
+    foundingDate: "2024",
+    sameAs: [
+      "https://twitter.com/jurnalishukumbdg",
+    ],
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Bandung",
+      addressRegion: "Jawa Barat",
+      addressCountry: "ID",
+    },
+    publishingPrinciples: `${appUrl}/kode-etik`,
+    ethicsPolicy: `${appUrl}/kode-etik`,
+    correctionsPolicy: `${appUrl}/pedoman-media`,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "editorial",
+      url: `${appUrl}/kontak`,
+    },
+  };
+
+  const websiteLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${appUrl}/#website`,
+    name: "Jurnalis Hukum Bandung",
+    url: appUrl,
+    publisher: { "@id": `${appUrl}/#organization` },
+    inLanguage: "id-ID",
+    // Sitelinks Search Box — enables search box directly in Google results
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${appUrl}/search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html lang="id" className={`${sourceSans.variable} ${lora.variable}`}>
       <body className="flex min-h-screen flex-col font-sans bg-surface text-txt-primary">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationLd, websiteLd]) }}
+        />
         <Providers>
           <a
             href="#main-content"
