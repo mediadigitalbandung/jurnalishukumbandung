@@ -3,7 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Kebijakan Privasi",
   description: "Kebijakan privasi Jurnalis Hukum Bandung - Informasi mengenai pengumpulan, penggunaan, dan perlindungan data pengguna.",
-  alternates: { canonical: "/privasi" },
+  alternates: { canonical: "https://jurnalishukumbandung.com/privasi" },
 };
 
 export default function PrivasiPage() {

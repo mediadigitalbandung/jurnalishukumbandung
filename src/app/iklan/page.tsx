@@ -5,7 +5,7 @@ import { CheckCircle, BarChart3, Users, Zap, Mail, Phone } from "lucide-react";
 export const metadata: Metadata = {
   title: "Pasang Iklan",
   description: "Pasang iklan di Jurnalis Hukum Bandung — media hukum digital terpercaya. Jangkau pembaca profesional hukum di Bandung.",
-  alternates: { canonical: "/iklan" },
+  alternates: { canonical: "https://jurnalishukumbandung.com/iklan" },
 };
 
 const adSlots = [

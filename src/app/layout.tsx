@@ -86,6 +86,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
+    canonical: "https://jurnalishukumbandung.com",
     types: {
       "application/rss+xml": "/feed.xml",
     },

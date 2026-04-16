@@ -3,7 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Syarat & Ketentuan",
   description: "Syarat dan ketentuan penggunaan platform Jurnalis Hukum Bandung.",
-  alternates: { canonical: "/syarat-ketentuan" },
+  alternates: { canonical: "https://jurnalishukumbandung.com/syarat-ketentuan" },
 };
 
 export default function SyaratKetentuanPage() {

@@ -3,7 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Kode Etik Jurnalistik",
   description: "Kode etik jurnalistik yang dianut oleh Jurnalis Hukum Bandung dalam menjalankan kegiatan pers.",
-  alternates: { canonical: "/kode-etik" },
+  alternates: { canonical: "https://jurnalishukumbandung.com/kode-etik" },
 };
 
 const articles = [
