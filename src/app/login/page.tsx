@@ -15,9 +15,16 @@ function LoginContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const sessionExpired = searchParams.get("reason") === "session_expired";
+
+  // Auto-clear stale session on login page
+  if (status === "authenticated" && session && sessionExpired) {
+    signOut({ redirect: false }).then(() => {
+      window.location.href = "/login";
+    });
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
