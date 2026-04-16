@@ -58,6 +58,7 @@ const menuItems: MenuItem[] = [
   { name: "Statistik", href: "/panel/statistik-editor", icon: BarChart3, editorOnly: true },
   { name: "Aktivitas", href: "/panel/aktivitas", icon: History, superAdminOnly: true },
   { name: "SEO Monitor", href: "/panel/seo", icon: Globe, superAdminOnly: true },
+  { name: "Sorotan SEO", href: "/panel/sorotan", icon: Sparkles, superAdminOnly: true },
   { name: "Auto-Artikel", href: "/panel/auto-artikel", icon: Bot, superAdminOnly: true },
   { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
   { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
