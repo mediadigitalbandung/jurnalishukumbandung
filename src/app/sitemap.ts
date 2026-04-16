@@ -84,5 +84,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticPages, ...categoryPages, ...tagPages, ...articlePages, ...authorPages];
+  // Topik pages (same as tags but /topik/ route for cluster pages)
+  const topikPages: MetadataRoute.Sitemap = tags
+    .map((t) => ({
+      url: `${siteUrl}/topik/${t.slug}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+    }));
+
+  // Lokasi pages
+  const lokasiSlugs = [
+    "bandung", "bandung-barat", "kabupaten-bandung", "cimahi",
+    "sumedang", "garut", "cianjur", "subang", "purwakarta", "jawa-barat",
+  ];
+  const lokasiPages: MetadataRoute.Sitemap = lokasiSlugs.map((slug) => ({
+    url: `${siteUrl}/lokasi/${slug}`,
+    lastModified: now,
+    changeFrequency: "daily" as const,
+    priority: 0.7,
+  }));
+
+  // Static index pages for new sections
+  const sectionPages: MetadataRoute.Sitemap = [
+    { url: `${siteUrl}/topik`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
+    { url: `${siteUrl}/rangkuman`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.6 },
+    { url: `${siteUrl}/lokasi`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
+  ];
+
+  return [
+    ...staticPages, ...categoryPages, ...tagPages, ...articlePages,
+    ...authorPages, ...topikPages, ...lokasiPages, ...sectionPages,
+  ];
 }
