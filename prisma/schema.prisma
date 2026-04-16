@@ -142,17 +142,20 @@ model Article {
 // Sorotan = substantive summary pages (3 per article, each with unique angle)
 // Each page has 300-500 words of standalone content + link to full article
 model Sorotan {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  title     String                      // Unique title for this angle
-  content   String   @db.Text           // 300-500 words substantive content
-  angle     String                      // "kronologi" | "analisis" | "dampak"
-  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  articleId String
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String                      // Unique title for this angle
+  content       String    @db.Text           // 300-500 words substantive content
+  angle         String                      // "kronologi" | "analisis" | "dampak"
+  article       Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId     String
+  indexStatus   String?                     // "submitted", "failed", null
+  lastIndexedAt DateTime?
+  createdAt     DateTime  @default(now())
 
   @@index([articleId])
   @@index([angle])
+  @@index([indexStatus])
   @@map("sorotan")
 }
 

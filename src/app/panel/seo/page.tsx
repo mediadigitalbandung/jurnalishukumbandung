@@ -43,6 +43,8 @@ interface SorotanItem {
   slug: string;
   title: string;
   angle: string;
+  indexStatus: string | null;
+  lastIndexedAt: string | null;
   createdAt: string;
   article: { title: string; slug: string; category: { name: string } };
 }
@@ -71,10 +73,12 @@ export default function SeoMonitorPage() {
   // Sorotan state
   const [sorotanList, setSorotanList] = useState<SorotanItem[]>([]);
   const [sorotanTotal, setSorotanTotal] = useState(0);
+  const [sorotanStats, setSorotanStats] = useState({ total: 0, submitted: 0, failed: 0, notSubmitted: 0 });
   const [sorotanPage, setSorotanPage] = useState(1);
   const [sorotanTotalPages, setSorotanTotalPages] = useState(1);
   const [sorotanLoading, setSorotanLoading] = useState(false);
   const [sorotanSearch, setSorotanSearch] = useState("");
+  const [sorotanFilter, setSorotanFilter] = useState("all");
   const [sorotanSelected, setSorotanSelected] = useState<string[]>([]);
   const [sorotanSubmitting, setSorotanSubmitting] = useState(false);
   const [sorotanSubmittingSlug, setSorotanSubmittingSlug] = useState<string | null>(null);
@@ -83,23 +87,28 @@ export default function SeoMonitorPage() {
     setSorotanLoading(true);
     try {
       const q = sorotanSearch ? `&q=${encodeURIComponent(sorotanSearch)}` : "";
-      const res = await fetch(`/api/seo/sorotan-status?page=${sorotanPage}${q}`);
+      const res = await fetch(`/api/seo/sorotan-status?page=${sorotanPage}&filter=${sorotanFilter}${q}`);
       const data = await res.json();
       if (data.success) {
         setSorotanList(data.data.sorotan || []);
-        setSorotanTotal(data.data.total || 0);
+        setSorotanTotal(data.data.stats?.total || data.data.total || 0);
+        setSorotanStats(data.data.stats || { total: 0, submitted: 0, failed: 0, notSubmitted: 0 });
         setSorotanTotalPages(data.data.pagination?.totalPages || 1);
       }
     } catch { /* ignore */ }
     setSorotanLoading(false);
-  }, [sorotanPage, sorotanSearch]);
+  }, [sorotanPage, sorotanSearch, sorotanFilter]);
 
-  // Load sorotan count on mount, full data when tab active
+  // Load sorotan stats on mount
   useEffect(() => {
-    // Always fetch at least page 1 for count
     fetch("/api/seo/sorotan-status?page=1")
       .then((r) => r.json())
-      .then((d) => { if (d.success) setSorotanTotal(d.data.total || 0); })
+      .then((d) => {
+        if (d.success) {
+          setSorotanTotal(d.data.stats?.total || d.data.total || 0);
+          if (d.data.stats) setSorotanStats(d.data.stats);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -433,22 +442,13 @@ export default function SeoMonitorPage() {
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-txt-secondary">
           <Sparkles size={14} /> Sorotan SEO
         </h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50"><Sparkles size={18} className="text-purple-500" /></div>
               <div>
-                <p className="text-xl font-bold text-txt-primary">{sorotanTotal}</p>
+                <p className="text-xl font-bold text-txt-primary">{sorotanStats.total}</p>
                 <p className="text-[10px] text-txt-muted">Total Sorotan</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><Globe size={18} className="text-blue-500" /></div>
-              <div>
-                <p className="text-xl font-bold text-blue-600">{Math.floor(sorotanTotal / 10)}</p>
-                <p className="text-[10px] text-txt-muted">Artikel Ter-cover</p>
               </div>
             </div>
           </div>
@@ -456,8 +456,26 @@ export default function SeoMonitorPage() {
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50"><CheckCircle size={18} className="text-green-500" /></div>
               <div>
-                <p className="text-xl font-bold text-green-600">10</p>
-                <p className="text-[10px] text-txt-muted">Angle per Artikel</p>
+                <p className="text-xl font-bold text-green-600">{sorotanStats.submitted}</p>
+                <p className="text-[10px] text-txt-muted">Submitted</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50"><Clock size={18} className="text-yellow-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-yellow-600">{sorotanStats.notSubmitted}</p>
+                <p className="text-[10px] text-txt-muted">Belum Submit</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><XCircle size={18} className="text-red-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-red-600">{sorotanStats.failed}</p>
+                <p className="text-[10px] text-txt-muted">Gagal</p>
               </div>
             </div>
           </div>
@@ -528,39 +546,47 @@ export default function SeoMonitorPage() {
       {/* === SOROTAN TAB === */}
       {activeTab === "sorotan" && (
         <div className="space-y-4">
-          {/* Search + Batch */}
+          {/* Filter + Search + Batch */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter size={14} className="text-txt-muted shrink-0" />
+              {["all", "submitted", "not_submitted", "failed"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => { setSorotanFilter(f); setSorotanPage(1); }}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    sorotanFilter === f ? "bg-goto-green text-white" : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary"
+                  }`}
+                >
+                  {f === "all" ? "Semua" : f === "submitted" ? "Submitted" : f === "not_submitted" ? "Belum" : "Gagal"}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
               {sorotanSelected.length > 0 && (
-                <button
-                  onClick={() => submitSorotanBatch(sorotanSelected)}
-                  disabled={sorotanSubmitting}
-                  className="inline-flex items-center gap-1 rounded-full bg-goto-green px-4 py-1.5 text-xs font-medium text-white hover:bg-goto-dark disabled:opacity-50"
-                >
+                <button onClick={() => submitSorotanBatch(sorotanSelected)} disabled={sorotanSubmitting}
+                  className="inline-flex items-center gap-1 rounded-full bg-goto-green px-4 py-1.5 text-xs font-medium text-white hover:bg-goto-dark disabled:opacity-50">
                   {sorotanSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                   Submit {sorotanSelected.length} dipilih
                 </button>
               )}
               <button
-                onClick={() => {
-                  const allSlugs = sorotanList.map((s) => s.slug);
-                  submitSorotanBatch(allSlugs);
-                }}
+                onClick={() => submitSorotanBatch(sorotanList.map((s) => s.slug))}
                 disabled={sorotanSubmitting || sorotanList.length === 0}
                 className="inline-flex items-center gap-1 rounded-full bg-goto-green px-4 py-1.5 text-xs font-medium text-white hover:bg-goto-dark disabled:opacity-50"
               >
-                <Send size={12} /> Submit Semua ({sorotanTotal})
+                <Send size={12} /> Submit Semua
               </button>
-            </div>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
-              <input
-                value={sorotanSearch}
-                onChange={(e) => setSorotanSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { setSorotanPage(1); fetchSorotan(); } }}
-                placeholder="Cari sorotan..."
-                className="input pl-9 pr-3 py-1.5 text-sm w-60"
-              />
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
+                <input
+                  value={sorotanSearch}
+                  onChange={(e) => setSorotanSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { setSorotanPage(1); fetchSorotan(); } }}
+                  placeholder="Cari sorotan..."
+                  className="input pl-9 pr-3 py-1.5 text-sm w-60"
+                />
+              </div>
             </div>
           </div>
 
@@ -580,14 +606,15 @@ export default function SeoMonitorPage() {
                   <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Judul Sorotan</th>
                   <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Angle</th>
                   <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel Induk</th>
+                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
                   <th className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {sorotanLoading ? (
-                  <tr><td colSpan={5} className="px-4 py-12 text-center"><Loader2 size={24} className="mx-auto animate-spin text-goto-green" /></td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center"><Loader2 size={24} className="mx-auto animate-spin text-goto-green" /></td></tr>
                 ) : sorotanList.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-txt-muted">Belum ada halaman sorotan</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-txt-muted">Belum ada halaman sorotan</td></tr>
                 ) : (
                   sorotanList.map((s) => (
                     <tr key={s.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50 transition-colors">
@@ -622,6 +649,7 @@ export default function SeoMonitorPage() {
                         <p className="truncate text-xs text-txt-secondary max-w-[200px]">{s.article.title}</p>
                         <p className="text-[10px] text-txt-muted">{s.article.category?.name}</p>
                       </td>
+                      <td className="px-4 py-3">{statusBadge(s.indexStatus)}</td>
                       <td className="px-4 py-3 text-center">
                         <button
                           onClick={() => submitSorotanSingle(s.slug)}
