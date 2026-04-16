@@ -94,6 +94,15 @@ export default function SeoMonitorPage() {
     setSorotanLoading(false);
   }, [sorotanPage, sorotanSearch]);
 
+  // Load sorotan count on mount, full data when tab active
+  useEffect(() => {
+    // Always fetch at least page 1 for count
+    fetch("/api/seo/sorotan-status?page=1")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setSorotanTotal(d.data.total || 0); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (activeTab === "sorotan") fetchSorotan();
   }, [activeTab, fetchSorotan]);
@@ -374,49 +383,82 @@ export default function SeoMonitorPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-              <Globe size={20} className="text-blue-500" />
+      {/* Stats Cards — Artikel */}
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-txt-secondary">
+          <FileText size={14} /> Artikel
+        </h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><Globe size={18} className="text-blue-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-txt-primary">{stats.total}</p>
+                <p className="text-[10px] text-txt-muted">Total Artikel</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-txt-primary">{stats.total}</p>
-              <p className="text-xs text-txt-muted">Total Artikel</p>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50"><CheckCircle size={18} className="text-green-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-green-600">{stats.submitted}</p>
+                <p className="text-[10px] text-txt-muted">Submitted</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50"><Clock size={18} className="text-yellow-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-yellow-600">{stats.notSubmitted}</p>
+                <p className="text-[10px] text-txt-muted">Belum Submit</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><XCircle size={18} className="text-red-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-red-600">{stats.failed}</p>
+                <p className="text-[10px] text-txt-muted">Gagal</p>
+              </div>
             </div>
           </div>
         </div>
-        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
-              <CheckCircle size={20} className="text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-600">{stats.submitted}</p>
-              <p className="text-xs text-txt-muted">Submitted</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-50">
-              <Clock size={20} className="text-yellow-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{stats.notSubmitted}</p>
-              <p className="text-xs text-txt-muted">Belum Submit</p>
+      </div>
+
+      {/* Stats Cards — Sorotan SEO */}
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-txt-secondary">
+          <Sparkles size={14} /> Sorotan SEO
+        </h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50"><Sparkles size={18} className="text-purple-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-txt-primary">{sorotanTotal}</p>
+                <p className="text-[10px] text-txt-muted">Total Sorotan</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
-              <XCircle size={20} className="text-red-500" />
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><Globe size={18} className="text-blue-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-blue-600">{Math.floor(sorotanTotal / 10)}</p>
+                <p className="text-[10px] text-txt-muted">Artikel Ter-cover</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
-              <p className="text-xs text-txt-muted">Gagal</p>
+          </div>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50"><CheckCircle size={18} className="text-green-500" /></div>
+              <div>
+                <p className="text-xl font-bold text-green-600">10</p>
+                <p className="text-[10px] text-txt-muted">Angle per Artikel</p>
+              </div>
             </div>
           </div>
         </div>
