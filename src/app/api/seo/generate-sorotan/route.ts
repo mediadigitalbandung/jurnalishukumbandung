@@ -30,9 +30,7 @@ export async function POST(req: NextRequest) {
       throw new ApiError("Artikel tidak ditemukan", 404);
     }
 
-    // Delete existing sorotan for this article (regenerate)
-    await prisma.sorotan.deleteMany({ where: { articleId } });
-
+    // Generate missing sorotan angles (existing ones are preserved)
     const count = await autoGenerateSorotan(article.id, article.slug, article.title, article.content);
 
     return successResponse({

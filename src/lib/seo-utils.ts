@@ -539,9 +539,9 @@ export async function autoGenerateSorotan(
   content: string
 ): Promise<number> {
   try {
-    // Check if sorotan already exist for this article
+    // Skip only if ALL 10 angles already exist
     const existing = await prisma.sorotan.count({ where: { articleId } });
-    if (existing > 0) return existing;
+    if (existing >= SOROTAN_ANGLES.length) return existing;
 
     const setting = await prisma.systemSetting.findUnique({
       where: { key: "deepseek_api_key" },
@@ -551,7 +551,20 @@ export async function autoGenerateSorotan(
     const plainContent = stripHtml(content).slice(0, 4000);
     let created = 0;
 
+    // Check which angles already exist — only generate missing ones
+    const existingSorotan = await prisma.sorotan.findMany({
+      where: { articleId },
+      select: { angle: true },
+    });
+    const existingAngles = new Set(existingSorotan.map((s) => s.angle));
+
     for (const angle of SOROTAN_ANGLES) {
+      // Skip already generated angles
+      if (existingAngles.has(angle.angle)) {
+        created++;
+        continue;
+      }
+
       try {
         const generatedContent = await callDeepSeek(
           setting.value,
@@ -559,7 +572,10 @@ export async function autoGenerateSorotan(
           800
         );
 
-        if (!generatedContent || generatedContent.length < 200) continue;
+        if (!generatedContent || generatedContent.length < 100) {
+          console.log(`[SEO] Sorotan ${angle.angle} too short or empty, skipping`);
+          continue;
+        }
 
         const sorotanTitle = `${angle.titlePrefix}: ${title}`;
         const sorotanSlug = `${articleSlug}-${angle.angle}`;
@@ -579,7 +595,11 @@ export async function autoGenerateSorotan(
         console.log(`[SEO] Sorotan ${angle.angle} generated for: ${articleSlug}`);
       } catch (err) {
         console.error(`[SEO] Sorotan ${angle.angle} error:`, err);
+        // Continue to next angle — don't stop all
       }
+
+      // Small delay between API calls to avoid rate limiting
+      await new Promise((r) => setTimeout(r, 1000));
     }
 
     return created;

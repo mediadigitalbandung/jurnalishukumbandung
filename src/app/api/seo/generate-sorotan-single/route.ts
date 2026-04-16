@@ -45,36 +45,48 @@ export async function POST(req: NextRequest) {
     const angle = SOROTAN_ANGLES[angleIndex];
     const plainContent = article.content?.replace(/<[^>]*>/g, "").slice(0, 4000) || "";
 
-    // Call DeepSeek
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+    // Call DeepSeek with retry
     let generatedContent = "";
-    try {
-      const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${setting.value}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            { role: "system", content: "Kamu adalah jurnalis hukum profesional Indonesia. Tulis konten dalam Bahasa Indonesia. Gunakan format HTML (<p>, <h3>, <ul>, <li>, <blockquote>, <strong>). JANGAN gunakan markdown." },
-            { role: "user", content: angle.prompt(article.title, plainContent) },
-          ],
-          max_tokens: 1000,
-          temperature: 0.7,
-        }),
-      });
-      const data = await res.json();
-      generatedContent = data.choices?.[0]?.message?.content?.trim() || "";
-    } finally {
-      clearTimeout(timeout);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
+      try {
+        const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${setting.value}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: "Kamu adalah jurnalis hukum profesional Indonesia. Tulis konten dalam Bahasa Indonesia. Gunakan format HTML (<p>, <h3>, <ul>, <li>, <blockquote>, <strong>). JANGAN gunakan markdown." },
+              { role: "user", content: angle.prompt(article.title, plainContent) },
+            ],
+            max_tokens: 1000,
+            temperature: 0.7,
+          }),
+        });
+        if (!res.ok) {
+          clearTimeout(timeout);
+          if (attempt < 2) { await new Promise((r) => setTimeout(r, 3000)); continue; }
+          throw new ApiError(`DeepSeek error: ${res.status}`, 500);
+        }
+        const data = await res.json();
+        generatedContent = data.choices?.[0]?.message?.content?.trim() || "";
+        clearTimeout(timeout);
+        if (generatedContent && generatedContent.length >= 100) break;
+        if (attempt < 2) { await new Promise((r) => setTimeout(r, 2000)); continue; }
+      } catch (e) {
+        clearTimeout(timeout);
+        if (attempt < 2) { await new Promise((r) => setTimeout(r, 3000)); continue; }
+        throw e;
+      }
     }
 
     if (!generatedContent || generatedContent.length < 100) {
-      throw new ApiError("AI gagal generate konten yang cukup", 500);
+      throw new ApiError("AI gagal generate konten yang cukup setelah 3 percobaan", 500);
     }
 
     const sorotanTitle = `${angle.titlePrefix}: ${article.title}`;
