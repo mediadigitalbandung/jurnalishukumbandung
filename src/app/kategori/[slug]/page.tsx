@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60; // ISR: re-generate category page every 60s
 
 import Link from "next/link";
 import Image from "next/image";

@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60; // ISR: re-generate homepage every 60s
 
 import Link from "next/link";
 import Image from "next/image";
@@ -126,10 +126,19 @@ const jadwalSidangData = [
 ];
 
 export default async function HomePage() {
-  const [articles, categories, trendingArticles, trendingTags, latestArticles, breakingLatest, headlineData] = await Promise.all([
+  // Optimized: select only needed fields, reduce DB payload
+  const articleSelect = {
+    id: true, title: true, slug: true, excerpt: true, featuredImage: true,
+    publishedAt: true, viewCount: true, readTime: true, coAuthors: true,
+    verificationLabel: true,
+    author: { select: { name: true } },
+    category: { select: { name: true, slug: true } },
+  } as const;
+
+  const [articles, categories, trendingArticles, trendingTags, breakingLatest, headlineData] = await Promise.all([
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
-      include: { author: true, category: true },
+      select: articleSelect,
       orderBy: { publishedAt: "desc" },
       take: 50,
     }),
@@ -139,22 +148,14 @@ export default async function HomePage() {
     }),
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
-      include: { author: true, category: true },
+      select: articleSelect,
       orderBy: { viewCount: "desc" },
       take: 10,
     }),
-    // Trending tags: tags with most articles, sorted by article count
     prisma.tag.findMany({
       include: { _count: { select: { articles: true } } },
       orderBy: { articles: { _count: "desc" } },
       take: 15,
-    }),
-    // Berita Terkini: 8 artikel terbaru
-    prisma.article.findMany({
-      where: { status: "PUBLISHED" },
-      include: { author: true, category: true },
-      orderBy: { publishedAt: "desc" },
-      take: 8,
     }),
     // Breaking News: artikel dalam 3 jam terakhir
     prisma.article.findMany({
@@ -162,7 +163,7 @@ export default async function HomePage() {
         status: "PUBLISHED",
         publishedAt: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) },
       },
-      include: { author: true, category: true },
+      select: articleSelect,
       orderBy: { publishedAt: "desc" },
       take: 5,
     }),
@@ -172,11 +173,13 @@ export default async function HomePage() {
         status: "PUBLISHED",
         publishedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
-      include: { author: true, category: true },
+      select: articleSelect,
       orderBy: { publishedAt: "desc" },
       take: 10,
     }),
   ]);
+  // latestArticles = first 8 of articles (no separate query needed)
+  const latestArticles = articles.slice(0, 8);
 
   // Breaking News: artikel 3 jam terakhir (fallback ke 5 terbaru jika kosong)
   const breakingArticles = breakingLatest.length > 0 ? breakingLatest : articles.slice(0, 5);
