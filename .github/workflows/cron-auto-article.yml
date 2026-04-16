@@ -1,0 +1,30 @@
+name: Cron — Auto Generate Articles
+
+on:
+  schedule:
+    # Every 1 hour (matches default interval setting)
+    - cron: "0 */1 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-generate articles
+        run: |
+          echo "Triggering auto-article generation..."
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "https://jurnalishukumbandung.com/api/cron/auto-article")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | head -n -1)
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "::warning::Auto-article returned HTTP $http_code"
+          fi
