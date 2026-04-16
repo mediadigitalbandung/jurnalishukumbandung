@@ -124,7 +124,14 @@ async function generateArticle(apiKey: string) {
     }
   }
 
-  // 4. Pick 1-2 main articles for deep paraphrase + others for context
+  // 4. Pick related secondary keywords for SEO density
+  const relatedKeywords = TARGET_KEYWORDS
+    .filter((k) => k !== keyword)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 4);
+  const allKeywords = [keyword, ...relatedKeywords];
+
+  // Pick 1-2 main articles for deep paraphrase + others for context
   const mainArticle = contextArticles[0];
   const secondArticle = contextArticles.length > 1 ? contextArticles[1] : null;
 
@@ -161,24 +168,32 @@ Isi: ${secondContent}
 
 ${otherContext ? `Berita terkait lainnya:\n${otherContext}` : ""}
 
-INSTRUKSI PARAPHRASE:
-1. Tulis ULANG berita di atas dengan kata-kata BERBEDA, struktur kalimat BERBEDA, dan sudut pandang yang SEDIKIT BERBEDA
+KEYWORD UTAMA: "${keyword}"
+KEYWORD PENDUKUNG: ${relatedKeywords.map((k) => `"${k}"`).join(", ")}
+
+INSTRUKSI PARAPHRASE + SEO:
+1. Tulis ULANG berita di atas dengan kata-kata BERBEDA, struktur kalimat BERBEDA
 2. PERTAHANKAN semua fakta, nama, angka, kutipan narasumber dari berita asli
 3. Ubah struktur paragraf — jangan ikuti urutan yang sama
-4. Gunakan sinonim dan variasi kalimat
-5. Judul HARUS berbeda dari asli tapi topiknya sama, mengandung keyword "${keyword}"
-6. Tulis 400-600 kata dalam format HTML (<p>, <h2>, <h3>, <blockquote> untuk kutipan)
-7. Tulis SEO title (maks 60 karakter, mengandung "${keyword}")
-8. Tulis meta description (maks 155 karakter)
-9. JANGAN gunakan markdown (**bold** atau ##), HANYA HTML tags
-10. Pastikan artikel terasa FRESH dan BERBEDA walau topiknya sama
+4. WAJIB SISIPKAN KEYWORD di posisi strategis:
+   - JUDUL: HARUS mengandung keyword utama "${keyword}"
+   - PARAGRAF PERTAMA: HARUS mengandung keyword utama "${keyword}" dalam 2 kalimat pertama
+   - HEADING (h2/h3): minimal 1 heading mengandung keyword utama atau pendukung
+   - ISI ARTIKEL: sisipkan keyword utama 3-5x secara natural, keyword pendukung masing-masing 1-2x
+   - EXCERPT: HARUS mengandung keyword utama
+5. Tulis 400-600 kata dalam format HTML (<p>, <h2>, <h3>, <blockquote> untuk kutipan)
+6. Tulis SEO title (maks 60 karakter, HARUS mengandung "${keyword}")
+7. Tulis meta description (maks 155 karakter, HARUS mengandung "${keyword}")
+8. JANGAN gunakan markdown (**bold** atau ##), HANYA HTML tags
+9. Jangan keyword stuffing berlebihan — harus tetap natural dan enak dibaca
+10. Tambahkan lokasi "Bandung" atau "Jawa Barat" minimal 2x dalam artikel
 
 FORMAT OUTPUT (HARUS persis seperti ini):
-JUDUL: [judul artikel baru yang berbeda]
-SEO_TITLE: [seo title maks 60 char]
-SEO_DESC: [meta description maks 155 char]
-EXCERPT: [ringkasan 1-2 kalimat]
-TAGS: [tag1, tag2, tag3, tag4, tag5]
+JUDUL: [judul mengandung "${keyword}"]
+SEO_TITLE: [seo title maks 60 char, mengandung "${keyword}"]
+SEO_DESC: [meta description maks 155 char, mengandung "${keyword}"]
+EXCERPT: [ringkasan 1-2 kalimat, mengandung "${keyword}"]
+TAGS: [${keyword}, tag2, tag3, tag4, tag5]
 KONTEN:
 [isi artikel paraphrase dalam HTML]`;
 
@@ -201,10 +216,12 @@ KONTEN:
   const seoDescription = seoDescMatch?.[1]?.trim().slice(0, 155) || "";
   let content = contentMatch[1].trim();
   const excerpt = excerptMatch?.[1]?.trim() || "";
-  const tags = tagsMatch?.[1]
+  const parsedTags = tagsMatch?.[1]
     ?.split(",")
     .map((t: string) => t.trim())
-    .filter(Boolean) || [keyword];
+    .filter(Boolean) || [];
+  // Ensure main keyword + related keywords are always in tags
+  const tags = Array.from(new Set([keyword, ...relatedKeywords.slice(0, 2), ...parsedTags])).slice(0, 8);
 
   // 7. Insert related image into content
   if (imageUrl) {
