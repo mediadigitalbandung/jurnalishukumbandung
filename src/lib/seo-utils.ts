@@ -458,7 +458,108 @@ Konten: ${plainContent}`;
   }
 }
 
-/* ── 7. Full SEO automation on publish ─────────────────────────── */
+/* ── 7. Auto-generate 3 Sorotan (spotlight pages) per article ──── */
+
+const SOROTAN_ANGLES = [
+  {
+    angle: "kronologi",
+    titlePrefix: "Kronologi",
+    prompt: (title: string, content: string) =>
+      `Kamu adalah jurnalis hukum senior. Berdasarkan artikel berita hukum berikut, tulis KRONOLOGI LENGKAP kejadian dalam 400-500 kata bahasa Indonesia.
+
+Tulis dalam bentuk narasi kronologis yang runtut (bukan bullet points). Jelaskan urutan kejadian dari awal sampai akhir. Sertakan detail waktu, tempat, dan pelaku jika ada.
+
+Tulis langsung kontennya tanpa judul, tanpa pengantar "Berikut kronologi..." — langsung mulai narasi.
+
+Judul artikel: ${title}
+Konten: ${content}`,
+  },
+  {
+    angle: "analisis",
+    titlePrefix: "Analisis Hukum",
+    prompt: (title: string, content: string) =>
+      `Kamu adalah analis hukum senior di Indonesia. Berdasarkan artikel berita hukum berikut, tulis ANALISIS HUKUM dalam 400-500 kata bahasa Indonesia.
+
+Bahas aspek hukum yang relevan: dasar hukum, pasal yang dilanggar, potensi sanksi, preseden kasus serupa, dan implikasi hukumnya. Tulis dengan gaya analitis tapi mudah dipahami.
+
+Tulis langsung kontennya tanpa judul — langsung mulai analisis.
+
+Judul artikel: ${title}
+Konten: ${content}`,
+  },
+  {
+    angle: "dampak",
+    titlePrefix: "Dampak & Implikasi",
+    prompt: (title: string, content: string) =>
+      `Kamu adalah jurnalis investigasi. Berdasarkan artikel berita hukum berikut, tulis tentang DAMPAK DAN IMPLIKASI kejadian ini dalam 400-500 kata bahasa Indonesia.
+
+Bahas: siapa yang terdampak, bagaimana dampaknya ke masyarakat, dampak ke sistem hukum, apa yang bisa terjadi selanjutnya, dan pelajaran yang bisa diambil.
+
+Tulis langsung kontennya tanpa judul — langsung mulai pembahasan dampak.
+
+Judul artikel: ${title}
+Konten: ${content}`,
+  },
+];
+
+export async function autoGenerateSorotan(
+  articleId: string,
+  articleSlug: string,
+  title: string,
+  content: string
+): Promise<number> {
+  try {
+    // Check if sorotan already exist for this article
+    const existing = await prisma.sorotan.count({ where: { articleId } });
+    if (existing > 0) return existing;
+
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: "deepseek_api_key" },
+    });
+    if (!setting?.value) return 0;
+
+    const plainContent = stripHtml(content).slice(0, 4000);
+    let created = 0;
+
+    for (const angle of SOROTAN_ANGLES) {
+      try {
+        const generatedContent = await callDeepSeek(
+          setting.value,
+          angle.prompt(title, plainContent),
+          800
+        );
+
+        if (!generatedContent || generatedContent.length < 200) continue;
+
+        const sorotanTitle = `${angle.titlePrefix}: ${title}`;
+        const sorotanSlug = `${articleSlug}-${angle.angle}`;
+
+        await prisma.sorotan.upsert({
+          where: { slug: sorotanSlug },
+          update: { title: sorotanTitle, content: generatedContent },
+          create: {
+            slug: sorotanSlug,
+            title: sorotanTitle,
+            content: generatedContent,
+            angle: angle.angle,
+            articleId,
+          },
+        });
+        created++;
+        console.log(`[SEO] Sorotan ${angle.angle} generated for: ${articleSlug}`);
+      } catch (err) {
+        console.error(`[SEO] Sorotan ${angle.angle} error:`, err);
+      }
+    }
+
+    return created;
+  } catch (error) {
+    console.error("[SEO] Sorotan generation error:", error);
+    return 0;
+  }
+}
+
+/* ── 8. Full SEO automation on publish ─────────────────────────── */
 
 export async function onArticlePublished(slug: string, articleId: string, categoryId: string) {
   // Resolve category slug for IndexNow
@@ -502,7 +603,14 @@ export async function onArticlePublished(slug: string, articleId: string, catego
     );
   }
 
-  console.log(`[SEO] Article published: ${slug}, submitting to Google Indexing API + IndexNow + ping sitemaps + purge cache + FAQ generation. ${related.length} related articles found`);
+  // Auto-generate 3 Sorotan pages (non-blocking)
+  if (articleData) {
+    tasks.push(
+      autoGenerateSorotan(articleId, slug, articleData.title, articleData.content).catch(() => null)
+    );
+  }
+
+  console.log(`[SEO] Article published: ${slug}, submitting to Google + IndexNow + FAQ + Sorotan. ${related.length} related articles found`);
 
   await Promise.allSettled(tasks);
 

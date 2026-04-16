@@ -125,16 +125,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // Sorotan pages
+  const sorotanItems = await prisma.sorotan.findMany({
+    select: { slug: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const sorotanPages: MetadataRoute.Sitemap = sorotanItems.map((s) => ({
+    url: `${siteUrl}/sorotan/${s.slug}`,
+    lastModified: s.createdAt,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
   // Static index pages for new sections
   const sectionPages: MetadataRoute.Sitemap = [
     { url: `${siteUrl}/topik`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
     { url: `${siteUrl}/rangkuman`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.6 },
     { url: `${siteUrl}/rangkuman/harian`, lastModified: now, changeFrequency: "daily" as const, priority: 0.6 },
     { url: `${siteUrl}/lokasi`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
+    { url: `${siteUrl}/sorotan`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
   ];
 
   return [
     ...staticPages, ...categoryPages, ...tagPages, ...articlePages,
-    ...authorPages, ...topikPages, ...lokasiPages, ...dailyPages, ...sectionPages,
+    ...authorPages, ...topikPages, ...lokasiPages, ...dailyPages, ...sorotanPages, ...sectionPages,
   ];
 }
