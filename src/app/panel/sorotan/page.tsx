@@ -61,10 +61,24 @@ export default function SorotanPanel() {
       const json = await res.json();
       const list = json.data?.articles || json.data || [];
 
-      // Get sorotan counts
-      const countsRes = await fetch("/api/seo/generate-sorotan-single?counts=true&articleIds=" + list.map((a: any) => a.id).join(","));
-      const countsJson = await countsRes.json().catch(() => ({ success: false }));
-      const counts: Record<string, number> = countsJson.success ? (countsJson.data?.counts || {}) : {};
+      // Get sorotan counts — skip if too many (just show 0, load on click)
+      let counts: Record<string, number> = {};
+      try {
+        const ids = list.map((a: any) => a.id);
+        if (ids.length <= 50) {
+          const countsRes = await fetch("/api/seo/generate-sorotan-single?counts=true&articleIds=" + ids.join(","));
+          const countsJson = await countsRes.json();
+          counts = countsJson.success ? (countsJson.data?.counts || {}) : {};
+        } else {
+          // Batch in chunks of 50
+          for (let i = 0; i < ids.length; i += 50) {
+            const chunk = ids.slice(i, i + 50);
+            const countsRes = await fetch("/api/seo/generate-sorotan-single?counts=true&articleIds=" + chunk.join(","));
+            const countsJson = await countsRes.json().catch(() => ({ success: false }));
+            if (countsJson.success) Object.assign(counts, countsJson.data?.counts || {});
+          }
+        }
+      } catch { /* ignore — show 0 */ }
 
       setArticles(list.map((a: any) => ({
         id: a.id,
