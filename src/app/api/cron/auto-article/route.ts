@@ -149,18 +149,35 @@ KONTEN:
   const existing = await prisma.article.findUnique({ where: { slug } });
   if (existing) slug = `${slug}-${Date.now().toString(36)}`;
 
-  // 9. Get first admin user as author
-  const admin = await prisma.user.findFirst({
-    where: { role: "SUPER_ADMIN", isActive: true },
-    select: { id: true },
+  // 9. Get "Redaksi" user as author, fallback to first admin
+  let author = await prisma.user.findFirst({
+    where: { name: { contains: "Redaksi", mode: "insensitive" }, isActive: true },
+    select: { id: true, name: true },
   });
-  if (!admin) throw new Error("No admin user found");
+  if (!author) {
+    author = await prisma.user.findFirst({
+      where: { role: "SUPER_ADMIN", isActive: true },
+      select: { id: true, name: true },
+    });
+  }
+  if (!author) throw new Error("No author user found");
 
-  // 10. Get random category
-  const categories = await prisma.category.findMany({ select: { id: true } });
-  const randomCat = categories[Math.floor(Math.random() * categories.length)];
+  // 10. Get all active editors/journalists for coAuthors label
+  const editors = await prisma.user.findMany({
+    where: { role: { in: ["EDITOR", "SUPER_ADMIN"] }, isActive: true },
+    select: { name: true },
+    take: 3,
+  });
+  const coAuthorsStr = editors.map((e) => e.name).join(", ") || "Tim Redaksi";
 
-  // 11. Save as DRAFT
+  // 11. Get category matching keyword, fallback random
+  const categories = await prisma.category.findMany({ select: { id: true, name: true } });
+  const matchedCat = categories.find((c) =>
+    keyword.toLowerCase().includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(keyword.split(" ")[0])
+  );
+  const selectedCat = matchedCat || categories[Math.floor(Math.random() * categories.length)];
+
+  // 12. Save as DRAFT with Redaksi as author
   const article = await prisma.article.create({
     data: {
       title,
@@ -170,8 +187,9 @@ KONTEN:
       featuredImage: randomMedia?.url || null,
       status: "DRAFT",
       readTime: calculateReadTime(content),
-      authorId: admin.id,
-      categoryId: randomCat.id,
+      authorId: author.id,
+      categoryId: selectedCat.id,
+      coAuthors: coAuthorsStr,
       verificationLabel: "UNVERIFIED",
       tags: {
         connectOrCreate: tags.map((name: string) => ({

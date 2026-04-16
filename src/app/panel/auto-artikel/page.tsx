@@ -19,6 +19,8 @@ import {
   Play,
   Pause,
   TrendingUp,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 
 const TARGET_KEYWORDS = [
@@ -63,6 +65,14 @@ export default function AutoArtikelPage() {
   const [loadingDrafts, setLoadingDrafts] = useState(true);
   const [totalDrafts, setTotalDrafts] = useState(0);
 
+  // Published articles (for hide/unhide)
+  const [published, setPublished] = useState<DraftArticle[]>([]);
+  const [loadingPublished, setLoadingPublished] = useState(true);
+  const [activeTab, setActiveTab] = useState<"drafts" | "published" | "hidden">("drafts");
+  const [hidden, setHidden] = useState<DraftArticle[]>([]);
+  const [loadingHidden, setLoadingHidden] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
   // Last run info
   const [lastRun, setLastRun] = useState<string | null>(null);
 
@@ -99,6 +109,51 @@ export default function AutoArtikelPage() {
   }, []);
 
   useEffect(() => { loadDrafts(); }, [loadDrafts]);
+
+  // Load published articles
+  const loadPublished = useCallback(async () => {
+    setLoadingPublished(true);
+    try {
+      const res = await fetch("/api/articles?status=PUBLISHED&limit=30&sort=createdAt");
+      const json = await res.json();
+      if (json.success) setPublished(json.data?.articles || json.data || []);
+    } catch { /* ignore */ }
+    setLoadingPublished(false);
+  }, []);
+
+  // Load hidden (archived) articles
+  const loadHidden = useCallback(async () => {
+    setLoadingHidden(true);
+    try {
+      const res = await fetch("/api/articles?status=ARCHIVED&limit=30&sort=createdAt");
+      const json = await res.json();
+      if (json.success) setHidden(json.data?.articles || json.data || []);
+    } catch { /* ignore */ }
+    setLoadingHidden(false);
+  }, []);
+
+  useEffect(() => { loadPublished(); loadHidden(); }, [loadPublished, loadHidden]);
+
+  // Toggle hide/unhide
+  const toggleVisibility = async (articleId: string, action: "hide" | "unhide") => {
+    setTogglingId(articleId);
+    try {
+      const res = await fetch("/api/articles/toggle-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        success(data.data.message);
+        loadPublished();
+        loadHidden();
+      } else {
+        showError(data.error || "Gagal");
+      }
+    } catch { showError("Gagal toggle visibility"); }
+    setTogglingId(null);
+  };
 
   // Save settings
   const saveSettings = async () => {
@@ -356,69 +411,125 @@ export default function AutoArtikelPage() {
             </div>
           )}
 
-          {/* Draft Articles List */}
+          {/* Articles Tabs: Drafts / Published / Hidden */}
           <div className="rounded-[12px] border border-border bg-surface shadow-card">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h2 className="text-lg font-bold text-txt-primary flex items-center gap-2">
-                <FileText size={18} /> Draft Artikel ({totalDrafts})
-              </h2>
-              <button onClick={loadDrafts} className="text-sm text-goto-green hover:underline flex items-center gap-1">
-                <RefreshCw size={12} /> Refresh
-              </button>
+            {/* Tab buttons */}
+            <div className="flex border-b border-border">
+              {([
+                { key: "drafts", label: "Draft", count: drafts.length, icon: FileText, color: "yellow" },
+                { key: "published", label: "Published", count: published.length, icon: Eye, color: "green" },
+                { key: "hidden", label: "Hidden", count: hidden.length, icon: EyeOff, color: "red" },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); if (tab.key === "published") loadPublished(); if (tab.key === "hidden") loadHidden(); }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    activeTab === tab.key
+                      ? "border-goto-green text-goto-green"
+                      : "border-transparent text-txt-secondary hover:text-txt-primary"
+                  }`}
+                >
+                  <tab.icon size={14} />
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
             </div>
 
-            {loadingDrafts ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 size={24} className="animate-spin text-goto-green" />
-              </div>
-            ) : drafts.length === 0 ? (
-              <div className="py-12 text-center">
-                <FileText size={40} className="mx-auto mb-3 text-txt-muted" />
-                <p className="text-sm text-txt-muted">Belum ada draft artikel</p>
-                <button onClick={generateNow} disabled={generating} className="mt-3 text-sm font-medium text-purple-600 hover:underline">
-                  Generate sekarang →
-                </button>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {drafts.map((d) => (
-                  <div key={d.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-secondary/50 transition-colors">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-yellow-50">
-                      <FileText size={18} className="text-yellow-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-txt-primary truncate">{d.title}</p>
-                      <p className="text-xs text-txt-muted">
-                        {d.category?.name || "-"} · {formatDate(d.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Link
-                        href={`/panel/artikel/${d.id}/edit`}
-                        className="inline-flex items-center gap-1 rounded-full border border-goto-green px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white transition-colors"
-                      >
-                        Review & Edit
-                      </Link>
-                      <a
-                        href={`/berita/${d.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-txt-muted hover:bg-surface-secondary"
-                      >
-                        <ExternalLink size={10} /> Preview
-                      </a>
-                    </div>
+            {/* Tab content */}
+            {activeTab === "drafts" && (
+              <>
+                {loadingDrafts ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin text-goto-green" /></div>
+                ) : drafts.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <FileText size={40} className="mx-auto mb-3 text-txt-muted" />
+                    <p className="text-sm text-txt-muted">Belum ada draft artikel</p>
+                    <button onClick={generateNow} disabled={generating} className="mt-3 text-sm font-medium text-purple-600 hover:underline">Generate sekarang →</button>
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {drafts.map((d) => (
+                      <div key={d.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-secondary/50 transition-colors">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-yellow-50"><FileText size={18} className="text-yellow-600" /></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-txt-primary truncate">{d.title}</p>
+                          <p className="text-xs text-txt-muted">{d.category?.name || "-"} · {formatDate(d.createdAt)}</p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Link href={`/panel/artikel/${d.id}/edit`} className="inline-flex items-center gap-1 rounded-full border border-goto-green px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white transition-colors">Review & Edit</Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
-            {totalDrafts > 20 && (
-              <div className="border-t border-border px-6 py-3 text-center">
-                <Link href="/panel/artikel?status=DRAFT" className="text-sm font-medium text-goto-green hover:underline">
-                  Lihat semua {totalDrafts} draft →
-                </Link>
-              </div>
+            {activeTab === "published" && (
+              <>
+                {loadingPublished ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin text-goto-green" /></div>
+                ) : published.length === 0 ? (
+                  <div className="py-12 text-center"><p className="text-sm text-txt-muted">Belum ada artikel published</p></div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {published.map((d) => (
+                      <div key={d.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-secondary/50 transition-colors">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50"><Eye size={18} className="text-green-600" /></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-txt-primary truncate">{d.title}</p>
+                          <p className="text-xs text-txt-muted">{d.category?.name || "-"} · {d.viewCount} views · {formatDate(d.createdAt)}</p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => toggleVisibility(d.id, "hide")}
+                            disabled={togglingId === d.id}
+                            className="inline-flex items-center gap-1 rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            {togglingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <EyeOff size={12} />}
+                            Hide
+                          </button>
+                          <a href={`/berita/${d.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-txt-muted hover:bg-surface-secondary">
+                            <ExternalLink size={10} /> Lihat
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === "hidden" && (
+              <>
+                {loadingHidden ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin text-goto-green" /></div>
+                ) : hidden.length === 0 ? (
+                  <div className="py-12 text-center"><EyeOff size={40} className="mx-auto mb-3 text-txt-muted" /><p className="text-sm text-txt-muted">Tidak ada artikel yang disembunyikan</p></div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {hidden.map((d) => (
+                      <div key={d.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-secondary/50 transition-colors">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50"><EyeOff size={18} className="text-red-500" /></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-txt-primary truncate line-through opacity-60">{d.title}</p>
+                          <p className="text-xs text-txt-muted">{d.category?.name || "-"} · {formatDate(d.createdAt)}</p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => toggleVisibility(d.id, "unhide")}
+                            disabled={togglingId === d.id}
+                            className="inline-flex items-center gap-1 rounded-full border border-goto-green px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white transition-colors disabled:opacity-50"
+                          >
+                            {togglingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
+                            Unhide
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
