@@ -215,6 +215,7 @@
 .article-content a { @apply text-goto-green font-medium underline underline-offset-2 decoration-goto-green/30 hover:decoration-goto-green transition-colors; }
 .article-content img { @apply my-6 rounded-[12px]; }
 .article-content img[style*="width"] { @apply h-auto; }
+.article-content img[style*="object-fit"] { @apply h-auto rounded-[12px]; }
 
 /* TipTap image resize handles */
 .image-resizer {

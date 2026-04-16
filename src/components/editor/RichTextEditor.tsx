@@ -40,9 +40,11 @@ import {
   Pencil,
   Trash2,
   Search,
+  Crop,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useState, useRef, useEffect } from "react";
+import ImageCropModal from "./ImageCropModal";
 
 /*
  * Caption strategy: use standard img attributes that TipTap already supports.
@@ -157,6 +159,7 @@ export default function RichTextEditor({
   const [editSource, setEditSource] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cropImage, setCropImage] = useState<{ src: string; style: string; element: HTMLImageElement } | null>(null);
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,6 +183,17 @@ export default function RichTextEditor({
       attributes: {
         class:
           "article-content prose prose-lg max-w-none font-serif min-h-[400px] px-6 py-4 focus:outline-none",
+      },
+      handleDOMEvents: {
+        dblclick: (_view, event) => {
+          const target = event.target as HTMLElement;
+          if (target.tagName === "IMG") {
+            const img = target as HTMLImageElement;
+            setCropImage({ src: img.src, style: img.getAttribute("style") || "", element: img });
+            return true;
+          }
+          return false;
+        },
       },
     },
   });
@@ -893,6 +907,25 @@ export default function RichTextEditor({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Image Crop Modal ── */}
+      {cropImage && (
+        <ImageCropModal
+          src={cropImage.src}
+          currentStyle={cropImage.style}
+          onClose={() => setCropImage(null)}
+          onSave={(style) => {
+            // Apply style to the image element in the editor
+            cropImage.element.setAttribute("style", style);
+            // Trigger editor update so the HTML is saved
+            if (editor) {
+              const html = editor.getHTML();
+              onChange(html);
+            }
+            setCropImage(null);
+          }}
+        />
       )}
     </div>
   );
