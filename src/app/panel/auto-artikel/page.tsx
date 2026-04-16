@@ -21,6 +21,7 @@ import {
   TrendingUp,
   EyeOff,
   Eye,
+  Trash2,
 } from "lucide-react";
 
 const TARGET_KEYWORDS = [
@@ -175,6 +176,26 @@ export default function AutoArtikelPage() {
       }
     } catch { showError("Gagal publish"); }
     setPublishingId(null);
+  };
+
+  // Delete article
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteArticle = async (articleId: string, articleTitle: string) => {
+    if (!confirm(`Hapus artikel "${articleTitle}"? Tidak bisa dikembalikan.`)) return;
+    setDeletingId(articleId);
+    try {
+      const res = await fetch(`/api/articles/${articleId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        success("Artikel dihapus");
+        loadDrafts();
+        loadPublished();
+        loadHidden();
+      } else {
+        showError(data.error || "Gagal hapus");
+      }
+    } catch { showError("Gagal hapus"); }
+    setDeletingId(null);
   };
 
   // Save settings
@@ -499,6 +520,13 @@ export default function AutoArtikelPage() {
                             Publish
                           </button>
                           <Link href={`/panel/artikel/${d.id}/edit`} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-txt-secondary hover:bg-surface-secondary transition-colors">Edit</Link>
+                          <button
+                            onClick={() => deleteArticle(d.id, d.title)}
+                            disabled={deletingId === d.id}
+                            className="inline-flex items-center gap-1 rounded-full border border-red-200 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -534,6 +562,9 @@ export default function AutoArtikelPage() {
                           <a href={`/berita/${d.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-txt-muted hover:bg-surface-secondary">
                             <ExternalLink size={10} /> Lihat
                           </a>
+                          <button onClick={() => deleteArticle(d.id, d.title)} disabled={deletingId === d.id} className="inline-flex items-center rounded-full border border-red-200 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 disabled:opacity-50">
+                            {deletingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -565,6 +596,9 @@ export default function AutoArtikelPage() {
                           >
                             {togglingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
                             Unhide
+                          </button>
+                          <button onClick={() => deleteArticle(d.id, d.title)} disabled={deletingId === d.id} className="inline-flex items-center rounded-full border border-red-200 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 disabled:opacity-50">
+                            {deletingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                           </button>
                         </div>
                       </div>
