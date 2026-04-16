@@ -144,6 +144,56 @@ export default function SeoMonitorPage() {
     setSubmitting(false);
   };
 
+  // Retry all failed articles
+  const retryAllFailed = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/seo/status?filter=failed&page=1&limit=200");
+      const data = await res.json();
+      if (data.success && data.data.articles.length > 0) {
+        const ids = data.data.articles.map((a: Article) => a.id);
+        const submitRes = await fetch("/api/seo/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ articleIds: ids }),
+        });
+        const submitData = await submitRes.json();
+        if (submitData.success) {
+          const { ok, failed } = submitData.data.summary;
+          success(`Retry selesai: ${ok} berhasil, ${failed} gagal`);
+          fetchData();
+        }
+      } else {
+        success("Tidak ada artikel failed!");
+      }
+    } catch {
+      showError("Gagal retry");
+    }
+    setSubmitting(false);
+  };
+
+  // Submit ALL (not submitted + failed)
+  const submitAll = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/seo/bulk-reindex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 200 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const g = data.data.googleIndexingApi;
+        const i = data.data.indexNow;
+        success(`Submit selesai: Google ${g?.submitted || 0} ok / ${g?.errors || 0} error, IndexNow ${i?.submitted || 0} submitted`);
+        fetchData();
+      }
+    } catch {
+      showError("Gagal submit");
+    }
+    setSubmitting(false);
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -194,20 +244,30 @@ export default function SeoMonitorPage() {
           <h1 className="text-2xl font-bold text-txt-primary">SEO Monitor</h1>
           <p className="text-sm text-txt-secondary">Pantau status indexing Google untuk setiap artikel</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => fetchData()}
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-txt-secondary hover:bg-surface-secondary"
           >
             <RefreshCw size={14} /> Refresh
           </button>
+          {stats.failed > 0 && (
+            <button
+              onClick={retryAllFailed}
+              disabled={submitting}
+              className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              Retry Failed ({stats.failed})
+            </button>
+          )}
           <button
-            onClick={submitAllPending}
-            disabled={submitting || stats.notSubmitted === 0}
-            className="inline-flex items-center gap-1.5 rounded-full bg-goto-green px-5 py-2 text-sm font-medium text-white hover:bg-goto-green-dark disabled:opacity-50"
+            onClick={submitAll}
+            disabled={submitting}
+            className="inline-flex items-center gap-1.5 rounded-full bg-goto-green px-5 py-2 text-sm font-medium text-white hover:bg-goto-dark disabled:opacity-50"
           >
             {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            Submit Semua ({stats.notSubmitted})
+            Submit Semua ({stats.notSubmitted + stats.failed})
           </button>
         </div>
       </div>

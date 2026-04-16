@@ -81,28 +81,37 @@ async function runAutoReindex() {
   // Get all published articles
   const allArticles = await prisma.article.findMany({
     where: { status: "PUBLISHED" },
-    select: { slug: true, publishedAt: true },
+    select: { slug: true, publishedAt: true, indexStatus: true },
     orderBy: { publishedAt: "desc" },
   });
 
   const allUrls = allArticles.map((a) => `${BASE_URL}/berita/${a.slug}`);
 
-  // Recent articles (last 7 days) get priority for Google Indexing API (200/day limit)
+  // Priority order for Google Indexing API (200/day limit):
+  // 1. Failed articles (retry)
+  // 2. Not submitted yet
+  // 3. Recent articles (last 7 days)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+  const failedArticles = allArticles.filter((a) => a.indexStatus === "failed");
+  const notSubmitted = allArticles.filter((a) => !a.indexStatus || a.indexStatus === "not_submitted");
   const recentArticles = allArticles.filter(
-    (a) => a.publishedAt && a.publishedAt > sevenDaysAgo
-  );
-  // Fill remaining quota with older articles
-  const olderArticles = allArticles.filter(
-    (a) => !a.publishedAt || a.publishedAt <= sevenDaysAgo
+    (a) => a.publishedAt && a.publishedAt > sevenDaysAgo && a.indexStatus === "submitted"
   );
 
-  const googleBatch = [
-    ...recentArticles.map((a) => `${BASE_URL}/berita/${a.slug}`),
-    ...olderArticles.map((a) => `${BASE_URL}/berita/${a.slug}`),
-  ].slice(0, 200); // Google limit
+  // Deduplicate and build priority queue
+  const seen = new Set<string>();
+  const priorityQueue: string[] = [];
+  for (const list of [failedArticles, notSubmitted, recentArticles]) {
+    for (const a of list) {
+      if (!seen.has(a.slug)) {
+        seen.add(a.slug);
+        priorityQueue.push(`${BASE_URL}/berita/${a.slug}`);
+      }
+    }
+  }
+  const googleBatch = priorityQueue.slice(0, 200);
 
   results.googleIndexingApi.total = googleBatch.length;
 
@@ -133,9 +142,24 @@ async function runAutoReindex() {
             })
           )
         );
-        for (const r of batchResults) {
-          if (r.status === "fulfilled") results.googleIndexingApi.submitted++;
-          else results.googleIndexingApi.errors++;
+        for (let j = 0; j < batchResults.length; j++) {
+          const r = batchResults[j];
+          const url = batch[j];
+          const slug = url.replace(`${BASE_URL}/berita/`, "");
+          if (r.status === "fulfilled") {
+            results.googleIndexingApi.submitted++;
+            // Update indexStatus in DB
+            await prisma.article.updateMany({
+              where: { slug },
+              data: { lastIndexedAt: new Date(), indexStatus: "submitted" },
+            }).catch(() => {});
+          } else {
+            results.googleIndexingApi.errors++;
+            await prisma.article.updateMany({
+              where: { slug },
+              data: { indexStatus: "failed" },
+            }).catch(() => {});
+          }
         }
         if (i + 10 < googleBatch.length) {
           await new Promise((r) => setTimeout(r, 500));
