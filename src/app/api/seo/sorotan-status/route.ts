@@ -65,9 +65,10 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
     const indexNowUrls = slugs.map((s) => `${baseUrl}/sorotan/${s}`);
 
-    // Google Indexing API
+    // 1. Google Indexing API
     let googleOk = 0;
     let googleFail = 0;
+    let googleAvailable = false;
     try {
       const setting = await prisma.systemSetting.findUnique({
         where: { key: "google_credentials_json" },
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
       const credentials = setting?.value ? JSON.parse(setting.value) : null;
 
       if (credentials) {
+        googleAvailable = true;
         const { google } = await import("googleapis");
         const auth = new google.auth.JWT({
           email: credentials.client_email,
@@ -89,7 +91,6 @@ export async function POST(req: NextRequest) {
             await indexing.urlNotifications.publish({
               requestBody: { url, type: "URL_UPDATED" },
             });
-            // Update status in DB
             await prisma.sorotan.updateMany({
               where: { slug: slugs[i] },
               data: { indexStatus: "submitted", lastIndexedAt: new Date() },
@@ -103,25 +104,13 @@ export async function POST(req: NextRequest) {
             googleFail++;
           }
         }
-      } else {
-        // No Google credentials — mark as submitted via IndexNow only
-        await prisma.sorotan.updateMany({
-          where: { slug: { in: slugs } },
-          data: { indexStatus: "submitted", lastIndexedAt: new Date() },
-        });
-        googleOk = slugs.length;
       }
     } catch {
-      // Google API failed — still submit to IndexNow
-      await prisma.sorotan.updateMany({
-        where: { slug: { in: slugs } },
-        data: { indexStatus: "submitted", lastIndexedAt: new Date() },
-      });
-      googleOk = slugs.length;
+      // Google API error
     }
 
-    // IndexNow
-    let indexNowStatus = 0;
+    // 2. IndexNow (Bing/Yandex)
+    let indexNowOk = false;
     try {
       const key = "acababc0b4221f7d8becd200e2bb2627";
       const res = await fetch("https://api.indexnow.org/indexnow", {
@@ -134,13 +123,26 @@ export async function POST(req: NextRequest) {
           urlList: indexNowUrls,
         }),
       });
-      indexNowStatus = res.status;
+      indexNowOk = res.status >= 200 && res.status < 300;
     } catch { /* ignore */ }
+
+    // 3. Update status based on actual results
+    if (!googleAvailable) {
+      // No Google credentials — status based on IndexNow result
+      const status = indexNowOk ? "submitted" : "failed";
+      await prisma.sorotan.updateMany({
+        where: { slug: { in: slugs } },
+        data: { indexStatus: status, lastIndexedAt: indexNowOk ? new Date() : undefined },
+      });
+    }
 
     return successResponse({
       submitted: slugs.length,
-      summary: { ok: googleOk, failed: googleFail },
-      indexNow: { status: indexNowStatus, urls: indexNowUrls.length },
+      google: { available: googleAvailable, ok: googleOk, failed: googleFail },
+      indexNow: { ok: indexNowOk, urls: indexNowUrls.length },
+      message: googleAvailable
+        ? `Google: ${googleOk} ok, ${googleFail} gagal. IndexNow: ${indexNowOk ? "ok" : "gagal"}`
+        : `IndexNow: ${indexNowOk ? "berhasil" : "gagal"} (Google credentials belum diset)`,
     });
   } catch (error) {
     return errorResponse(error);

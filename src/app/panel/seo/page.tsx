@@ -126,9 +126,10 @@ export default function SeoMonitorPage() {
       });
       const data = await res.json();
       if (data.success) {
-        success(`Submitted ke Google + IndexNow`);
+        success(data.data.message || "Submitted");
+        fetchSorotan();
       } else {
-        showError("Gagal submit");
+        showError(data.error || "Gagal submit");
       }
     } catch { showError("Gagal submit"); }
     setSorotanSubmittingSlug(null);
@@ -144,8 +145,9 @@ export default function SeoMonitorPage() {
       });
       const data = await res.json();
       if (data.success) {
-        success(`${data.data.submitted} sorotan di-submit ke Google + IndexNow`);
+        success(data.data.message || `${data.data.submitted} sorotan di-submit`);
         setSorotanSelected([]);
+        fetchSorotan();
       }
     } catch { showError("Gagal submit batch"); }
     setSorotanSubmitting(false);
