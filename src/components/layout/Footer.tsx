@@ -27,9 +27,12 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="col-span-1 sm:col-span-2">
-            <div className="flex items-center gap-2.5">
-              <Image src="/logo-jhb.png" alt="Logo JHB" width={36} height={36} className="rounded-full" />
-              <span className="text-base font-bold">Jurnalis Hukum Bandung</span>
+            <div className="flex items-center gap-3.5">
+              <Image src="/logo-jhb.png" alt="Logo JHB" width={52} height={52} className="rounded-full" />
+              <div>
+                <span className="block text-xl font-bold tracking-tight">Jurnalis Hukum</span>
+                <span className="block text-sm text-white/50">Bandung</span>
+              </div>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/50">
               Portal berita hukum Bandung terpercaya. Menyajikan berita hukum terbaru, liputan sidang, analisis hukum pidana, perdata, dan informasi pengadilan di Bandung dan Jawa Barat.
