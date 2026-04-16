@@ -224,11 +224,10 @@ export default async function SorotanPage({ params }: PageProps) {
             )}
 
             {/* Content — substantive 300-500 words */}
-            <div className="mt-8 article-content text-base sm:text-[17px] leading-[1.8] text-justify">
-              {sorotan.content.split("\n").map((paragraph, i) => (
-                paragraph.trim() ? <p key={i} className="mb-4">{paragraph.trim()}</p> : null
-              ))}
-            </div>
+            <div
+              className="mt-8 article-content prose prose-lg max-w-none text-base sm:text-[17px] leading-[1.8] text-justify"
+              dangerouslySetInnerHTML={{ __html: sorotan.content }}
+            />
 
             {/* CTA — Baca Berita Lengkap */}
             <div className="mt-8 rounded-[12px] border-2 border-goto-green bg-goto-light p-6">
