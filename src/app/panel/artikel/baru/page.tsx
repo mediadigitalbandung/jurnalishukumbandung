@@ -18,6 +18,7 @@ import {
   Sparkles,
   TrendingUp,
   Lightbulb,
+  CalendarClock,
 } from "lucide-react";
 // ImageUploader removed — images now inserted inline via RichTextEditor
 
@@ -71,6 +72,8 @@ export default function NewArticlePage() {
   const [savedArticleId, setSavedArticleId] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [showSchedule, setShowSchedule] = useState(false);
   // Word counter calculations
   const plainText = content.replace(/<[^>]*>/g, "").trim();
   const wordCount = plainText ? plainText.split(/\s+/).length : 0;
@@ -305,6 +308,7 @@ export default function NewArticlePage() {
           coAuthors: isTeamArticle && coAuthorIds.length > 0
             ? coAuthorIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(", ")
             : undefined,
+          scheduledAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined,
         }),
       });
 
@@ -467,8 +471,46 @@ export default function NewArticlePage() {
               Kirim untuk Review
             </button>
           )}
+          {/* Schedule toggle */}
+          {EDITOR_ROLES.includes(userRole) && (
+            <button
+              type="button"
+              onClick={() => setShowSchedule(!showSchedule)}
+              className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                showSchedule ? "border-blue-400 bg-blue-50 text-blue-700" : "border-border text-txt-secondary hover:border-blue-400 hover:text-blue-600"
+              }`}
+            >
+              <CalendarClock size={16} />
+              Jadwalkan
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Schedule panel */}
+      {showSchedule && (
+        <div className="mb-4 rounded-[12px] border border-blue-200 bg-blue-50 p-4">
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-800">
+            <CalendarClock size={16} />
+            Jadwalkan Publikasi
+          </h3>
+          <p className="mb-3 text-xs text-blue-600">
+            Artikel akan otomatis dipublikasi pada waktu yang dipilih setelah disetujui editor.
+          </p>
+          <input
+            type="datetime-local"
+            value={scheduleDate}
+            onChange={(e) => setScheduleDate(e.target.value)}
+            min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
+            className="input w-full max-w-xs text-sm"
+          />
+          {scheduleDate && (
+            <p className="mt-2 text-xs text-blue-700">
+              Dijadwalkan: {new Date(scheduleDate).toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" })}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Auto-save recovery banner */}
       {showAutosaveBanner && (

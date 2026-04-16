@@ -7,7 +7,7 @@ import { onArticlePublished } from "@/lib/seo-utils";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+async function handlePublish(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -15,16 +15,18 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date();
+
+    // Find articles that are APPROVED and scheduled for now or earlier
     const articles = await prisma.article.findMany({
       where: {
         status: "APPROVED",
-        scheduledAt: { lte: now },
+        scheduledAt: { not: null, lte: now },
       },
       select: { id: true, title: true, slug: true, authorId: true, categoryId: true, scheduledAt: true },
     });
 
     if (articles.length === 0) {
-      return successResponse({ published: 0, titles: [] });
+      return successResponse({ published: 0, titles: [], checked: now.toISOString() });
     }
 
     // Batch fetch all authors in one query (avoid N+1)
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
         where: { id: article.id },
         data: {
           status: "PUBLISHED",
+          verificationLabel: "VERIFIED",
           publishedAt: article.scheduledAt || now,
           scheduledAt: null,
         },
@@ -53,11 +56,23 @@ export async function GET(request: NextRequest) {
       published.push(article.title);
     }
 
+    console.log(`[CRON] Published ${published.length} scheduled articles: ${published.join(", ")}`);
+
     return successResponse({
       published: published.length,
       titles: published,
+      checked: now.toISOString(),
     });
   } catch (error) {
     return errorResponse(error);
   }
+}
+
+// Support both GET and POST
+export async function GET(request: NextRequest) {
+  return handlePublish(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handlePublish(request);
 }
