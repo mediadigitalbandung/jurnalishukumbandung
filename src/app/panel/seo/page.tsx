@@ -144,54 +144,71 @@ export default function SeoMonitorPage() {
     setSubmitting(false);
   };
 
-  // Retry all failed articles
-  const retryAllFailed = async () => {
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/seo/status?filter=failed&page=1&limit=200");
-      const data = await res.json();
-      if (data.success && data.data.articles.length > 0) {
-        const ids = data.data.articles.map((a: Article) => a.id);
-        const submitRes = await fetch("/api/seo/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ articleIds: ids }),
-        });
-        const submitData = await submitRes.json();
-        if (submitData.success) {
-          const { ok, failed } = submitData.data.summary;
-          success(`Retry selesai: ${ok} berhasil, ${failed} gagal`);
-          fetchData();
-        }
-      } else {
-        success("Tidak ada artikel failed!");
-      }
-    } catch {
-      showError("Gagal retry");
-    }
-    setSubmitting(false);
-  };
+  const [submitInfo, setSubmitInfo] = useState<{
+    ok: number;
+    failed: number;
+    remaining: number;
+    quotaExhausted: boolean;
+    estimate: { remainingArticles: number; quotaPerDay: number; estimatedDays: number; nextRetry: string } | null;
+    indexNow: number;
+  } | null>(null);
 
-  // Submit ALL (not submitted + failed)
-  const submitAll = async () => {
+  // Smart submit — sends one by one, stops when quota exhausted
+  const smartSubmit = async (articleIds: string[]) => {
     setSubmitting(true);
+    setSubmitInfo(null);
     try {
-      const res = await fetch("/api/seo/bulk-reindex", {
+      const res = await fetch("/api/seo/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 200 }),
+        body: JSON.stringify({ articleIds }),
       });
       const data = await res.json();
       if (data.success) {
-        const g = data.data.googleIndexingApi;
-        const i = data.data.indexNow;
-        success(`Submit selesai: Google ${g?.submitted || 0} ok / ${g?.errors || 0} error, IndexNow ${i?.submitted || 0} submitted`);
+        const d = data.data;
+        setSubmitInfo({
+          ok: d.summary.ok,
+          failed: d.summary.failed,
+          remaining: d.summary.remaining || 0,
+          quotaExhausted: d.quotaExhausted || false,
+          estimate: d.estimate || null,
+          indexNow: d.indexNow?.submitted || 0,
+        });
         fetchData();
       }
     } catch {
       showError("Gagal submit");
     }
     setSubmitting(false);
+  };
+
+  // Retry all failed articles
+  const retryAllFailed = async () => {
+    const res = await fetch("/api/seo/status?filter=failed&page=1&limit=200");
+    const data = await res.json();
+    if (data.success && data.data.articles.length > 0) {
+      await smartSubmit(data.data.articles.map((a: Article) => a.id));
+    } else {
+      success("Tidak ada artikel failed!");
+    }
+  };
+
+  // Submit ALL (not submitted + failed)
+  const submitAll = async () => {
+    // Get all not submitted + failed
+    const [res1, res2] = await Promise.all([
+      fetch("/api/seo/status?filter=not_submitted&page=1&limit=200").then(r => r.json()),
+      fetch("/api/seo/status?filter=failed&page=1&limit=200").then(r => r.json()),
+    ]);
+    const ids = [
+      ...(res1.data?.articles || []).map((a: Article) => a.id),
+      ...(res2.data?.articles || []).map((a: Article) => a.id),
+    ];
+    if (ids.length > 0) {
+      await smartSubmit(ids);
+    } else {
+      success("Semua artikel sudah di-submit!");
+    }
   };
 
   const toggleSelect = (id: string) => {
@@ -319,6 +336,47 @@ export default function SeoMonitorPage() {
           </div>
         </div>
       </div>
+
+      {/* Submit Result Info */}
+      {submitInfo && (
+        <div className={`rounded-[12px] border p-5 ${submitInfo.quotaExhausted ? "border-yellow-300 bg-yellow-50" : "border-goto-green/30 bg-goto-light"}`}>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <span className="text-goto-green font-semibold">✓ Google: {submitInfo.ok} berhasil</span>
+            {submitInfo.failed > 0 && <span className="text-red-500">✗ {submitInfo.failed} gagal</span>}
+            {submitInfo.remaining > 0 && <span className="text-yellow-600">⏳ {submitInfo.remaining} menunggu</span>}
+            <span className="text-blue-500">↗ IndexNow (Bing): {submitInfo.indexNow} submitted</span>
+          </div>
+
+          {submitInfo.quotaExhausted && submitInfo.estimate && (
+            <div className="mt-3 rounded-lg bg-white/70 p-4">
+              <p className="text-sm font-semibold text-yellow-700 mb-2">
+                ⚠ Google Indexing API quota habis untuk hari ini
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div>
+                  <p className="text-xs text-txt-muted">Sisa artikel</p>
+                  <p className="text-lg font-bold text-txt-primary">{submitInfo.estimate.remainingArticles}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-txt-muted">Quota/hari</p>
+                  <p className="text-lg font-bold text-txt-primary">~{submitInfo.estimate.quotaPerDay}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-txt-muted">Estimasi selesai</p>
+                  <p className="text-lg font-bold text-goto-green">{submitInfo.estimate.estimatedDays} hari</p>
+                </div>
+                <div>
+                  <p className="text-xs text-txt-muted">Auto-retry</p>
+                  <p className="text-xs font-medium text-txt-primary">{submitInfo.estimate.nextRetry}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-txt-muted">
+                Tidak perlu klik lagi — cron otomatis akan retry artikel yang gagal 3x sehari. Quota Google naik otomatis seiring waktu.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filter + Search + Batch Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

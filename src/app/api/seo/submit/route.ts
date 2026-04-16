@@ -49,8 +49,17 @@ export async function POST(req: NextRequest) {
 
     const indexing = await getGoogleAuth();
     const results: { id: string; title: string; status: string; error?: string }[] = [];
+    let consecutiveErrors = 0;
+    let quotaExhausted = false;
+    let remaining = 0;
 
     for (const article of articles) {
+      // Stop if quota exhausted (3 consecutive errors = quota limit hit)
+      if (quotaExhausted) {
+        remaining++;
+        continue;
+      }
+
       const url = `${BASE_URL}/berita/${article.slug}`;
 
       if (indexing) {
@@ -63,23 +72,34 @@ export async function POST(req: NextRequest) {
             data: { lastIndexedAt: new Date(), indexStatus: "submitted" },
           });
           results.push({ id: article.id, title: article.title, status: "submitted" });
+          consecutiveErrors = 0; // Reset on success
         } catch (e) {
-          const errorMsg = String(e).slice(0, 100);
+          consecutiveErrors++;
+          const errorMsg = String(e).slice(0, 200);
+          const isQuotaError = errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("rateLimitExceeded");
+
+          // After 3 consecutive errors or explicit quota error, stop trying
+          if (consecutiveErrors >= 3 || isQuotaError) {
+            quotaExhausted = true;
+            remaining = articles.length - results.length - 1;
+          }
+
           await prisma.article.update({
             where: { id: article.id },
             data: { indexStatus: "failed" },
           });
-          results.push({ id: article.id, title: article.title, status: "failed", error: errorMsg });
+          results.push({ id: article.id, title: article.title, status: "failed", error: isQuotaError ? "quota_exhausted" : errorMsg });
         }
       } else {
         results.push({ id: article.id, title: article.title, status: "failed", error: "No Google credentials" });
+        break;
       }
 
-      // Rate limit: 200ms between requests
-      await new Promise((r) => setTimeout(r, 200));
+      // Rate limit: 300ms between requests
+      await new Promise((r) => setTimeout(r, 300));
     }
 
-    // Also submit to IndexNow (batch, fire & forget)
+    // Also submit ALL to IndexNow (no quota limit)
     const urls = articles.map((a) => `${BASE_URL}/berita/${a.slug}`);
     fetch("https://api.indexnow.org/indexnow", {
       method: "POST",
@@ -95,7 +115,19 @@ export async function POST(req: NextRequest) {
     const ok = results.filter((r) => r.status === "submitted").length;
     const failed = results.filter((r) => r.status === "failed").length;
 
-    return successResponse({ results, summary: { ok, failed, total: results.length } });
+    return successResponse({
+      results,
+      summary: { ok, failed, total: results.length, remaining },
+      quotaExhausted,
+      indexNow: { submitted: urls.length },
+      // Estimate: Google quota resets every 24h, ~10-20 articles/day for new accounts
+      estimate: quotaExhausted ? {
+        remainingArticles: remaining + failed,
+        quotaPerDay: ok > 0 ? ok : 10,
+        estimatedDays: Math.ceil((remaining + failed) / Math.max(ok, 10)),
+        nextRetry: "Otomatis 3x/hari via cron (06:00, 12:00, 19:00 WIB)",
+      } : null,
+    });
   } catch (error) {
     return errorResponse(error);
   }
