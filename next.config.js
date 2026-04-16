@@ -18,31 +18,69 @@ const nextConfig = {
   },
   async headers() {
     return [
-      // Cache static assets aggressively
+      // Cache static assets — Cloudflare edge + browser
       {
         source: "/ads/:path*",
         headers: [
           { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+          { key: "CDN-Cache-Control", value: "max-age=604800" }, // Cloudflare edge: 7 days
         ],
       },
       {
         source: "/logo-jhb.png",
         headers: [
           { key: "Cache-Control", value: "public, max-age=2592000, immutable" },
+          { key: "CDN-Cache-Control", value: "max-age=2592000" }, // Cloudflare edge: 30 days
         ],
       },
-      // Cache public pages with SWR
+      {
+        source: "/uploads/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" },
+          { key: "CDN-Cache-Control", value: "max-age=2592000" }, // Cloudflare edge: 30 days
+        ],
+      },
+      // Cache public pages — Cloudflare edge + browser
       {
         source: "/berita/:slug*",
         headers: [
-          // Articles are mostly immutable post-publish — cache longer for faster LCP
           { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=86400" },
+          { key: "CDN-Cache-Control", value: "max-age=300" }, // Cloudflare edge: 5 min
         ],
       },
       {
         source: "/kategori/:slug*",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=300" },
+          { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=600" },
+          { key: "CDN-Cache-Control", value: "max-age=120" }, // Cloudflare edge: 2 min
+        ],
+      },
+      {
+        source: "/topik/:slug*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=3600" },
+          { key: "CDN-Cache-Control", value: "max-age=300" },
+        ],
+      },
+      {
+        source: "/sorotan/:slug*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" },
+          { key: "CDN-Cache-Control", value: "max-age=3600" }, // Cloudflare edge: 1 hour
+        ],
+      },
+      {
+        source: "/lokasi/:slug*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=3600" },
+          { key: "CDN-Cache-Control", value: "max-age=300" },
+        ],
+      },
+      {
+        source: "/rangkuman/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" },
+          { key: "CDN-Cache-Control", value: "max-age=3600" },
         ],
       },
       // Security headers for all routes
