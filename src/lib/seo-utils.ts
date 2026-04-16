@@ -232,7 +232,7 @@ export async function testGoogleCredentials(credentialsJson: string): Promise<{
 
 /** IndexNow — instant indexing for Bing, Yandex, Seznam, Naver */
 async function submitToIndexNow(urls: string[]) {
-  const key = "jurnalishukumbandung";
+  const key = "acababc0b4221f7d8becd200e2bb2627";
   try {
     const res = await fetch("https://api.indexnow.org/indexnow", {
       method: "POST",
