@@ -178,9 +178,6 @@ export default async function HomePage() {
       take: 10,
     }),
   ]);
-  // latestArticles = first 8 of articles (no separate query needed)
-  const latestArticles = articles.slice(0, 8);
-
   // Breaking News: artikel 3 jam terakhir (fallback ke 5 terbaru jika kosong)
   const breakingArticles = breakingLatest.length > 0 ? breakingLatest : articles.slice(0, 5);
   const breakingIds = new Set(breakingArticles.map((a: { id: string }) => a.id));
@@ -191,19 +188,14 @@ export default async function HomePage() {
   const headlineIds = new Set(headlineArticles.map((a: { id: string }) => a.id));
 
   // Sub-headline: artikel berikutnya, exclude breaking & headline
-  const subExclude = new Set([...Array.from(breakingIds), ...Array.from(headlineIds)]);
-  const subHeadlines = articles.filter((a: { id: string }) => !subExclude.has(a.id)).slice(0, 6);
+  const sliderExclude = new Set([...Array.from(breakingIds), ...Array.from(headlineIds)]);
+  const subHeadlines = articles.filter((a: { id: string }) => !sliderExclude.has(a.id)).slice(0, 6);
 
-  // Berita Terkini: 8 terbaru, exclude yang sudah tampil
-  const allUsedIds = new Set([
-    ...Array.from(breakingIds),
-    ...Array.from(headlineIds),
-    ...subHeadlines.map((a: { id: string }) => a.id),
-  ]);
-  const terkiniFiltered = latestArticles.filter((a: { id: string }) => !allUsedIds.has(a.id));
-  const terkiniArticles = terkiniFiltered.length >= 4 ? terkiniFiltered : latestArticles;
+  // Berita Terkini: 12 terbaru — TIDAK exclude apapun, agar semua artikel terbaru selalu muncul
+  const terkiniArticles = articles.slice(0, 12);
 
-  const restArticles = articles.filter((a: { id: string }) => !allUsedIds.has(a.id)).slice(0, 30);
+  // Rest articles for category sections — exclude hanya yang sudah di slider (bukan terkini)
+  const restArticles = articles.slice(0, 40);
 
   // Ticker: trending tags with article count
   const tickerItems = trendingTags
