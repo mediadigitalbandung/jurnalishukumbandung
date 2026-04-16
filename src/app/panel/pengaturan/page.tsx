@@ -67,6 +67,14 @@ export default function PengaturanPage() {
   } | null>(null);
   const [seoPinging, setSeoPinging] = useState(false);
   const [seoPingResult, setSeoPingResult] = useState<string | null>(null);
+  // Auto-article state
+  const [autoArticleEnabled, setAutoArticleEnabled] = useState(false);
+  const [autoArticleCount, setAutoArticleCount] = useState("1");
+  const [autoArticleInterval, setAutoArticleInterval] = useState("60");
+  const [autoArticleSaving, setAutoArticleSaving] = useState(false);
+  const [autoArticleGenerating, setAutoArticleGenerating] = useState(false);
+  const [autoArticleResult, setAutoArticleResult] = useState<string | null>(null);
+
   const [bulkReindexing, setBulkReindexing] = useState(false);
   const [bulkReindexResult, setBulkReindexResult] = useState<{
     message?: string;
@@ -100,6 +108,9 @@ export default function PengaturanPage() {
           if (d.deepseek_api_key) setAiApiKey(d.deepseek_api_key);
           if (d.google_credentials_json) setGoogleCredentials(d.google_credentials_json);
           if (d.google_indexing_enabled !== undefined) setGoogleEnabled(d.google_indexing_enabled === "true");
+          if (d.auto_article_enabled !== undefined) setAutoArticleEnabled(d.auto_article_enabled === "true");
+          if (d.auto_article_count) setAutoArticleCount(d.auto_article_count);
+          if (d.auto_article_interval) setAutoArticleInterval(d.auto_article_interval);
           setSettings((prev) => ({
             ...prev,
             ...(d.contact_email && { emailRedaksi: d.contact_email }),
@@ -770,6 +781,137 @@ export default function PengaturanPage() {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Auto-Article Generator */}
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+            <Bot size={20} className="text-purple-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-txt-primary">Auto-Generate Artikel</h2>
+            <p className="text-sm text-txt-muted">Generate draft artikel otomatis dari AI berdasarkan topik hukum Bandung</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Enable/Disable */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-txt-primary">Aktifkan Auto-Generate</p>
+              <p className="text-xs text-txt-muted">Artikel di-generate sebagai DRAFT (perlu review manual sebelum publish)</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutoArticleEnabled(!autoArticleEnabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${autoArticleEnabled ? "bg-goto-green" : "bg-gray-200"}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${autoArticleEnabled ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
+
+          {autoArticleEnabled && (
+            <>
+              {/* Interval */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-txt-primary">Interval (menit)</label>
+                <select
+                  value={autoArticleInterval}
+                  onChange={(e) => setAutoArticleInterval(e.target.value)}
+                  className="input w-full sm:w-48"
+                >
+                  <option value="30">Setiap 30 menit</option>
+                  <option value="60">Setiap 1 jam</option>
+                  <option value="120">Setiap 2 jam</option>
+                  <option value="180">Setiap 3 jam</option>
+                  <option value="360">Setiap 6 jam</option>
+                  <option value="720">Setiap 12 jam</option>
+                  <option value="1440">Setiap 24 jam</option>
+                </select>
+              </div>
+
+              {/* Count per run */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-txt-primary">Jumlah artikel per generate</label>
+                <select
+                  value={autoArticleCount}
+                  onChange={(e) => setAutoArticleCount(e.target.value)}
+                  className="input w-full sm:w-48"
+                >
+                  <option value="1">1 artikel</option>
+                  <option value="2">2 artikel</option>
+                  <option value="3">3 artikel</option>
+                  <option value="5">5 artikel</option>
+                </select>
+              </div>
+
+              {/* Save settings */}
+              <button
+                onClick={async () => {
+                  setAutoArticleSaving(true);
+                  try {
+                    await fetch("/api/settings", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        auto_article_enabled: autoArticleEnabled ? "true" : "false",
+                        auto_article_count: autoArticleCount,
+                        auto_article_interval: autoArticleInterval,
+                      }),
+                    });
+                    showToast("Pengaturan auto-article disimpan");
+                  } catch { /* ignore */ }
+                  setAutoArticleSaving(false);
+                }}
+                disabled={autoArticleSaving}
+                className="btn-primary text-sm"
+              >
+                {autoArticleSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                Simpan Pengaturan Auto-Article
+              </button>
+
+              {/* Manual trigger */}
+              <div className="border-t border-border pt-4">
+                <p className="text-sm font-medium text-txt-primary mb-2">Generate Sekarang (Manual)</p>
+                <button
+                  onClick={async () => {
+                    setAutoArticleGenerating(true);
+                    setAutoArticleResult(null);
+                    try {
+                      const res = await fetch(`/api/cron/auto-article`, {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${prompt("Masukkan CRON_SECRET:")}` },
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setAutoArticleResult(`Berhasil generate ${data.data.generated} artikel draft. ${data.data.failed > 0 ? `${data.data.failed} gagal.` : ""}`);
+                      } else {
+                        setAutoArticleResult(`Error: ${data.error || "Gagal"}`);
+                      }
+                    } catch {
+                      setAutoArticleResult("Gagal menghubungi server");
+                    }
+                    setAutoArticleGenerating(false);
+                  }}
+                  disabled={autoArticleGenerating}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+                >
+                  {autoArticleGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} />}
+                  {autoArticleGenerating ? "Generating..." : `Generate ${autoArticleCount} Draft Sekarang`}
+                </button>
+                {autoArticleResult && (
+                  <p className={`mt-2 text-sm ${autoArticleResult.includes("Berhasil") ? "text-goto-green" : "text-red-500"}`}>
+                    {autoArticleResult}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-txt-muted">
+                  Draft akan muncul di Artikel → filter &quot;Draft&quot;. Review dan edit sebelum publish.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
