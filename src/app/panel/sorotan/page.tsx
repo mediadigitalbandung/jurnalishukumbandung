@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import Image from "next/image";
 import {
@@ -157,6 +157,7 @@ export default function SorotanPanel() {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentArticle: "", currentAngle: "", done: 0, failed: 0 });
   const [bulkStopped, setBulkStopped] = useState(false);
+  const bulkStopRef = useRef(false);
 
   // Filter articles
   const filteredArticles = articles.filter((a) => {
@@ -287,8 +288,6 @@ export default function SorotanPanel() {
       </div>
     );
   }
-
-  const bulkStopRef = { current: false };
 
   const generateAllArticles = async () => {
     const incomplete = articles.filter((a) => (a.sorotanCount || 0) < 10);
