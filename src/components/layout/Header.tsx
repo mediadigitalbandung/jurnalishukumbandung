@@ -10,6 +10,7 @@ import {
   X,
   Search,
   LogOut,
+  LogIn,
   LayoutDashboard,
   ChevronRight,
   Bookmark,
@@ -191,7 +192,15 @@ export default function Header() {
                     </>
                   )}
                 </div>
-              ) : null}
+              ) : (
+                <Link
+                  href="/login"
+                  className="hidden md:flex items-center gap-1.5 rounded-full bg-goto-green px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-goto-dark active:scale-[0.98]"
+                >
+                  <LogIn size={14} />
+                  Masuk
+                </Link>
+              )}
 
               {/* Mobile menu toggle */}
               <button
@@ -351,11 +360,42 @@ export default function Header() {
             </ul>
           </div>
 
-          {/* Mobile footer */}
+          {/* Mobile footer — login/user */}
           <div className="absolute bottom-0 left-0 right-0 border-t border-border px-5 py-4">
-            <span className="block text-center text-xs text-txt-muted">
-              Jurnalis Hukum Bandung
-            </span>
+            {session ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">
+                    {session.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                  </div>
+                  <span className="text-sm font-medium text-txt-primary">{session.user?.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/panel/dashboard"
+                    className="rounded-full bg-surface-secondary px-3 py-1.5 text-xs font-medium text-txt-primary hover:bg-surface-tertiary"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Panel
+                  </Link>
+                  <button
+                    onClick={() => { setMobileMenuOpen(false); signOut(); }}
+                    className="rounded-full bg-surface-secondary px-3 py-1.5 text-xs font-medium text-txt-secondary hover:text-red-500"
+                  >
+                    Keluar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-goto-green px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-goto-dark"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <LogIn size={16} />
+                Masuk
+              </Link>
+            )}
           </div>
         </div>
       </div>
