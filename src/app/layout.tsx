@@ -32,6 +32,7 @@ export const metadata: Metadata = {
   ),
   verification: {
     google: ["aOYlnEshfJKwCD4v8OePC3vgPACRIRt2bO5s9dziFj0", "9pGu6p81BOnwuPMxHzHwo-Zgq8IvgYLmfLvJMjXDsus"],
+    other: { "msvalidate.01": "2A1E21A418146AC61D34F9F4BE1E70C9" },
   },
   title: {
     default: "Hukum Bandung — Berita Hukum Terbaru & Terpercaya | Jurnalis Hukum Bandung",
