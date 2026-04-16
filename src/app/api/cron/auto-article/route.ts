@@ -124,41 +124,63 @@ async function generateArticle(apiKey: string) {
     }
   }
 
-  // 4. Build rich context from existing articles
-  const context = contextArticles
-    .map((a) => {
-      const tags = a.tags?.map((t) => t.name).join(", ") || "";
-      const sources = a.sources?.map((s) => `${s.name}${s.institution ? ` (${s.institution})` : ""}`).join(", ") || "";
-      const plainContent = a.content?.replace(/<[^>]*>/g, "").slice(0, 300) || "";
-      return `Judul: ${a.title}\nKategori: ${a.category?.name || "-"}\nRingkasan: ${a.excerpt || ""}\nTags: ${tags}\nNarasumber: ${sources}\nIsi: ${plainContent}`;
-    })
-    .join("\n---\n");
+  // 4. Pick 1-2 main articles for deep paraphrase + others for context
+  const mainArticle = contextArticles[0];
+  const secondArticle = contextArticles.length > 1 ? contextArticles[1] : null;
 
-  // 5. Generate article with DeepSeek (more detailed prompt)
-  const prompt = `Kamu adalah jurnalis senior "Jurnalis Hukum Bandung". Pelajari berita-berita referensi berikut, lalu tulis artikel berita BARU yang ORIGINAL tentang topik "${keyword}".
+  // Get FULL plain text content of main articles (not just 300 chars)
+  const mainContent = mainArticle?.content?.replace(/<[^>]*>/g, "").slice(0, 2000) || "";
+  const mainSources = mainArticle?.sources?.map((s) => `${s.name}${s.institution ? ` (${s.institution})` : ""}`).join(", ") || "";
+  const mainTags = mainArticle?.tags?.map((t) => t.name).join(", ") || "";
 
-=== BERITA REFERENSI (pelajari gaya, topik, narasumber, JANGAN copy) ===
-${context}
-=== AKHIR REFERENSI ===
+  const secondContent = secondArticle?.content?.replace(/<[^>]*>/g, "").slice(0, 1000) || "";
+  const secondSources = secondArticle?.sources?.map((s) => `${s.name}${s.institution ? ` (${s.institution})` : ""}`).join(", ") || "";
 
-INSTRUKSI MENULIS:
-1. Tulis judul berita yang menarik, informatif, dan mengandung keyword "${keyword}" (40-70 karakter)
-2. Tulis konten 400-600 kata dalam format HTML (<p>, <h2>, <h3>, <blockquote>)
-3. Gaya jurnalistik profesional Indonesia (5W+1H: Apa, Siapa, Kapan, Dimana, Mengapa, Bagaimana)
-4. Sertakan kutipan narasumber (gunakan nama dan jabatan realistis dari referensi)
-5. Fokus pada aspek hukum di Bandung/Jawa Barat
-6. Tulis SEO title (maks 60 karakter, mengandung "${keyword}")
-7. Tulis meta description (maks 155 karakter)
-8. JANGAN gunakan markdown, HANYA HTML tags
+  // Additional context from other articles (brief)
+  const otherContext = contextArticles.slice(2, 5)
+    .map((a) => `- ${a.title} (${a.category?.name || "-"})`)
+    .join("\n");
 
-FORMAT OUTPUT (HARUS persis):
-JUDUL: [judul artikel]
+  // 5. Generate article — PARAPHRASE dari artikel existing
+  const prompt = `Kamu adalah jurnalis senior "Jurnalis Hukum Bandung". Tugasmu adalah MENULIS ULANG (paraphrase) berita di bawah ini dengan kata-kata dan struktur yang BERBEDA, tapi informasi dan fakta-faktanya TETAP SAMA.
+
+=== BERITA UTAMA YANG HARUS DI-PARAPHRASE ===
+Judul: ${mainArticle?.title || keyword}
+Kategori: ${mainArticle?.category?.name || "-"}
+Tags: ${mainTags}
+Narasumber: ${mainSources}
+Isi lengkap:
+${mainContent}
+=== AKHIR BERITA UTAMA ===
+
+${secondArticle ? `=== BERITA TAMBAHAN (gabungkan informasi yang relevan) ===
+Judul: ${secondArticle.title}
+Narasumber: ${secondSources}
+Isi: ${secondContent}
+=== AKHIR BERITA TAMBAHAN ===` : ""}
+
+${otherContext ? `Berita terkait lainnya:\n${otherContext}` : ""}
+
+INSTRUKSI PARAPHRASE:
+1. Tulis ULANG berita di atas dengan kata-kata BERBEDA, struktur kalimat BERBEDA, dan sudut pandang yang SEDIKIT BERBEDA
+2. PERTAHANKAN semua fakta, nama, angka, kutipan narasumber dari berita asli
+3. Ubah struktur paragraf — jangan ikuti urutan yang sama
+4. Gunakan sinonim dan variasi kalimat
+5. Judul HARUS berbeda dari asli tapi topiknya sama, mengandung keyword "${keyword}"
+6. Tulis 400-600 kata dalam format HTML (<p>, <h2>, <h3>, <blockquote> untuk kutipan)
+7. Tulis SEO title (maks 60 karakter, mengandung "${keyword}")
+8. Tulis meta description (maks 155 karakter)
+9. JANGAN gunakan markdown (**bold** atau ##), HANYA HTML tags
+10. Pastikan artikel terasa FRESH dan BERBEDA walau topiknya sama
+
+FORMAT OUTPUT (HARUS persis seperti ini):
+JUDUL: [judul artikel baru yang berbeda]
 SEO_TITLE: [seo title maks 60 char]
 SEO_DESC: [meta description maks 155 char]
 EXCERPT: [ringkasan 1-2 kalimat]
 TAGS: [tag1, tag2, tag3, tag4, tag5]
 KONTEN:
-[isi artikel dalam HTML]`;
+[isi artikel paraphrase dalam HTML]`;
 
   const result = await callDeepSeek(apiKey, prompt, 2500);
 
