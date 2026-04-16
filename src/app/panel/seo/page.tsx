@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/Toast";
+import Link from "next/link";
 import {
   Search,
   Globe,
@@ -15,6 +16,8 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  FileText,
 } from "lucide-react";
 
 interface Article {
@@ -35,8 +38,25 @@ interface Stats {
   notSubmitted: number;
 }
 
+interface SorotanItem {
+  id: string;
+  slug: string;
+  title: string;
+  angle: string;
+  createdAt: string;
+  article: { title: string; slug: string; category: { name: string } };
+}
+
+const angleLabels: Record<string, string> = {
+  kronologi: "Kronologi", analisis: "Analisis Hukum", dampak: "Dampak & Implikasi",
+  "latar-belakang": "Latar Belakang", "fakta-data": "Fakta & Data", regulasi: "Regulasi Terkait",
+  profil: "Profil & Pihak", opini: "Perspektif & Opini", perbandingan: "Perbandingan Kasus",
+  "tanya-jawab": "Tanya Jawab",
+};
+
 export default function SeoMonitorPage() {
   const { success, error: showError } = useToast();
+  const [activeTab, setActiveTab] = useState<"articles" | "sorotan">("articles");
   const [articles, setArticles] = useState<Article[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, submitted: 0, failed: 0, notSubmitted: 0 });
   const [loading, setLoading] = useState(true);
@@ -47,6 +67,71 @@ export default function SeoMonitorPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+
+  // Sorotan state
+  const [sorotanList, setSorotanList] = useState<SorotanItem[]>([]);
+  const [sorotanTotal, setSorotanTotal] = useState(0);
+  const [sorotanPage, setSorotanPage] = useState(1);
+  const [sorotanTotalPages, setSorotanTotalPages] = useState(1);
+  const [sorotanLoading, setSorotanLoading] = useState(false);
+  const [sorotanSearch, setSorotanSearch] = useState("");
+  const [sorotanSelected, setSorotanSelected] = useState<string[]>([]);
+  const [sorotanSubmitting, setSorotanSubmitting] = useState(false);
+  const [sorotanSubmittingSlug, setSorotanSubmittingSlug] = useState<string | null>(null);
+
+  const fetchSorotan = useCallback(async () => {
+    setSorotanLoading(true);
+    try {
+      const q = sorotanSearch ? `&q=${encodeURIComponent(sorotanSearch)}` : "";
+      const res = await fetch(`/api/seo/sorotan-status?page=${sorotanPage}${q}`);
+      const data = await res.json();
+      if (data.success) {
+        setSorotanList(data.data.sorotan || []);
+        setSorotanTotal(data.data.total || 0);
+        setSorotanTotalPages(data.data.pagination?.totalPages || 1);
+      }
+    } catch { /* ignore */ }
+    setSorotanLoading(false);
+  }, [sorotanPage, sorotanSearch]);
+
+  useEffect(() => {
+    if (activeTab === "sorotan") fetchSorotan();
+  }, [activeTab, fetchSorotan]);
+
+  const submitSorotanSingle = async (slug: string) => {
+    setSorotanSubmittingSlug(slug);
+    try {
+      const res = await fetch("/api/seo/sorotan-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slugs: [slug] }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        success(`Submitted ke Google + IndexNow`);
+      } else {
+        showError("Gagal submit");
+      }
+    } catch { showError("Gagal submit"); }
+    setSorotanSubmittingSlug(null);
+  };
+
+  const submitSorotanBatch = async (slugs: string[]) => {
+    setSorotanSubmitting(true);
+    try {
+      const res = await fetch("/api/seo/sorotan-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slugs }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        success(`${data.data.submitted} sorotan di-submit ke Google + IndexNow`);
+        setSorotanSelected([]);
+      }
+    } catch { showError("Gagal submit batch"); }
+    setSorotanSubmitting(false);
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -378,6 +463,157 @@ export default function SeoMonitorPage() {
         </div>
       )}
 
+      {/* Tab switcher: Artikel / Sorotan */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab("articles")}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "articles" ? "border-goto-green text-goto-green" : "border-transparent text-txt-secondary hover:text-txt-primary"
+          }`}
+        >
+          <FileText size={16} /> Artikel ({stats.total})
+        </button>
+        <button
+          onClick={() => setActiveTab("sorotan")}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "sorotan" ? "border-goto-green text-goto-green" : "border-transparent text-txt-secondary hover:text-txt-primary"
+          }`}
+        >
+          <Sparkles size={16} /> Sorotan SEO ({sorotanTotal})
+        </button>
+      </div>
+
+      {/* === SOROTAN TAB === */}
+      {activeTab === "sorotan" && (
+        <div className="space-y-4">
+          {/* Search + Batch */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              {sorotanSelected.length > 0 && (
+                <button
+                  onClick={() => submitSorotanBatch(sorotanSelected)}
+                  disabled={sorotanSubmitting}
+                  className="inline-flex items-center gap-1 rounded-full bg-goto-green px-4 py-1.5 text-xs font-medium text-white hover:bg-goto-dark disabled:opacity-50"
+                >
+                  {sorotanSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                  Submit {sorotanSelected.length} dipilih
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const allSlugs = sorotanList.map((s) => s.slug);
+                  submitSorotanBatch(allSlugs);
+                }}
+                disabled={sorotanSubmitting || sorotanList.length === 0}
+                className="inline-flex items-center gap-1 rounded-full bg-goto-green px-4 py-1.5 text-xs font-medium text-white hover:bg-goto-dark disabled:opacity-50"
+              >
+                <Send size={12} /> Submit Semua ({sorotanTotal})
+              </button>
+            </div>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
+              <input
+                value={sorotanSearch}
+                onChange={(e) => setSorotanSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { setSorotanPage(1); fetchSorotan(); } }}
+                placeholder="Cari sorotan..."
+                className="input pl-9 pr-3 py-1.5 text-sm w-60"
+              />
+            </div>
+          </div>
+
+          {/* Sorotan Table */}
+          <div className="overflow-x-auto rounded-[12px] border border-border bg-surface shadow-card">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-border bg-surface-secondary">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={sorotanSelected.length === sorotanList.length && sorotanList.length > 0}
+                      onChange={() => sorotanSelected.length === sorotanList.length ? setSorotanSelected([]) : setSorotanSelected(sorotanList.map((s) => s.slug))}
+                      className="h-4 w-4 rounded border-border text-goto-green"
+                    />
+                  </th>
+                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Judul Sorotan</th>
+                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Angle</th>
+                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel Induk</th>
+                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorotanLoading ? (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center"><Loader2 size={24} className="mx-auto animate-spin text-goto-green" /></td></tr>
+                ) : sorotanList.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-txt-muted">Belum ada halaman sorotan</td></tr>
+                ) : (
+                  sorotanList.map((s) => (
+                    <tr key={s.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={sorotanSelected.includes(s.slug)}
+                          onChange={() => setSorotanSelected((prev) => prev.includes(s.slug) ? prev.filter((x) => x !== s.slug) : [...prev, s.slug])}
+                          className="h-4 w-4 rounded border-border text-goto-green"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="max-w-xs">
+                          <p className="truncate text-sm font-medium text-txt-primary">{s.title}</p>
+                          <a
+                            href={`https://jurnalishukumbandung.com/sorotan/${s.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-goto-green hover:underline"
+                          >
+                            <ExternalLink size={10} /> Lihat
+                          </a>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-600">
+                          <Sparkles size={10} />
+                          {angleLabels[s.angle] || s.angle}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="truncate text-xs text-txt-secondary max-w-[200px]">{s.article.title}</p>
+                        <p className="text-[10px] text-txt-muted">{s.article.category?.name}</p>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => submitSorotanSingle(s.slug)}
+                          disabled={sorotanSubmittingSlug === s.slug}
+                          className="inline-flex items-center gap-1 rounded-full border border-goto-green px-3 py-1 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          {sorotanSubmittingSlug === s.slug ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                          Index
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Sorotan Pagination */}
+          {sorotanTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button onClick={() => setSorotanPage((p) => Math.max(1, p - 1))} disabled={sorotanPage === 1} className="rounded-full border border-border p-2 text-txt-secondary hover:bg-surface-secondary disabled:opacity-30">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm text-txt-secondary">Halaman {sorotanPage} dari {sorotanTotalPages}</span>
+              <button onClick={() => setSorotanPage((p) => Math.min(sorotanTotalPages, p + 1))} disabled={sorotanPage === sorotanTotalPages} className="rounded-full border border-border p-2 text-txt-secondary hover:bg-surface-secondary disabled:opacity-30">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === ARTICLES TAB === */}
+      {activeTab === "articles" && <>
       {/* Filter + Search + Batch Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
@@ -525,6 +761,7 @@ export default function SeoMonitorPage() {
           </button>
         </div>
       )}
+      </>}
     </div>
   );
 }
