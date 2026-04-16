@@ -382,3 +382,42 @@
     size: A4;
   }
 }
+
+/* ── Table of Contents ─────────────────────────── */
+.toc ol {
+  list-style: none;
+  counter-reset: toc-counter;
+  padding-left: 0;
+}
+.toc ol li {
+  counter-increment: toc-counter;
+}
+.toc ol li::before {
+  content: counter(toc-counter) ". ";
+  color: #9CA3AF;
+  font-size: 0.8rem;
+}
+
+/* ── FAQ Accordion ─────────────────────────────── */
+details summary {
+  list-style: none;
+}
+details summary::-webkit-details-marker {
+  display: none;
+}
+details summary::after {
+  content: "+";
+  float: right;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #9CA3AF;
+  transition: transform 0.2s;
+}
+details[open] summary::after {
+  content: "−";
+  color: #00AA13;
+}
+/* Smooth scroll for TOC anchor links */
+html {
+  scroll-behavior: smooth;
+}

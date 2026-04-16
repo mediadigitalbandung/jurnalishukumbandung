@@ -121,6 +121,7 @@ model Article {
   reviewedAt        DateTime?
   assignedEditorId  String?
   coAuthors         String?           @db.Text
+  faqData           String?           @db.Text // JSON: [{q: "...", a: "..."}] — auto-generated FAQ for SEO
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

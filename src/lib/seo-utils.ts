@@ -406,7 +406,59 @@ export function generateInternalLinksHtml(
     .join("")}</ul></div>`;
 }
 
-/* ── 6. Full SEO automation on publish ─────────────────────────── */
+/* ── 6. Auto-generate FAQ from article content ────────────────── */
+
+export async function autoGenerateFaq(
+  articleId: string,
+  title: string,
+  content: string
+): Promise<{ q: string; a: string }[]> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: "deepseek_api_key" },
+    });
+    if (!setting?.value) return [];
+
+    const plainContent = stripHtml(content).slice(0, 3000);
+    const prompt = `Berdasarkan artikel berita hukum berikut, buatkan 4-5 pertanyaan FAQ (Frequently Asked Questions) beserta jawabannya.
+
+Format WAJIB JSON array seperti ini (JANGAN tambahkan teks lain, HANYA JSON):
+[{"q":"Pertanyaan?","a":"Jawaban singkat 1-2 kalimat."}]
+
+Judul: ${title}
+Konten: ${plainContent}`;
+
+    const result = await callDeepSeek(setting.value, prompt, 500);
+
+    // Parse JSON from AI response
+    const jsonMatch = result.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+
+    const faq = JSON.parse(jsonMatch[0]) as { q: string; a: string }[];
+    if (!Array.isArray(faq) || faq.length === 0) return [];
+
+    // Validate structure
+    const validFaq = faq
+      .filter((item) => item.q && item.a && typeof item.q === "string" && typeof item.a === "string")
+      .slice(0, 5);
+
+    // Save to database
+    if (validFaq.length > 0) {
+      await prisma.article.update({
+        where: { id: articleId },
+        data: { faqData: JSON.stringify(validFaq) },
+      });
+      console.log(`[SEO] FAQ generated for article ${articleId}: ${validFaq.length} questions`);
+    }
+
+    return validFaq;
+  } catch (error) {
+    console.error("[SEO] FAQ generation error:", error);
+    return [];
+  }
+}
+
+/* ── 7. Full SEO automation on publish ─────────────────────────── */
 
 export async function onArticlePublished(slug: string, articleId: string, categoryId: string) {
   // Resolve category slug for IndexNow
@@ -434,16 +486,23 @@ export async function onArticlePublished(slug: string, articleId: string, catego
     ]).catch(() => null),
   ];
 
-  // Get related articles for internal linking data
-  const tags = await prisma.article.findUnique({
+  // Get article data for FAQ generation + internal linking
+  const articleData = await prisma.article.findUnique({
     where: { id: articleId },
-    select: { tags: { select: { id: true } } },
+    select: { title: true, content: true, faqData: true, tags: { select: { id: true } } },
   });
-  const tagIds = tags?.tags.map((t) => t.id) || [];
+  const tagIds = articleData?.tags.map((t) => t.id) || [];
 
   const related = await getRelatedArticleSuggestions(articleId, categoryId, tagIds);
 
-  console.log(`[SEO] Article published: ${slug}, submitting to Google Indexing API + IndexNow + ping sitemaps + purge cache. ${related.length} related articles found`);
+  // Auto-generate FAQ if not already present (non-blocking)
+  if (articleData && !articleData.faqData) {
+    tasks.push(
+      autoGenerateFaq(articleId, articleData.title, articleData.content).catch(() => null)
+    );
+  }
+
+  console.log(`[SEO] Article published: ${slug}, submitting to Google Indexing API + IndexNow + ping sitemaps + purge cache + FAQ generation. ${related.length} related articles found`);
 
   await Promise.allSettled(tasks);
 
@@ -456,7 +515,7 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 }
 
-async function callDeepSeek(apiKey: string, prompt: string): Promise<string> {
+async function callDeepSeek(apiKey: string, prompt: string, maxTokens = 100): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -474,7 +533,7 @@ async function callDeepSeek(apiKey: string, prompt: string): Promise<string> {
           { role: "system", content: "Kamu asisten SEO untuk media berita hukum Indonesia. Jawab singkat dan langsung." },
           { role: "user", content: prompt },
         ],
-        max_tokens: 100,
+        max_tokens: maxTokens,
         temperature: 0.5,
       }),
     });

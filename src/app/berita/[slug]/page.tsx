@@ -27,7 +27,7 @@ async function getArticle(slug: string) {
     where: { slug },
     include: { author: true, category: true, sources: true, tags: true },
   });
-  return article;
+  return article as (typeof article & { faqData?: string | null }) | null;
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -87,6 +87,31 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       "article:section": article.category.name,
     },
   };
+}
+
+/** Extract headings from HTML content for Table of Contents */
+function extractHeadings(html: string): { id: string; text: string; level: number }[] {
+  const headings: { id: string; text: string; level: number }[] = [];
+  const regex = /<h([2-3])[^>]*>(.*?)<\/h\1>/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const text = match[2].replace(/<[^>]*>/g, "").trim();
+    if (text.length > 0) {
+      const id = text.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-").slice(0, 60);
+      headings.push({ id, text, level: parseInt(match[1]) });
+    }
+  }
+  return headings;
+}
+
+/** Inject IDs into headings so TOC anchor links work */
+function injectHeadingIds(html: string): string {
+  return html.replace(/<h([2-3])([^>]*)>(.*?)<\/h\1>/gi, (match, level, attrs, content) => {
+    const text = content.replace(/<[^>]*>/g, "").trim();
+    const id = text.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-").slice(0, 60);
+    if (attrs.includes("id=")) return match; // already has ID
+    return `<h${level} id="${id}"${attrs}>${content}</h${level}>`;
+  });
 }
 
 const WORDS_PER_PAGE = 300;
@@ -302,6 +327,18 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     }
   );
 
+  // Inject heading IDs for TOC anchor links
+  sanitizedContent = injectHeadingIds(sanitizedContent);
+
+  // Extract headings for Table of Contents
+  const headings = extractHeadings(article.content);
+
+  // Parse FAQ data (auto-generated on publish)
+  let faqItems: { q: string; a: string }[] = [];
+  try {
+    if (article.faqData) faqItems = JSON.parse(article.faqData);
+  } catch { /* ignore parse error */ }
+
   const plainContent = article.content.replace(/<[^>]*>/g, "");
   const wordCount = plainContent.split(/\s+/).filter(Boolean).length;
 
@@ -396,6 +433,26 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, breadcrumbLd]) }}
       />
+      {/* FAQPage schema — appears in Google "People Also Ask" */}
+      {faqItems.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: faqItems.map((item) => ({
+                "@type": "Question",
+                name: item.q,
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: item.a,
+                },
+              })),
+            }),
+          }}
+        />
+      )}
       <ReadingProgress />
       <CopyProtection
         authorName={article.author.name}
@@ -499,6 +556,25 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
               <div className="mt-6">
                 <BannerAd slot="HEADER" noWrapper />
               </div>
+
+              {/* Table of Contents — helps Google show sitelinks */}
+              {headings.length >= 3 && (
+                <nav className="toc mt-6 rounded-[12px] border border-border bg-surface-secondary p-5" aria-label="Daftar Isi">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-txt-primary mb-3">Daftar Isi</h2>
+                  <ol className="space-y-1.5">
+                    {headings.map((h, i) => (
+                      <li key={i} className={h.level === 3 ? "ml-4" : ""}>
+                        <a
+                          href={`#${h.id}`}
+                          className="text-sm text-goto-green hover:underline"
+                        >
+                          {h.text}
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              )}
 
               {/* Featured Image — only show standalone if not already in content */}
               {article.featuredImage && !article.content?.includes(article.featuredImage) && (
@@ -619,7 +695,28 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                 ))}
               </div>
 
-              {/* Ad — after tags */}
+              {/* FAQ Section — "People Also Ask" SEO booster */}
+              {faqItems.length > 0 && (
+                <section className="mt-8 rounded-[12px] border border-border bg-surface p-6 shadow-card" aria-label="FAQ">
+                  <h2 className="mb-4 text-base font-bold text-txt-primary sm:text-lg">
+                    Pertanyaan yang Sering Diajukan
+                  </h2>
+                  <div className="space-y-4">
+                    {faqItems.map((item, i) => (
+                      <details key={i} className="group rounded-lg border border-border bg-surface-secondary">
+                        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-txt-primary hover:text-goto-green transition-colors">
+                          {item.q}
+                        </summary>
+                        <p className="px-4 pb-4 text-sm leading-relaxed text-txt-secondary">
+                          {item.a}
+                        </p>
+                      </details>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Ad — after FAQ/tags */}
               <div className="mt-6">
                 <BannerAd slot="BETWEEN_SECTIONS" noWrapper />
               </div>

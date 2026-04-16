@@ -28,8 +28,15 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   return {
     title: page > 1
       ? `Berita ${tag.name} Terbaru — Halaman ${page}`
-      : `Berita ${tag.name} Terbaru - Jurnalis Hukum Bandung`,
-    description: `Baca berita terbaru tentang ${tag.name}. Kumpulan artikel dan analisis hukum terkait ${tag.name} di Bandung dan Indonesia.`,
+      : `${tag.name} — Berita Hukum Bandung Terbaru | Jurnalis Hukum Bandung`,
+    description: `Berita terbaru tentang ${tag.name} di Bandung. Kumpulan artikel, liputan sidang, dan analisis hukum terkait ${tag.name} dari Jurnalis Hukum Bandung.`,
+    keywords: `${tag.name.toLowerCase()}, ${tag.name.toLowerCase()} bandung, berita ${tag.name.toLowerCase()}, hukum bandung`,
+    openGraph: {
+      title: `${tag.name} — Berita Hukum Bandung`,
+      description: `Berita terbaru tentang ${tag.name} di Bandung.`,
+      type: "website",
+      url: canonicalUrl,
+    },
     alternates: {
       canonical: canonicalUrl,
     },
