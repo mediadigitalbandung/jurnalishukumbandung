@@ -156,14 +156,16 @@ export default function NewArticlePage() {
 
   const allChecked = Object.values(checklist).every(Boolean);
 
-  const [trendingSuggestions, setTrendingSuggestions] = useState<{ label: string; hot: boolean }[]>([]);
+  const [trendingSuggestions, setTrendingSuggestions] = useState<{ label: string; hot: boolean; region?: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [trendRegion, setTrendRegion] = useState<"all" | "bandung" | "jabar" | "nasional">("all");
 
-  // Fetch trending suggestions on mount
+  // Fetch trending suggestions
   useEffect(() => {
     async function fetchTrending() {
       try {
-        const res = await fetch("/api/trending");
+        const url = trendRegion === "all" ? "/api/trending" : `/api/trending?region=${trendRegion}`;
+        const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
           const data = json.data || [];
@@ -172,7 +174,7 @@ export default function NewArticlePage() {
       } catch { /* ignore */ }
     }
     fetchTrending();
-  }, []);
+  }, [trendRegion]);
 
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
@@ -540,7 +542,7 @@ export default function NewArticlePage() {
       )}
 
       {/* Trending Suggestions */}
-      {trendingSuggestions.length > 0 && showSuggestions && (
+      {showSuggestions && (
         <div className="mb-4 rounded-[12px] border border-border bg-surface p-4 shadow-card">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -558,8 +560,25 @@ export default function NewArticlePage() {
               Tutup
             </button>
           </div>
+          {/* Region tabs */}
+          <div className="mb-3 flex gap-1.5">
+            {([["all", "Semua"], ["bandung", "Bandung"], ["jabar", "Jawa Barat"], ["nasional", "Nasional"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTrendRegion(key)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  trendRegion === key
+                    ? "bg-goto-green text-white"
+                    : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-2">
-            {trendingSuggestions.map((item, i) => (
+            {trendingSuggestions.length > 0 ? trendingSuggestions.map((item, i) => (
               <button
                 key={i}
                 type="button"
@@ -573,7 +592,9 @@ export default function NewArticlePage() {
                 {item.hot && <TrendingUp size={11} />}
                 {item.label}
               </button>
-            ))}
+            )) : (
+              <p className="text-xs text-txt-muted">Memuat trending...</p>
+            )}
           </div>
         </div>
       )}

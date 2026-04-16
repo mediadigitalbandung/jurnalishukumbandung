@@ -640,11 +640,99 @@ export async function onArticlePublished(slug: string, articleId: string, catego
     );
   }
 
-  console.log(`[SEO] Article published: ${slug}, submitting to Google + IndexNow + FAQ + Sorotan. ${related.length} related articles found`);
+  // Auto-share to Twitter/X (non-blocking)
+  if (articleData) {
+    tasks.push(
+      shareToTwitter(articleData.title, slug, categorySlug).catch(() => null)
+    );
+  }
+
+  console.log(`[SEO] Article published: ${slug}, submitting to Google + IndexNow + FAQ + Sorotan + Twitter. ${related.length} related articles found`);
 
   await Promise.allSettled(tasks);
 
   return { related };
+}
+
+/* ── 9. Auto-share to Twitter/X ─────────────────────────────── */
+
+async function shareToTwitter(title: string, slug: string, categorySlug?: string | null) {
+  try {
+    // Get Twitter API credentials from system settings
+    const [bearerSetting, tokenSetting, secretSetting, consumerKeySetting, consumerSecretSetting] = await Promise.all([
+      prisma.systemSetting.findUnique({ where: { key: "twitter_bearer_token" } }),
+      prisma.systemSetting.findUnique({ where: { key: "twitter_access_token" } }),
+      prisma.systemSetting.findUnique({ where: { key: "twitter_access_secret" } }),
+      prisma.systemSetting.findUnique({ where: { key: "twitter_consumer_key" } }),
+      prisma.systemSetting.findUnique({ where: { key: "twitter_consumer_secret" } }),
+    ]);
+
+    if (!tokenSetting?.value || !secretSetting?.value || !consumerKeySetting?.value || !consumerSecretSetting?.value) {
+      console.log("[SEO] Twitter API keys not configured, skipping auto-share");
+      return null;
+    }
+
+    const articleUrl = `${BASE_URL}/berita/${slug}`;
+    const hashtags = categorySlug
+      ? `#HukumBandung #${categorySlug.replace(/-/g, "").replace(/\s/g, "")} #BeritaHukum`
+      : "#HukumBandung #BeritaHukum #JabarHukum";
+
+    // Truncate title to fit tweet (280 chars - url - hashtags - spacing)
+    const maxTitleLen = 280 - articleUrl.length - hashtags.length - 10;
+    const truncTitle = title.length > maxTitleLen ? title.slice(0, maxTitleLen - 3) + "..." : title;
+    const tweetText = `${truncTitle}\n\n${articleUrl}\n\n${hashtags}`;
+
+    // Use Twitter API v2 (OAuth 1.0a user context)
+    // For simplicity, we use the bearer token approach with OAuth 1.0a HMAC-SHA1
+    // This requires the oauth-1.0a library or manual implementation
+    // For now, use a simpler approach: store a pre-authorized bearer and use v2 endpoint
+
+    // Twitter API v2 requires OAuth 1.0a for posting tweets
+    // We'll implement a basic OAuth 1.0a signature
+    const crypto = await import("crypto");
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonce = crypto.randomBytes(16).toString("hex");
+
+    const params: Record<string, string> = {
+      oauth_consumer_key: consumerKeySetting.value,
+      oauth_nonce: nonce,
+      oauth_signature_method: "HMAC-SHA1",
+      oauth_timestamp: timestamp,
+      oauth_token: tokenSetting.value,
+      oauth_version: "1.0",
+    };
+
+    // Create signature base string
+    const method = "POST";
+    const url = "https://api.twitter.com/2/tweets";
+    const paramString = Object.keys(params).sort().map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`).join("&");
+    const signatureBase = `${method}&${encodeURIComponent(url)}&${encodeURIComponent(paramString)}`;
+    const signingKey = `${encodeURIComponent(consumerSecretSetting.value)}&${encodeURIComponent(secretSetting.value)}`;
+    const signature = crypto.createHmac("sha1", signingKey).update(signatureBase).digest("base64");
+
+    const authHeader = `OAuth ${Object.entries({ ...params, oauth_signature: signature }).map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(v)}"`).join(", ")}`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text: tweetText }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.data?.id) {
+      console.log(`[SEO] Twitter: Posted tweet ${data.data.id} for article ${slug}`);
+      return { tweetId: data.data.id };
+    } else {
+      console.error(`[SEO] Twitter Error: ${res.status}`, data);
+      return null;
+    }
+  } catch (error) {
+    console.error("[SEO] Twitter share error:", error);
+    return null;
+  }
 }
 
 /* ── Helpers ───────────────────────────────────────────────────── */

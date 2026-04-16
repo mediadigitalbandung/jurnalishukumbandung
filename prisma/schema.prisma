@@ -306,6 +306,30 @@ model Media {
   @@map("media")
 }
 
+model CourtSchedule {
+  id          String   @id @default(cuid())
+  title       String   // "Sidang Tipikor Dana Bansos Bandung"
+  court       String   // "PN Bandung", "PT Jabar", "MA RI"
+  courtType   String   @default("umum") // "umum", "tipikor", "militer", "agama", "tun"
+  caseNumber  String?  // "123/Pid.Sus-TPK/2026/PN Bdg"
+  defendant   String?  // nama terdakwa
+  judge       String?  // nama hakim
+  agenda      String?  // "Pembacaan Tuntutan"
+  date        DateTime
+  time        String?  // "09:00 WIB"
+  location    String?  // "Ruang Sidang 1, Lantai 2"
+  status      String   @default("scheduled") // "scheduled", "live", "done", "postponed"
+  isHighlight Boolean  @default(false)
+  articleSlug String?  // link ke artikel liputan
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date, status])
+  @@index([court])
+  @@map("court_schedules")
+}
+
 model SystemSetting {
   id    String @id @default(cuid())
   key   String @unique

@@ -272,17 +272,31 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     editorName = reviewer?.name || null;
   }
 
-  // Fetch related articles (same category, exclude current)
-  const relatedArticles = await prisma.article.findMany({
+  // Fetch related articles — smart scoring: shared tags > same category > recent
+  const articleTagIds = article.tags.map((t: { id: string }) => t.id);
+  const candidateArticles = await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
-      categoryId: article.categoryId,
       id: { not: article.id },
+      OR: [
+        { tags: { some: { id: { in: articleTagIds } } } },
+        { categoryId: article.categoryId },
+      ],
     },
-    include: { author: true, category: true },
+    include: { author: true, category: true, tags: { select: { id: true } } },
     orderBy: { publishedAt: "desc" },
-    take: 3,
+    take: 20,
   });
+
+  // Score by: shared tags (3 pts each) + same category (2 pts) + recency (1 pt)
+  const scored = candidateArticles.map((a) => {
+    const sharedTags = a.tags.filter((t: { id: string }) => articleTagIds.includes(t.id)).length;
+    const sameCategory = a.categoryId === article.categoryId ? 2 : 0;
+    const recencyBonus = a.publishedAt && (Date.now() - new Date(a.publishedAt).getTime()) < 7 * 86400000 ? 1 : 0;
+    return { ...a, score: sharedTags * 3 + sameCategory + recencyBonus };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const relatedArticles = scored.slice(0, 5);
 
   // Fetch trending for sidebar
   const trendingArticles = await prisma.article.findMany({
