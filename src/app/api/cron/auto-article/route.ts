@@ -261,7 +261,25 @@ KONTEN:
   );
   const selectedCat = matchedCat || categories[Math.floor(Math.random() * categories.length)];
 
-  // 12. Save as DRAFT with Redaksi as author + SEO fields
+  // 12. Ensure tags exist first (avoid unique constraint issues)
+  const tagConnections = [];
+  for (const tagName of tags) {
+    const tagSlug = slugify(tagName);
+    if (!tagName || !tagSlug) continue;
+    try {
+      let tag = await prisma.tag.findFirst({
+        where: { OR: [{ name: tagName }, { slug: tagSlug }] },
+      });
+      if (!tag) {
+        tag = await prisma.tag.create({ data: { name: tagName, slug: tagSlug } });
+      }
+      tagConnections.push({ id: tag.id });
+    } catch {
+      // Skip tag if still fails
+    }
+  }
+
+  // 13. Save as DRAFT with Redaksi as author + SEO fields
   const article = await prisma.article.create({
     data: {
       title,
@@ -277,12 +295,7 @@ KONTEN:
       categoryId: selectedCat.id,
       coAuthors: coAuthorsStr,
       verificationLabel: "UNVERIFIED",
-      tags: {
-        connectOrCreate: tags.map((name: string) => ({
-          where: { name },
-          create: { name, slug: slugify(name) },
-        })),
-      },
+      tags: { connect: tagConnections },
     },
     select: { id: true, title: true, slug: true },
   });
