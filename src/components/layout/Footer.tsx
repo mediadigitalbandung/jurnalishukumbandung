@@ -36,15 +36,15 @@ export default function Footer() {
             </p>
 
             {/* Verifikasi Dewan Pers */}
-            <div className="mt-5 inline-flex items-center gap-3.5 rounded-2xl border border-blue-400/20 bg-blue-500/10 px-5 py-3 backdrop-blur-sm">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500">
-                <ShieldCheck className="h-5 w-5 text-white" strokeWidth={2.5} />
+            <div className="mt-6 flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg shadow-blue-500/20">
+                <ShieldCheck className="h-7 w-7 text-white" strokeWidth={2.5} />
               </div>
               <div>
-                <p className="text-base font-bold leading-tight text-white">
+                <p className="text-lg font-bold text-white tracking-tight">
                   Terverifikasi Dewan Pers
                 </p>
-                <p className="mt-0.5 text-sm leading-tight text-blue-200/70">
+                <p className="text-sm text-white/50">
                   Sertifikat No. 608/DP-Verifikasi/K/XI/2020
                 </p>
               </div>
