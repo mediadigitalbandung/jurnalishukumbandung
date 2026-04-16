@@ -67,59 +67,105 @@ async function generateArticle(apiKey: string) {
   // 1. Pick random keyword
   const keyword = TARGET_KEYWORDS[Math.floor(Math.random() * TARGET_KEYWORDS.length)];
 
-  // 2. Get related existing articles for context
+  // 2. Get related existing articles for context + images
+  const keywordWords = keyword.split(" ").filter((w) => w.length > 3);
+  const searchConditions = keywordWords.map((w) => ({
+    OR: [
+      { title: { contains: w, mode: "insensitive" as const } },
+      { excerpt: { contains: w, mode: "insensitive" as const } },
+    ],
+  }));
+
   const existingArticles = await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
-      OR: [
-        { title: { contains: keyword.split(" ")[0], mode: "insensitive" } },
-        { content: { contains: keyword.split(" ")[0], mode: "insensitive" } },
-      ],
+      OR: searchConditions.length > 0 ? searchConditions : [{ status: "PUBLISHED" }],
     },
-    select: { title: true, excerpt: true, content: true },
+    select: {
+      title: true,
+      excerpt: true,
+      content: true,
+      featuredImage: true,
+      category: { select: { name: true } },
+      tags: { select: { name: true } },
+      sources: { select: { name: true, institution: true } },
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 8,
+  });
+
+  // Fallback: get latest articles if no keyword match
+  const contextArticles = existingArticles.length > 0 ? existingArticles : await prisma.article.findMany({
+    where: { status: "PUBLISHED" },
+    select: { title: true, excerpt: true, content: true, featuredImage: true, category: { select: { name: true } }, tags: { select: { name: true } }, sources: { select: { name: true, institution: true } } },
     orderBy: { publishedAt: "desc" },
     take: 5,
   });
 
-  // 3. Get random image from media library
-  const mediaCount = await prisma.media.count({ where: { type: { startsWith: "image" } } });
-  const randomSkip = Math.max(0, Math.floor(Math.random() * mediaCount));
-  const randomMedia = await prisma.media.findFirst({
-    where: { type: { startsWith: "image" } },
-    skip: randomSkip,
-    select: { url: true, caption: true, source: true },
-  });
+  // 3. Get image from related articles (not random media)
+  const relatedImages = contextArticles
+    .filter((a) => a.featuredImage)
+    .map((a) => a.featuredImage as string);
+  const selectedImage = relatedImages.length > 0
+    ? relatedImages[Math.floor(Math.random() * relatedImages.length)]
+    : null;
 
-  // 4. Build context from existing articles
-  const context = existingArticles
-    .map((a) => `Judul: ${a.title}\nRingkasan: ${a.excerpt || ""}`)
-    .join("\n\n");
+  // Fallback to media library if no related image
+  let imageUrl = selectedImage;
+  if (!imageUrl) {
+    const mediaCount = await prisma.media.count({ where: { type: { startsWith: "image" } } });
+    if (mediaCount > 0) {
+      const randomMedia = await prisma.media.findFirst({
+        where: { type: { startsWith: "image" } },
+        skip: Math.floor(Math.random() * mediaCount),
+        select: { url: true },
+      });
+      imageUrl = randomMedia?.url || null;
+    }
+  }
 
-  // 5. Generate article with DeepSeek
-  const prompt = `Berdasarkan konteks berita hukum Bandung berikut, tulis artikel berita baru yang ORIGINAL dan UNIK tentang topik "${keyword}".
+  // 4. Build rich context from existing articles
+  const context = contextArticles
+    .map((a) => {
+      const tags = a.tags?.map((t) => t.name).join(", ") || "";
+      const sources = a.sources?.map((s) => `${s.name}${s.institution ? ` (${s.institution})` : ""}`).join(", ") || "";
+      const plainContent = a.content?.replace(/<[^>]*>/g, "").slice(0, 300) || "";
+      return `Judul: ${a.title}\nKategori: ${a.category?.name || "-"}\nRingkasan: ${a.excerpt || ""}\nTags: ${tags}\nNarasumber: ${sources}\nIsi: ${plainContent}`;
+    })
+    .join("\n---\n");
 
-Konteks referensi (JANGAN copy, gunakan sebagai inspirasi saja):
-${context || "Berita hukum di Bandung dan Jawa Barat terkini."}
+  // 5. Generate article with DeepSeek (more detailed prompt)
+  const prompt = `Kamu adalah jurnalis senior "Jurnalis Hukum Bandung". Pelajari berita-berita referensi berikut, lalu tulis artikel berita BARU yang ORIGINAL tentang topik "${keyword}".
 
-Instruksi:
-1. Tulis judul yang menarik dan informatif (40-70 karakter)
-2. Tulis konten artikel 300-500 kata dalam format HTML (<p>, <h2>, <h3>, <blockquote>)
-3. Gunakan gaya jurnalistik profesional (5W+1H)
-4. Sertakan kutipan narasumber (boleh fiktif tapi realistis)
+=== BERITA REFERENSI (pelajari gaya, topik, narasumber, JANGAN copy) ===
+${context}
+=== AKHIR REFERENSI ===
+
+INSTRUKSI MENULIS:
+1. Tulis judul berita yang menarik, informatif, dan mengandung keyword "${keyword}" (40-70 karakter)
+2. Tulis konten 400-600 kata dalam format HTML (<p>, <h2>, <h3>, <blockquote>)
+3. Gaya jurnalistik profesional Indonesia (5W+1H: Apa, Siapa, Kapan, Dimana, Mengapa, Bagaimana)
+4. Sertakan kutipan narasumber (gunakan nama dan jabatan realistis dari referensi)
 5. Fokus pada aspek hukum di Bandung/Jawa Barat
-6. JANGAN gunakan markdown (**bold** atau ## heading), gunakan HTML tags
+6. Tulis SEO title (maks 60 karakter, mengandung "${keyword}")
+7. Tulis meta description (maks 155 karakter)
+8. JANGAN gunakan markdown, HANYA HTML tags
 
-Format output (HARUS persis seperti ini):
+FORMAT OUTPUT (HARUS persis):
 JUDUL: [judul artikel]
+SEO_TITLE: [seo title maks 60 char]
+SEO_DESC: [meta description maks 155 char]
 EXCERPT: [ringkasan 1-2 kalimat]
 TAGS: [tag1, tag2, tag3, tag4, tag5]
 KONTEN:
 [isi artikel dalam HTML]`;
 
-  const result = await callDeepSeek(apiKey, prompt, 2000);
+  const result = await callDeepSeek(apiKey, prompt, 2500);
 
   // 6. Parse result
   const titleMatch = result.match(/JUDUL:\s*(.+)/);
+  const seoTitleMatch = result.match(/SEO_TITLE:\s*(.+)/);
+  const seoDescMatch = result.match(/SEO_DESC:\s*(.+)/);
   const excerptMatch = result.match(/EXCERPT:\s*(.+)/);
   const tagsMatch = result.match(/TAGS:\s*(.+)/);
   const contentMatch = result.match(/KONTEN:\s*([\s\S]+)/);
@@ -129,6 +175,8 @@ KONTEN:
   }
 
   const title = titleMatch[1].trim();
+  const seoTitle = seoTitleMatch?.[1]?.trim().slice(0, 60) || "";
+  const seoDescription = seoDescMatch?.[1]?.trim().slice(0, 155) || "";
   let content = contentMatch[1].trim();
   const excerpt = excerptMatch?.[1]?.trim() || "";
   const tags = tagsMatch?.[1]
@@ -136,11 +184,9 @@ KONTEN:
     .map((t: string) => t.trim())
     .filter(Boolean) || [keyword];
 
-  // 7. Insert image into content if available
-  if (randomMedia) {
-    const alt = randomMedia.caption || title;
-    const imgTitle = randomMedia.source || "Dok. JHB";
-    const imgTag = `<img src="${randomMedia.url}" alt="${alt}" title="${imgTitle}" style="width: 100%">`;
+  // 7. Insert related image into content
+  if (imageUrl) {
+    const imgTag = `<img src="${imageUrl}" alt="${title}" title="Dok. JHB" style="width: 100%">`;
     content = imgTag + content;
   }
 
@@ -177,14 +223,16 @@ KONTEN:
   );
   const selectedCat = matchedCat || categories[Math.floor(Math.random() * categories.length)];
 
-  // 12. Save as DRAFT with Redaksi as author
+  // 12. Save as DRAFT with Redaksi as author + SEO fields
   const article = await prisma.article.create({
     data: {
       title,
       slug,
       content,
       excerpt,
-      featuredImage: randomMedia?.url || null,
+      featuredImage: imageUrl || null,
+      seoTitle: seoTitle || undefined,
+      seoDescription: seoDescription || undefined,
       status: "DRAFT",
       readTime: calculateReadTime(content),
       authorId: author.id,
@@ -201,7 +249,7 @@ KONTEN:
     select: { id: true, title: true, slug: true },
   });
 
-  return { article, keyword, imageUsed: !!randomMedia };
+  return { article, keyword, imageUsed: !!imageUrl };
 }
 
 async function handleAutoArticle(request: NextRequest) {

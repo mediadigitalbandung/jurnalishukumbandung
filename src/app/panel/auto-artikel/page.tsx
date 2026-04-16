@@ -155,6 +155,28 @@ export default function AutoArtikelPage() {
     setTogglingId(null);
   };
 
+  // Quick publish draft
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const publishDraft = async (articleId: string) => {
+    setPublishingId(articleId);
+    try {
+      const res = await fetch(`/api/articles/${articleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PUBLISHED" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        success("Artikel berhasil dipublish!");
+        loadDrafts();
+        loadPublished();
+      } else {
+        showError(data.error || "Gagal publish");
+      }
+    } catch { showError("Gagal publish"); }
+    setPublishingId(null);
+  };
+
   // Save settings
   const saveSettings = async () => {
     setSaving(true);
@@ -468,7 +490,15 @@ export default function AutoArtikelPage() {
                           <p className="text-xs text-txt-muted">{d.category?.name || "-"} · {formatDate(d.createdAt)}</p>
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          <Link href={`/panel/artikel/${d.id}/edit`} className="inline-flex items-center gap-1 rounded-full border border-goto-green px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white transition-colors">Review & Edit</Link>
+                          <button
+                            onClick={() => publishDraft(d.id)}
+                            disabled={publishingId === d.id}
+                            className="inline-flex items-center gap-1 rounded-full bg-goto-green px-3 py-1.5 text-xs font-medium text-white hover:bg-goto-green-dark transition-colors disabled:opacity-50"
+                          >
+                            {publishingId === d.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                            Publish
+                          </button>
+                          <Link href={`/panel/artikel/${d.id}/edit`} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-txt-secondary hover:bg-surface-secondary transition-colors">Edit</Link>
                         </div>
                       </div>
                     ))}
