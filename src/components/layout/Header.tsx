@@ -195,10 +195,10 @@ export default function Header() {
               ) : (
                 <Link
                   href="/login"
-                  className="hidden md:flex items-center gap-1.5 rounded-full bg-goto-green px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-goto-dark active:scale-[0.98]"
+                  className="flex items-center gap-1.5 rounded-full bg-goto-green px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-goto-dark active:scale-[0.98] sm:px-4 sm:py-2"
                 >
                   <LogIn size={14} />
-                  Masuk
+                  <span>Masuk</span>
                 </Link>
               )}
 
