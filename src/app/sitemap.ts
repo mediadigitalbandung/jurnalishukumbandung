@@ -105,15 +105,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // Daily digest pages (last 60 days with articles)
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const dailyArticles = await prisma.article.findMany({
+    where: { status: "PUBLISHED", publishedAt: { gte: sixtyDaysAgo } },
+    select: { publishedAt: true },
+    orderBy: { publishedAt: "desc" },
+  });
+  const dailyDates = new Set<string>();
+  for (const a of dailyArticles) {
+    if (!a.publishedAt) continue;
+    const d = a.publishedAt;
+    dailyDates.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+  }
+  const dailyPages: MetadataRoute.Sitemap = Array.from(dailyDates).map((slug) => ({
+    url: `${siteUrl}/rangkuman/harian/${slug}`,
+    lastModified: now,
+    changeFrequency: "daily" as const,
+    priority: 0.6,
+  }));
+
   // Static index pages for new sections
   const sectionPages: MetadataRoute.Sitemap = [
     { url: `${siteUrl}/topik`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
     { url: `${siteUrl}/rangkuman`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.6 },
+    { url: `${siteUrl}/rangkuman/harian`, lastModified: now, changeFrequency: "daily" as const, priority: 0.6 },
     { url: `${siteUrl}/lokasi`, lastModified: now, changeFrequency: "daily" as const, priority: 0.7 },
   ];
 
   return [
     ...staticPages, ...categoryPages, ...tagPages, ...articlePages,
-    ...authorPages, ...topikPages, ...lokasiPages, ...sectionPages,
+    ...authorPages, ...topikPages, ...lokasiPages, ...dailyPages, ...sectionPages,
   ];
 }
