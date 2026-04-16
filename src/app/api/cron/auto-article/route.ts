@@ -229,10 +229,9 @@ KONTEN:
     content = imgTag + content;
   }
 
-  // 8. Generate unique slug
-  let slug = slugify(title);
-  const existing = await prisma.article.findUnique({ where: { slug } });
-  if (existing) slug = `${slug}-${Date.now().toString(36)}`;
+  // 8. Generate unique slug — always append timestamp to avoid conflicts
+  const baseSlug = slugify(title).slice(0, 80);
+  const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
   // 9. Get "Redaksi" user as author, fallback to first admin
   let author = await prisma.user.findFirst({
