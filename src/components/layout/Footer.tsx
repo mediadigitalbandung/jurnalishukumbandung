@@ -32,7 +32,7 @@ export default function Footer() {
               <span className="text-base font-bold">Jurnalis Hukum Bandung</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/50">
-              Media hukum digital terpercaya untuk wilayah Bandung dan sekitarnya.
+              Portal berita hukum Bandung terpercaya. Menyajikan berita hukum terbaru, liputan sidang, analisis hukum pidana, perdata, dan informasi pengadilan di Bandung dan Jawa Barat.
             </p>
 
             {/* Verifikasi Dewan Pers */}
@@ -90,11 +90,36 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar */}
+        {/* SEO keyword footer — topik hukum Bandung */}
         <div className="mt-8 border-t border-white/10 pt-5">
+          <p className="text-xs text-white/30 mb-3">Topik Hukum Bandung Terpopuler</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "Hukum Pidana Bandung", href: "/kategori/hukum-pidana" },
+              { label: "Hukum Perdata Bandung", href: "/kategori/hukum-perdata" },
+              { label: "Hukum Tata Negara", href: "/kategori/hukum-tata-negara" },
+              { label: "HAM Bandung", href: "/kategori/ham" },
+              { label: "Pengadilan Bandung", href: "/kategori/peradilan-lembaga" },
+              { label: "Korupsi Bandung", href: "/kategori/korupsi-antikorupsi" },
+              { label: "Regulasi & Kebijakan", href: "/kategori/regulasi-kebijakan" },
+              { label: "Hukum Digital", href: "/kategori/hukum-digital" },
+            ].map((tag) => (
+              <Link
+                key={tag.href}
+                href={tag.href}
+                className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/40 transition-colors hover:border-goto-green/50 hover:text-goto-green"
+              >
+                {tag.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="mt-5 border-t border-white/10 pt-5">
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
             <p className="text-xs text-white/40">
-              &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung. Seluruh hak cipta dilindungi.
+              &copy; {new Date().getFullYear()} Jurnalis Hukum Bandung — Portal Berita Hukum Bandung Terpercaya
             </p>
             <p className="text-xs text-white/40">
               Anggota{" "}

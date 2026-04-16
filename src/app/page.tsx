@@ -225,7 +225,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <h1 className="sr-only">Jurnalis Hukum Bandung - Portal Berita Hukum Digital Terpercaya Terkini di Jawa Barat</h1>
+      <h1 className="sr-only">Berita Hukum Bandung Terbaru — Portal Hukum Bandung Terpercaya | Jurnalis Hukum Bandung</h1>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -233,6 +233,7 @@ export default async function HomePage() {
             "@context": "https://schema.org",
             "@type": "NewsMediaOrganization",
             name: "Jurnalis Hukum Bandung",
+            alternateName: ["JHB", "Hukum Bandung", "Berita Hukum Bandung"],
             url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com",
             logo: {
               "@type": "ImageObject",
@@ -240,10 +241,12 @@ export default async function HomePage() {
               width: 512,
               height: 512,
             },
-            description: "Portal berita hukum terpercaya di Bandung. Menyajikan berita hukum pidana, perdata, tata negara, HAM, dan analisis hukum yang akurat dan terverifikasi.",
+            description: "Portal berita hukum Bandung terpercaya. Menyajikan berita hukum Bandung terbaru — hukum pidana, perdata, tata negara, HAM, sidang pengadilan, dan analisis hukum di Bandung dan Jawa Barat.",
             foundingDate: "2024",
             publishingPrinciples: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/kode-etik`,
-            sameAs: [],
+            sameAs: [
+              "https://twitter.com/jurnalishukumbdg",
+            ],
             address: {
               "@type": "PostalAddress",
               addressLocality: "Bandung",
@@ -266,6 +269,7 @@ export default async function HomePage() {
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "Jurnalis Hukum Bandung",
+            alternateName: "Hukum Bandung",
             url: process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com",
             potentialAction: {
               "@type": "SearchAction",
