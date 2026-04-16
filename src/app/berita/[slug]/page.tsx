@@ -358,12 +358,26 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     headline: article.seoTitle || article.title,
     alternativeHeadline: article.title,
     description: article.seoDescription || article.excerpt || "",
-    image: {
-      "@type": "ImageObject",
-      url: imageUrl,
-      width: 1200,
-      height: 630,
-    },
+    image: [
+      {
+        "@type": "ImageObject",
+        url: imageUrl,
+        width: 1200,
+        height: 630,
+      },
+      {
+        "@type": "ImageObject",
+        url: imageUrl,
+        width: 1200,
+        height: 1200,
+      },
+      {
+        "@type": "ImageObject",
+        url: imageUrl,
+        width: 1200,
+        height: 675,
+      },
+    ],
     datePublished: article.publishedAt?.toISOString(),
     dateModified: article.updatedAt.toISOString(),
     author: {
@@ -409,6 +423,12 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
       name: "Jurnalis Hukum Bandung",
     },
     copyrightYear: article.publishedAt ? new Date(article.publishedAt).getFullYear() : new Date().getFullYear(),
+    // Google News: link article to the publication
+    isPartOf: {
+      "@type": ["CreativeWork", "Product"],
+      name: "Jurnalis Hukum Bandung",
+      productID: "jurnalishukumbandung.com:basic",
+    },
     // Speakable — helps Google Assistant read key parts of news
     speakable: {
       "@type": "SpeakableSpecification",
