@@ -36,6 +36,11 @@ jobs:
 
             npx prisma db push --accept-data-loss
             rm -rf .next node_modules/.cache
+
+            # Ensure uploads directory exists and is writable
+            mkdir -p public/uploads
+            chmod -R 755 public/uploads
+
             npx next build || { echo "Build failed, retrying..."; rm -rf .next; npx next build; }
             pm2 restart jhb
             sleep 5

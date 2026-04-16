@@ -104,17 +104,30 @@ export default function ImageUploader({ onUpload, currentImage }: ImageUploaderP
         body: formData,
       });
 
+      if (!res.ok) {
+        const text = await res.text();
+        let errMsg = `Upload gagal (HTTP ${res.status})`;
+        try {
+          const json = JSON.parse(text);
+          errMsg = json.error || errMsg;
+        } catch { /* not JSON */ }
+        setError(errMsg);
+        setUploading(false);
+        return;
+      }
+
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || "Gagal mengupload gambar");
+      if (!data.success || !data.data?.url) {
+        setError(data.error || "Server tidak mengembalikan URL gambar");
         setUploading(false);
         return;
       }
 
       setPreview(data.data.url);
       onUpload(data.data.url);
-    } catch {
-      setError("Terjadi kesalahan saat mengupload gambar");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(`Gagal mengupload: ${msg}`);
     } finally {
       setUploading(false);
     }

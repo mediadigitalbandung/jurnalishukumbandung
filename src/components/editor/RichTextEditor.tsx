@@ -283,11 +283,21 @@ export default function RichTextEditor({
       formData.append("file", compressed, `image-${Date.now()}.webp`);
 
       const res = await fetch("/api/upload", { method: "POST", body: formData });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let errMsg = `Upload gagal (HTTP ${res.status})`;
+        try { const json = JSON.parse(text); errMsg = json.error || errMsg; } catch { /* not JSON */ }
+        alert(errMsg);
+        setUploading(false);
+        return;
+      }
+
       const data = await res.json();
 
-      if (data.url) {
-        setSelectedUrl(data.url);
-        setPreviewUrl(data.url);
+      if (data.data?.url) {
+        setSelectedUrl(data.data.url);
+        setPreviewUrl(data.data.url);
 
         // Register in media library (fire & forget)
         fetch("/api/media", {
@@ -295,16 +305,21 @@ export default function RichTextEditor({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             filename: file.name,
-            url: data.url,
+            url: data.data.url,
             type: "image/webp",
             size: compressed.size,
           }),
         }).catch(() => {});
+      } else if (data.url) {
+        // Fallback for old response format
+        setSelectedUrl(data.url);
+        setPreviewUrl(data.url);
       } else {
-        alert("Gagal mengupload gambar.");
+        alert(data.error || "Server tidak mengembalikan URL gambar.");
       }
-    } catch {
-      alert("Gagal mengupload gambar.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      alert(`Gagal mengupload: ${msg}`);
     }
     setUploading(false);
   };
