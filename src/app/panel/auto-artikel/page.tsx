@@ -222,26 +222,46 @@ export default function AutoArtikelPage() {
   const [generateCount, setGenerateCount] = useState("1");
 
   const generateNow = async () => {
+    const total = parseInt(generateCount);
     setGenerating(true);
-    setGenerateResult(null);
-    try {
-      const res = await fetch("/api/cron/auto-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: parseInt(generateCount) }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setGenerateResult(data.data);
-        success(`Berhasil generate ${data.data.generated} draft artikel`);
-        loadDrafts();
-      } else {
-        showError(data.error || "Gagal generate");
+    setGenerateResult({ generated: 0, failed: 0, results: [] });
+
+    for (let i = 0; i < total; i++) {
+      try {
+        const res = await fetch("/api/cron/auto-article", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ count: 1 }),
+        });
+        const data = await res.json();
+        if (data.success && data.data?.results?.[0]) {
+          const r = data.data.results[0];
+          setGenerateResult((prev) => prev ? {
+            generated: prev.generated + (r.success ? 1 : 0),
+            failed: prev.failed + (r.success ? 0 : 1),
+            results: [...prev.results, r],
+          } : prev);
+        } else {
+          setGenerateResult((prev) => prev ? {
+            ...prev,
+            failed: prev.failed + 1,
+            results: [...prev.results, { success: false, error: data.error || "Gagal" }],
+          } : prev);
+        }
+      } catch {
+        setGenerateResult((prev) => prev ? {
+          ...prev,
+          failed: prev.failed + 1,
+          results: [...prev.results, { success: false, error: "Timeout / server error" }],
+        } : prev);
       }
-    } catch {
-      showError("Gagal menghubungi server");
+
+      // Short delay between requests
+      if (i < total - 1) await new Promise((r) => setTimeout(r, 1000));
     }
+
     setGenerating(false);
+    loadDrafts();
   };
 
   const formatDate = (d: string) => {
@@ -296,7 +316,7 @@ export default function AutoArtikelPage() {
             className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
           >
             {generating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-            {generating ? "Generating..." : "Generate Draft"}
+            {generating ? `Generating ${(generateResult?.generated || 0) + (generateResult?.failed || 0) + 1}/${generateCount}...` : "Generate Draft"}
           </button>
         </div>
       </div>
