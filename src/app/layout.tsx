@@ -8,6 +8,7 @@ import PublicNav from "@/components/layout/PublicNav";
 import PublicFooter from "@/components/layout/PublicFooter";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import ZoomCompensator from "@/components/layout/ZoomCompensator";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
@@ -162,6 +163,7 @@ export default function RootLayout({
     <html lang="id" className={`${sourceSans.variable} ${lora.variable}`}>
       <head>
         {/* Resource hints — faster font & API loading = better Core Web Vitals */}
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
@@ -187,6 +189,9 @@ export default function RootLayout({
           <PublicFooter />
           <ServiceWorkerRegistration />
           <ZoomCompensator />
+          <Suspense fallback={null}>
+            <GoogleAnalytics />
+          </Suspense>
         </Providers>
       </body>
     </html>
