@@ -256,18 +256,26 @@ export default async function SorotanPage({ params }: PageProps) {
             />
 
             {/* CTA — Baca Berita Lengkap */}
-            <div className="mt-8 rounded-[12px] border-2 border-goto-green bg-goto-light p-6">
-              <p className="text-sm font-semibold text-txt-primary mb-1">Baca Berita Lengkap</p>
-              <p className="text-sm text-txt-secondary mb-4">
-                Artikel ini adalah {angleLabels[sorotan.angle]?.toLowerCase()} dari berita utama. Baca versi lengkap untuk detail dan informasi lebih lanjut.
-              </p>
-              <Link
-                href={`/berita/${article.slug}`}
-                className="btn-primary inline-flex items-center gap-2"
-              >
-                {article.title.length > 60 ? article.title.slice(0, 60) + "..." : article.title}
-                <ArrowRight size={16} />
-              </Link>
+            <div className="mt-10 relative overflow-hidden bg-gradient-to-r from-goto-green to-goto-dark p-8 sm:p-10">
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
+              <div className="relative">
+                <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-2">
+                  Berita Lengkap
+                </p>
+                <h3 className="text-lg sm:text-xl font-bold text-white leading-snug mb-2">
+                  {article.title}
+                </h3>
+                <p className="text-sm text-white/70 mb-6">
+                  Ini adalah {angleLabels[sorotan.angle]?.toLowerCase()} dari berita utama. Baca versi lengkap untuk informasi lebih detail.
+                </p>
+                <Link
+                  href={`/berita/${article.slug}`}
+                  className="inline-flex items-center gap-2 bg-white text-goto-green font-bold px-6 py-3 text-sm hover:bg-white/90 transition-colors"
+                >
+                  Baca Selengkapnya
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
             </div>
 
             {/* Other angles */}
