@@ -46,3 +46,11 @@ jobs:
             sleep 5
             curl -s -o /dev/null -w "Status: HTTP %{http_code}" http://localhost:3001
             echo ""
+
+      - name: Purge Cloudflare cache
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CF_ZONE_ID }}/purge_cache" \
+            -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
+            -H "X-Auth-Key: ${{ secrets.CF_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}' || echo "Cloudflare purge skipped"
