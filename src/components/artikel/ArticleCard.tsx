@@ -161,7 +161,7 @@ export default function ArticleCard({
   return (
     <article className="group" itemScope itemType="https://schema.org/NewsArticle">
       <Link href={`/berita/${slug}`} className="block" itemProp="url">
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-sm">
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-sm bg-surface-secondary">
           {featuredImage ? (
             <Image
               src={featuredImage}
@@ -172,7 +172,9 @@ export default function ArticleCard({
               itemProp="image"
             />
           ) : (
-            <div className="h-full w-full bg-surface-secondary" />
+            <div className="flex h-full w-full items-center justify-center text-txt-muted">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            </div>
           )}
         </div>
       </Link>
