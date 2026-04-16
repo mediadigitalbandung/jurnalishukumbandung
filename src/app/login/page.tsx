@@ -24,25 +24,33 @@ function LoginContent() {
     setError("");
     setLoading(true);
 
-    // Clear existing session before new login
-    if (session) {
-      await fetch("/api/auth/logout", { method: "POST" });
-      await signOut({ redirect: false });
-    }
+    try {
+      // Always clear any existing session first
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+      // Delete session cookie manually
+      document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "__Secure-next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; secure;";
 
-    setLoading(false);
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError(result.error);
-    } else {
-      // Hard redirect to clear all cached state
-      window.location.href = "/panel/dashboard";
+      if (result?.error) {
+        setError("Email atau password salah");
+        setLoading(false);
+      } else if (result?.ok) {
+        // Success — hard redirect
+        window.location.href = "/panel/dashboard";
+      } else {
+        setError("Login gagal. Coba lagi.");
+        setLoading(false);
+      }
+    } catch {
+      setError("Terjadi kesalahan. Coba lagi.");
+      setLoading(false);
     }
   };
 
