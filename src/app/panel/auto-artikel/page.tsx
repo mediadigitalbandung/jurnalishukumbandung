@@ -171,6 +171,8 @@ export default function AutoArtikelPage() {
         success("Artikel berhasil dipublish!");
         loadDrafts();
         loadPublished();
+        // Clear generate result when all drafts are published
+        setGenerateResult(null);
       } else {
         showError(data.error || "Gagal publish");
       }
@@ -470,10 +472,10 @@ export default function AutoArtikelPage() {
                 {generateResult.results.map((r, i) => (
                   <div key={i} className={`flex items-center gap-2 rounded-lg p-3 ${r.success ? "bg-green-50" : "bg-red-50"}`}>
                     {r.success ? <CheckCircle size={16} className="text-green-500 shrink-0" /> : <XCircle size={16} className="text-red-500 shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-txt-primary truncate">{r.article?.title || "Gagal generate"}</p>
-                      {r.keyword && <p className="text-xs text-txt-muted">Keyword: {r.keyword}</p>}
-                      {r.error && <p className="text-xs text-red-500">{r.error}</p>}
+                    <div className="flex-1 min-w-0 max-w-[300px] sm:max-w-none">
+                      <p className="text-sm font-medium text-txt-primary line-clamp-1">{r.article?.title || "Gagal generate"}</p>
+                      {r.keyword && <p className="text-xs text-txt-muted truncate">Keyword: {r.keyword}</p>}
+                      {r.error && <p className="text-xs text-red-500 truncate">{r.error}</p>}
                     </div>
                     {r.success && r.article && (
                       <Link href={`/panel/artikel/${r.article.slug}`} className="text-xs text-goto-green hover:underline shrink-0">
