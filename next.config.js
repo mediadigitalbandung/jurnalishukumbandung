@@ -83,6 +83,38 @@ const nextConfig = {
           { key: "CDN-Cache-Control", value: "max-age=3600" },
         ],
       },
+      // API auth — MUST NOT be cached by Cloudflare (CSRF token mismatch)
+      {
+        source: "/api/auth/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+        ],
+      },
+      // API routes — no cache
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+        ],
+      },
+      // Login page — no cache
+      {
+        source: "/login",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+        ],
+      },
+      // Panel — no cache
+      {
+        source: "/panel/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+        ],
+      },
       // Security headers for all routes
       {
         source: "/(.*)",
