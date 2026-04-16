@@ -7,7 +7,7 @@ import {
   Sparkles, Loader2, CheckCircle, Clock, Scale, AlertTriangle,
   BookOpen, FileText, Gavel, Users, MessageSquare, HelpCircle,
   GitCompareArrows, Play, Eye, RefreshCw, Search,
-  ExternalLink, ArrowLeft, ImageIcon,
+  ExternalLink, ArrowLeft, ImageIcon, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 const ANGLE_ICONS: Record<string, typeof BookOpen> = {
@@ -135,6 +135,10 @@ export default function SorotanPanel() {
 
   const generatedCount = angles.filter((a) => a.generated).length;
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const PER_PAGE = 15;
+
   // Filter articles
   const filteredArticles = articles.filter((a) => {
     if (searchQuery && !a.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -143,6 +147,9 @@ export default function SorotanPanel() {
     if (filterStatus === "none" && a.sorotanCount !== 0) return false;
     return true;
   });
+
+  const totalPages = Math.ceil(filteredArticles.length / PER_PAGE);
+  const paginatedArticles = filteredArticles.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   const statusBadge = (count: number) => {
     if (count === 10) return <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-600"><CheckCircle size={10} /> 10/10</span>;
@@ -292,14 +299,14 @@ export default function SorotanPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2">
           {(["all", "none", "partial", "complete"] as const).map((f) => (
-            <button key={f} onClick={() => setFilterStatus(f)} className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${filterStatus === f ? "bg-goto-green text-white" : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary"}`}>
+            <button key={f} onClick={() => { setFilterStatus(f); setCurrentPage(1); }} className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${filterStatus === f ? "bg-goto-green text-white" : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary"}`}>
               {f === "all" ? "Semua" : f === "complete" ? "Lengkap" : f === "partial" ? "Sebagian" : "Belum"}
             </button>
           ))}
         </div>
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
-          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari artikel..." className="input pl-9 pr-3 py-1.5 text-sm w-60" />
+          <input value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} placeholder="Cari artikel..." className="input pl-9 pr-3 py-1.5 text-sm w-60" />
         </div>
       </div>
 
@@ -311,7 +318,7 @@ export default function SorotanPanel() {
           <div className="py-12 text-center text-sm text-txt-muted">Tidak ada artikel ditemukan</div>
         ) : (
           <div className="divide-y divide-border">
-            {filteredArticles.map((a) => (
+            {paginatedArticles.map((a) => (
               <button key={a.id} onClick={() => selectArticle(a)} className="flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-surface-secondary/50 transition-colors">
                 {a.featuredImage ? (
                   <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg">
@@ -331,6 +338,46 @@ export default function SorotanPanel() {
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border px-5 py-3">
+            <p className="text-xs text-txt-muted">
+              {(currentPage - 1) * PER_PAGE + 1}–{Math.min(currentPage * PER_PAGE, filteredArticles.length)} dari {filteredArticles.length} artikel
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-txt-secondary hover:bg-surface-secondary disabled:opacity-30"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                .map((p, idx, arr) => (
+                  <span key={p}>
+                    {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-txt-muted">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(p)}
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                        currentPage === p ? "bg-goto-green text-white" : "text-txt-secondary hover:bg-surface-secondary"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-txt-secondary hover:bg-surface-secondary disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>
