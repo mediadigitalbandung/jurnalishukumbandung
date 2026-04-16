@@ -110,12 +110,28 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET — list available angles + existing sorotan for an article
+// GET — list angles for article OR batch counts
 export async function GET(req: NextRequest) {
   try {
     await requireAuth();
 
     const { searchParams } = new URL(req.url);
+
+    // Batch counts mode: return sorotan count per article
+    if (searchParams.get("counts") === "true") {
+      const articleIds = searchParams.get("articleIds")?.split(",").filter(Boolean) || [];
+      if (articleIds.length === 0) return successResponse({ counts: {} });
+
+      const counts = await prisma.sorotan.groupBy({
+        by: ["articleId"],
+        where: { articleId: { in: articleIds } },
+        _count: true,
+      });
+      const countsMap: Record<string, number> = {};
+      counts.forEach((c) => { countsMap[c.articleId] = c._count; });
+      return successResponse({ counts: countsMap });
+    }
+
     const articleId = searchParams.get("articleId");
     if (!articleId) throw new ApiError("articleId diperlukan", 400);
 
