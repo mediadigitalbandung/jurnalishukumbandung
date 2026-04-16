@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { Clock, Scale, AlertTriangle, ArrowRight, BookOpen } from "lucide-react";
+import { Clock, Scale, AlertTriangle, ArrowRight, BookOpen, FileText, Gavel, Users, MessageSquare, GitCompare, HelpCircle } from "lucide-react";
 import { slugify } from "@/lib/utils";
 
 interface PageProps {
@@ -16,18 +16,39 @@ const angleLabels: Record<string, string> = {
   kronologi: "Kronologi",
   analisis: "Analisis Hukum",
   dampak: "Dampak & Implikasi",
+  "latar-belakang": "Latar Belakang",
+  "fakta-data": "Fakta & Data",
+  regulasi: "Regulasi Terkait",
+  profil: "Profil & Pihak Terkait",
+  opini: "Perspektif & Opini",
+  perbandingan: "Perbandingan Kasus",
+  "tanya-jawab": "Tanya Jawab",
 };
 
 const angleDescriptions: Record<string, string> = {
   kronologi: "Urutan kejadian lengkap dari awal hingga perkembangan terbaru",
   analisis: "Tinjauan aspek hukum, dasar hukum, dan implikasi yuridis",
   dampak: "Dampak ke masyarakat, sistem hukum, dan pelajaran yang bisa diambil",
+  "latar-belakang": "Konteks dan latar belakang sebelum kejadian ini terjadi",
+  "fakta-data": "Rangkuman fakta kunci dan data penting dari kasus ini",
+  regulasi: "Undang-undang dan regulasi yang terkait dengan kasus ini",
+  profil: "Profil dan peran pihak-pihak yang terlibat dalam kasus",
+  opini: "Berbagai perspektif dan pandangan ahli tentang kasus ini",
+  perbandingan: "Perbandingan dengan kasus-kasus serupa yang pernah terjadi",
+  "tanya-jawab": "Jawaban atas pertanyaan yang sering diajukan tentang kasus ini",
 };
 
 const angleIcons: Record<string, typeof BookOpen> = {
   kronologi: Clock,
   analisis: Scale,
   dampak: AlertTriangle,
+  "latar-belakang": BookOpen,
+  "fakta-data": FileText,
+  regulasi: Gavel,
+  profil: Users,
+  opini: MessageSquare,
+  perbandingan: GitCompare,
+  "tanya-jawab": HelpCircle,
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

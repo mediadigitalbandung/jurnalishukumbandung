@@ -1279,6 +1279,47 @@ export default function EditArticlePage() {
                 </div>
               </div>
             </div>
+
+            {/* Generate Sorotan */}
+            <div className="rounded-[12px] border border-border bg-surface">
+              <div className="px-4 py-3 text-xs font-medium text-txt-muted uppercase tracking-wider border-b border-border">
+                Sorotan SEO (10 Halaman)
+              </div>
+              <div className="p-4">
+                <p className="text-xs text-txt-secondary mb-3">
+                  Generate 10 halaman sorotan otomatis dari artikel ini: kronologi, analisis hukum, dampak, latar belakang, fakta &amp; data, regulasi, profil, opini, perbandingan kasus, tanya jawab.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!articleId) return;
+                    const btn = document.getElementById("btn-sorotan");
+                    if (btn) { btn.textContent = "Generating..."; (btn as HTMLButtonElement).disabled = true; }
+                    try {
+                      const res = await fetch("/api/seo/generate-sorotan", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ articleId }),
+                      });
+                      const json = await res.json();
+                      if (json?.data?.count > 0) {
+                        success(`${json.data.count} sorotan berhasil di-generate!`);
+                      } else {
+                        showError("Gagal generate sorotan. Pastikan DeepSeek API Key sudah diset.");
+                      }
+                    } catch {
+                      showError("Gagal generate sorotan");
+                    }
+                    if (btn) { btn.textContent = "Generate 10 Sorotan"; (btn as HTMLButtonElement).disabled = false; }
+                  }}
+                  id="btn-sorotan"
+                  className="btn-secondary text-sm w-full"
+                >
+                  <Sparkles size={14} />
+                  Generate 10 Sorotan
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { Sparkles, Clock, BookOpen, Scale, AlertTriangle } from "lucide-react";
+import { Sparkles, Clock, BookOpen, Scale, AlertTriangle, FileText, Gavel, Users, MessageSquare, GitCompare, HelpCircle } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Sorotan Berita Hukum Bandung — Kronologi, Analisis & Dampak",
@@ -18,12 +18,26 @@ const angleIcons: Record<string, typeof BookOpen> = {
   kronologi: Clock,
   analisis: Scale,
   dampak: AlertTriangle,
+  "latar-belakang": BookOpen,
+  "fakta-data": FileText,
+  regulasi: Gavel,
+  profil: Users,
+  opini: MessageSquare,
+  perbandingan: GitCompare,
+  "tanya-jawab": HelpCircle,
 };
 
 const angleLabels: Record<string, string> = {
   kronologi: "Kronologi",
   analisis: "Analisis Hukum",
   dampak: "Dampak & Implikasi",
+  "latar-belakang": "Latar Belakang",
+  "fakta-data": "Fakta & Data",
+  regulasi: "Regulasi Terkait",
+  profil: "Profil & Pihak Terkait",
+  opini: "Perspektif & Opini",
+  perbandingan: "Perbandingan Kasus",
+  "tanya-jawab": "Tanya Jawab",
 };
 
 export default async function SorotanIndexPage() {
