@@ -176,21 +176,22 @@ export default function AutoArtikelPage() {
   };
 
   // Manual generate
+  const [generateCount, setGenerateCount] = useState("1");
+
   const generateNow = async () => {
     setGenerating(true);
     setGenerateResult(null);
     try {
-      const cronSecret = prompt("Masukkan CRON_SECRET untuk generate:");
-      if (!cronSecret) { setGenerating(false); return; }
       const res = await fetch("/api/cron/auto-article", {
         method: "POST",
-        headers: { Authorization: `Bearer ${cronSecret}` },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: parseInt(generateCount) }),
       });
       const data = await res.json();
       if (data.success) {
         setGenerateResult(data.data);
         success(`Berhasil generate ${data.data.generated} draft artikel`);
-        loadDrafts(); // Refresh list
+        loadDrafts();
       } else {
         showError(data.error || "Gagal generate");
       }
@@ -236,14 +237,25 @@ export default function AutoArtikelPage() {
             Generate draft artikel otomatis dari AI berdasarkan topik hukum Bandung
           </p>
         </div>
-        <button
-          onClick={generateNow}
-          disabled={generating}
-          className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
-        >
-          {generating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-          {generating ? "Generating..." : `Generate ${count} Draft`}
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={generateCount}
+            onChange={(e) => setGenerateCount(e.target.value)}
+            className="rounded-full border border-purple-300 bg-white px-3 py-2.5 text-sm font-medium text-purple-700"
+          >
+            {[1, 2, 3, 5, 10].map((n) => (
+              <option key={n} value={n}>{n} artikel</option>
+            ))}
+          </select>
+          <button
+            onClick={generateNow}
+            disabled={generating}
+            className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+          >
+            {generating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+            {generating ? "Generating..." : "Generate Draft"}
+          </button>
+        </div>
       </div>
 
       {/* Stats Row */}

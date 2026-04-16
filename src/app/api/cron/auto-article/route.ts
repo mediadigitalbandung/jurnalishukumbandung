@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ApiError, successResponse, errorResponse } from "@/lib/api-utils";
+import { ApiError, successResponse, errorResponse, requireRole } from "@/lib/api-utils";
 import { slugify, calculateReadTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -206,10 +206,12 @@ KONTEN:
 
 async function handleAutoArticle(request: NextRequest) {
   try {
-    // Auth: cron secret or admin session
+    // Auth: cron secret OR admin session (logged in)
     const authHeader = request.headers.get("authorization");
-    if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      throw new ApiError("Unauthorized", 401);
+    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    if (!isCron) {
+      // Try session auth — only SUPER_ADMIN/EDITOR
+      await requireRole(["SUPER_ADMIN", "EDITOR"]);
     }
 
     // Check if auto-article is enabled
@@ -220,11 +222,17 @@ async function handleAutoArticle(request: NextRequest) {
       return successResponse({ message: "Auto-article is disabled", generated: 0 });
     }
 
-    // Get count setting (default 1)
+    // Get count from request body or setting
+    let requestCount = 0;
+    try {
+      const body = await request.json().catch(() => ({}));
+      if (body.count) requestCount = parseInt(body.count);
+    } catch { /* ignore */ }
+
     const countSetting = await prisma.systemSetting.findUnique({
       where: { key: "auto_article_count" },
     });
-    const count = Math.min(5, Math.max(1, parseInt(countSetting?.value || "1")));
+    const count = Math.min(10, Math.max(1, requestCount || parseInt(countSetting?.value || "1")));
 
     const apiKey = await getDeepSeekKey();
     if (!apiKey) {
