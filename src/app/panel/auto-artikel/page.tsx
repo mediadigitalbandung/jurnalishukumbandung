@@ -1,0 +1,428 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useToast } from "@/components/ui/Toast";
+import Link from "next/link";
+import {
+  Bot,
+  Zap,
+  Save,
+  RefreshCw,
+  Loader2,
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  ExternalLink,
+  Hash,
+  Settings,
+  Play,
+  Pause,
+  TrendingUp,
+} from "lucide-react";
+
+const TARGET_KEYWORDS = [
+  "hukum bandung", "berita hukum bandung", "pengadilan bandung",
+  "sidang bandung", "hukum pidana bandung", "hukum perdata bandung",
+  "korupsi jawa barat", "kasus hukum bandung", "berita hukum jawa barat",
+  "advokat bandung", "pengacara bandung", "hukum tata negara",
+  "HAM bandung", "tipikor bandung", "kejaksaan bandung",
+];
+
+interface DraftArticle {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  createdAt: string;
+  category: { name: string };
+  author: { name: string };
+  viewCount: number;
+}
+
+export default function AutoArtikelPage() {
+  const { success, error: showError } = useToast();
+
+  // Settings
+  const [enabled, setEnabled] = useState(false);
+  const [interval, setInterval_] = useState("60");
+  const [count, setCount] = useState("1");
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Generate
+  const [generating, setGenerating] = useState(false);
+  const [generateResult, setGenerateResult] = useState<{
+    generated: number;
+    failed: number;
+    results: { success: boolean; article?: { title: string; slug: string }; keyword?: string; error?: string }[];
+  } | null>(null);
+
+  // Draft history
+  const [drafts, setDrafts] = useState<DraftArticle[]>([]);
+  const [loadingDrafts, setLoadingDrafts] = useState(true);
+  const [totalDrafts, setTotalDrafts] = useState(0);
+
+  // Last run info
+  const [lastRun, setLastRun] = useState<string | null>(null);
+
+  // Load settings
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (json?.data) {
+          const d = json.data;
+          if (d.auto_article_enabled !== undefined) setEnabled(d.auto_article_enabled === "true");
+          if (d.auto_article_count) setCount(d.auto_article_count);
+          if (d.auto_article_interval) setInterval_(d.auto_article_interval);
+          if (d.auto_article_last_run) setLastRun(d.auto_article_last_run);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Load AI-generated drafts
+  const loadDrafts = useCallback(async () => {
+    setLoadingDrafts(true);
+    try {
+      const res = await fetch("/api/articles?status=DRAFT&limit=20&sort=createdAt");
+      const json = await res.json();
+      if (json.success) {
+        setDrafts(json.data?.articles || json.data || []);
+        setTotalDrafts(json.data?.pagination?.total || json.data?.length || 0);
+      }
+    } catch { /* ignore */ }
+    setLoadingDrafts(false);
+  }, []);
+
+  useEffect(() => { loadDrafts(); }, [loadDrafts]);
+
+  // Save settings
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          auto_article_enabled: enabled ? "true" : "false",
+          auto_article_count: count,
+          auto_article_interval: interval,
+        }),
+      });
+      success("Pengaturan auto-artikel disimpan");
+    } catch {
+      showError("Gagal menyimpan");
+    }
+    setSaving(false);
+  };
+
+  // Manual generate
+  const generateNow = async () => {
+    setGenerating(true);
+    setGenerateResult(null);
+    try {
+      const cronSecret = prompt("Masukkan CRON_SECRET untuk generate:");
+      if (!cronSecret) { setGenerating(false); return; }
+      const res = await fetch("/api/cron/auto-article", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cronSecret}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGenerateResult(data.data);
+        success(`Berhasil generate ${data.data.generated} draft artikel`);
+        loadDrafts(); // Refresh list
+      } else {
+        showError(data.error || "Gagal generate");
+      }
+    } catch {
+      showError("Gagal menghubungi server");
+    }
+    setGenerating(false);
+  };
+
+  const formatDate = (d: string) => {
+    return new Date(d).toLocaleDateString("id-ID", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  };
+
+  const intervalLabel = (val: string) => {
+    const map: Record<string, string> = {
+      "30": "30 menit", "60": "1 jam", "120": "2 jam", "180": "3 jam",
+      "360": "6 jam", "720": "12 jam", "1440": "24 jam",
+    };
+    return map[val] || val + " menit";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-goto-green" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-txt-primary flex items-center gap-2">
+            <Bot size={28} className="text-purple-600" />
+            Auto-Generate Artikel
+          </h1>
+          <p className="text-sm text-txt-secondary mt-1">
+            Generate draft artikel otomatis dari AI berdasarkan topik hukum Bandung
+          </p>
+        </div>
+        <button
+          onClick={generateNow}
+          disabled={generating}
+          className="inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {generating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+          {generating ? "Generating..." : `Generate ${count} Draft`}
+        </button>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+              {enabled ? <Play size={20} className="text-purple-600" /> : <Pause size={20} className="text-gray-400" />}
+            </div>
+            <div>
+              <p className="text-lg font-bold text-txt-primary">{enabled ? "Aktif" : "Nonaktif"}</p>
+              <p className="text-xs text-txt-muted">Status</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <Clock size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-txt-primary">{intervalLabel(interval)}</p>
+              <p className="text-xs text-txt-muted">Interval</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
+              <FileText size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-txt-primary">{count}/run</p>
+              <p className="text-xs text-txt-muted">Artikel</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100">
+              <TrendingUp size={20} className="text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-txt-primary">{totalDrafts}</p>
+              <p className="text-xs text-txt-muted">Total Draft</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Settings Panel */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Config */}
+          <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+            <h2 className="text-lg font-bold text-txt-primary mb-4 flex items-center gap-2">
+              <Settings size={18} /> Pengaturan
+            </h2>
+
+            {/* Toggle */}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-sm font-medium text-txt-primary">Auto-Generate</p>
+                <p className="text-xs text-txt-muted">Buat draft otomatis via cron</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnabled(!enabled)}
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enabled ? "bg-goto-green" : "bg-gray-200"}`}
+              >
+                <span className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow transform transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+
+            {/* Interval */}
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-txt-primary">Interval</label>
+              <select value={interval} onChange={(e) => setInterval_(e.target.value)} className="input w-full">
+                <option value="30">Setiap 30 menit</option>
+                <option value="60">Setiap 1 jam</option>
+                <option value="120">Setiap 2 jam</option>
+                <option value="180">Setiap 3 jam</option>
+                <option value="360">Setiap 6 jam</option>
+                <option value="720">Setiap 12 jam</option>
+                <option value="1440">Setiap 24 jam</option>
+              </select>
+            </div>
+
+            {/* Count */}
+            <div className="mb-5">
+              <label className="mb-1.5 block text-sm font-medium text-txt-primary">Jumlah per generate</label>
+              <select value={count} onChange={(e) => setCount(e.target.value)} className="input w-full">
+                <option value="1">1 artikel</option>
+                <option value="2">2 artikel</option>
+                <option value="3">3 artikel</option>
+                <option value="5">5 artikel</option>
+              </select>
+            </div>
+
+            <button onClick={saveSettings} disabled={saving} className="btn-primary w-full text-sm">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Simpan Pengaturan
+            </button>
+
+            {lastRun && (
+              <p className="mt-3 text-xs text-txt-muted text-center">
+                Terakhir jalan: {formatDate(lastRun)}
+              </p>
+            )}
+          </div>
+
+          {/* Target Keywords */}
+          <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+            <h2 className="text-lg font-bold text-txt-primary mb-3 flex items-center gap-2">
+              <Hash size={18} /> Keyword Target
+            </h2>
+            <p className="text-xs text-txt-muted mb-3">Topik yang digunakan AI untuk generate artikel:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {TARGET_KEYWORDS.map((kw) => (
+                <span key={kw} className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">
+                  {kw}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content — Generate Result + Draft List */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Generate Result */}
+          {generateResult && (
+            <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+              <h2 className="text-lg font-bold text-txt-primary mb-3 flex items-center gap-2">
+                <CheckCircle size={18} className="text-green-500" /> Hasil Generate
+              </h2>
+              <div className="flex gap-4 mb-4">
+                <div className="rounded-lg bg-green-50 px-4 py-2 text-center">
+                  <p className="text-2xl font-bold text-green-600">{generateResult.generated}</p>
+                  <p className="text-xs text-green-700">Berhasil</p>
+                </div>
+                {generateResult.failed > 0 && (
+                  <div className="rounded-lg bg-red-50 px-4 py-2 text-center">
+                    <p className="text-2xl font-bold text-red-600">{generateResult.failed}</p>
+                    <p className="text-xs text-red-700">Gagal</p>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                {generateResult.results.map((r, i) => (
+                  <div key={i} className={`flex items-center gap-2 rounded-lg p-3 ${r.success ? "bg-green-50" : "bg-red-50"}`}>
+                    {r.success ? <CheckCircle size={16} className="text-green-500 shrink-0" /> : <XCircle size={16} className="text-red-500 shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-txt-primary truncate">{r.article?.title || "Gagal generate"}</p>
+                      {r.keyword && <p className="text-xs text-txt-muted">Keyword: {r.keyword}</p>}
+                      {r.error && <p className="text-xs text-red-500">{r.error}</p>}
+                    </div>
+                    {r.success && r.article && (
+                      <Link href={`/panel/artikel/${r.article.slug}`} className="text-xs text-goto-green hover:underline shrink-0">
+                        Edit →
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Draft Articles List */}
+          <div className="rounded-[12px] border border-border bg-surface shadow-card">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-bold text-txt-primary flex items-center gap-2">
+                <FileText size={18} /> Draft Artikel ({totalDrafts})
+              </h2>
+              <button onClick={loadDrafts} className="text-sm text-goto-green hover:underline flex items-center gap-1">
+                <RefreshCw size={12} /> Refresh
+              </button>
+            </div>
+
+            {loadingDrafts ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 size={24} className="animate-spin text-goto-green" />
+              </div>
+            ) : drafts.length === 0 ? (
+              <div className="py-12 text-center">
+                <FileText size={40} className="mx-auto mb-3 text-txt-muted" />
+                <p className="text-sm text-txt-muted">Belum ada draft artikel</p>
+                <button onClick={generateNow} disabled={generating} className="mt-3 text-sm font-medium text-purple-600 hover:underline">
+                  Generate sekarang →
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {drafts.map((d) => (
+                  <div key={d.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-secondary/50 transition-colors">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-yellow-50">
+                      <FileText size={18} className="text-yellow-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-txt-primary truncate">{d.title}</p>
+                      <p className="text-xs text-txt-muted">
+                        {d.category?.name || "-"} · {formatDate(d.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Link
+                        href={`/panel/artikel/${d.id}/edit`}
+                        className="inline-flex items-center gap-1 rounded-full border border-goto-green px-3 py-1.5 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white transition-colors"
+                      >
+                        Review & Edit
+                      </Link>
+                      <a
+                        href={`/berita/${d.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-txt-muted hover:bg-surface-secondary"
+                      >
+                        <ExternalLink size={10} /> Preview
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {totalDrafts > 20 && (
+              <div className="border-t border-border px-6 py-3 text-center">
+                <Link href="/panel/artikel?status=DRAFT" className="text-sm font-medium text-goto-green hover:underline">
+                  Lihat semua {totalDrafts} draft →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

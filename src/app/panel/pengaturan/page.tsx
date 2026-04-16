@@ -784,8 +784,24 @@ export default function PengaturanPage() {
         </div>
       </div>
 
-      {/* Auto-Article Generator */}
+      {/* Auto-Article — pindah ke /panel/auto-artikel */}
       <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+              <Bot size={20} className="text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-txt-primary">Auto-Generate Artikel</h2>
+              <p className="text-sm text-txt-muted">Kelola auto-generate draft artikel AI</p>
+            </div>
+          </div>
+          <a href="/panel/auto-artikel" className="btn-primary text-sm">Buka Modul →</a>
+        </div>
+      </div>
+
+      {/* OLD Auto-Article Generator — hidden, replaced by dedicated page */}
+      <div className="hidden rounded-[12px] border border-border bg-surface p-6 shadow-card">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
             <Bot size={20} className="text-purple-600" />
