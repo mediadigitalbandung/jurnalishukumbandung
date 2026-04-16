@@ -30,37 +30,55 @@ async function getDeepSeekKey(): Promise<string | null> {
   return setting?.value || null;
 }
 
-async function callDeepSeek(apiKey: string, prompt: string, maxTokens = 2000): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
-  try {
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Kamu adalah jurnalis senior media berita hukum 'Jurnalis Hukum Bandung'. Tulis artikel berita dalam Bahasa Indonesia yang profesional, informatif, dan berdasarkan fakta. Gunakan gaya penulisan jurnalistik berita (5W+1H). Jangan gunakan markdown formatting seperti ** atau ##, tulis dalam format HTML dengan tag <h2>, <h3>, <p>, <ul>, <li>, <blockquote>.",
-          },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.8,
-      }),
-    });
-    if (!res.ok) throw new Error(`DeepSeek API error: ${res.status}`);
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || "";
-  } finally {
-    clearTimeout(timeout);
+async function callDeepSeek(apiKey: string, prompt: string, maxTokens = 2000, retries = 2): Promise<string> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
+    try {
+      const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Kamu adalah jurnalis senior media berita hukum 'Jurnalis Hukum Bandung'. Tulis artikel berita dalam Bahasa Indonesia yang profesional, informatif, dan berdasarkan fakta. Gunakan gaya penulisan jurnalistik berita (5W+1H). Jangan gunakan markdown formatting seperti ** atau ##, tulis dalam format HTML dengan tag <h2>, <h3>, <p>, <ul>, <li>, <blockquote>.",
+            },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.8,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error(`[AUTO-ARTICLE] DeepSeek error ${res.status}: ${errText.slice(0, 200)}`);
+        if (attempt < retries) { await new Promise((r) => setTimeout(r, 3000)); continue; }
+        throw new Error(`DeepSeek API error: ${res.status}`);
+      }
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content?.trim() || "";
+      if (!content && attempt < retries) { await new Promise((r) => setTimeout(r, 3000)); continue; }
+      return content;
+    } catch (e) {
+      clearTimeout(timeout);
+      if (attempt < retries) {
+        console.log(`[AUTO-ARTICLE] Attempt ${attempt + 1} failed, retrying...`);
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+  throw new Error("DeepSeek failed after retries");
 }
 
 async function generateArticle(apiKey: string) {
@@ -142,21 +160,33 @@ KONTEN:
 
   const result = await callDeepSeek(apiKey, prompt, 2500);
 
-  // 7. Parse result
-  const titleMatch = result.match(/JUDUL:\s*(.+)/);
-  const seoTitleMatch = result.match(/SEO_TITLE:\s*(.+)/);
-  const seoDescMatch = result.match(/SEO_DESC:\s*(.+)/);
-  const excerptMatch = result.match(/EXCERPT:\s*(.+)/);
-  const tagsMatch = result.match(/TAGS:\s*(.+)/);
-  const contentMatch = result.match(/KONTEN:\s*([\s\S]+)/);
+  // 7. Parse result — robust parsing with fallbacks
+  const titleMatch = result.match(/JUDUL:\s*(.+)/i);
+  const seoTitleMatch = result.match(/SEO_TITLE:\s*(.+)/i);
+  const seoDescMatch = result.match(/SEO_DESC:\s*(.+)/i);
+  const excerptMatch = result.match(/EXCERPT:\s*(.+)/i);
+  const tagsMatch = result.match(/TAGS:\s*(.+)/i);
+  const contentMatch = result.match(/KONTEN:\s*([\s\S]+)/i);
 
-  if (!titleMatch || !contentMatch) throw new Error("Failed to parse AI response");
+  // Fallback: if no JUDUL/KONTEN markers, treat entire response as content
+  let title: string;
+  let content: string;
 
-  const title = titleMatch[1].trim();
-  const seoTitle = seoTitleMatch?.[1]?.trim().slice(0, 60) || "";
-  const seoDescription = seoDescMatch?.[1]?.trim().slice(0, 155) || "";
-  let content = contentMatch[1].trim();
-  const excerpt = excerptMatch?.[1]?.trim() || "";
+  if (titleMatch && contentMatch) {
+    title = titleMatch[1].trim().replace(/^["']|["']$/g, "");
+    content = contentMatch[1].trim();
+  } else {
+    // AI didn't follow format — extract title from first <h2> or first line
+    const h2Match = result.match(/<h2[^>]*>(.*?)<\/h2>/i);
+    const firstLine = result.split("\n").find((l) => l.trim().length > 10);
+    title = h2Match ? h2Match[1].replace(/<[^>]*>/g, "").trim() : firstLine?.replace(/<[^>]*>/g, "").trim().slice(0, 100) || `${keyword} — ${sourceArticle.category?.name || "Berita"} Terbaru`;
+    content = result;
+    console.log("[AUTO-ARTICLE] AI response didn't follow format, using fallback parsing");
+  }
+
+  const seoTitle = seoTitleMatch?.[1]?.trim().slice(0, 60) || title.slice(0, 60);
+  const seoDescription = seoDescMatch?.[1]?.trim().slice(0, 155) || title;
+  const excerpt = excerptMatch?.[1]?.trim() || content.replace(/<[^>]*>/g, "").slice(0, 200);
   const parsedTags = tagsMatch?.[1]?.split(",").map((t: string) => t.trim()).filter(Boolean) || [];
   const tags = Array.from(new Set([keyword, ...relatedKeywords.slice(0, 2), ...parsedTags])).slice(0, 8);
 
@@ -175,9 +205,11 @@ KONTEN:
     }
   }
 
-  // 9. Generate unique slug
-  const baseSlug = slugify(title).slice(0, 80);
-  const slug = `${baseSlug}-${Date.now().toString(36)}`;
+  // 9. Generate unique slug — check for conflicts
+  const baseSlug = slugify(title).slice(0, 70);
+  let slug = `${baseSlug}-${Date.now().toString(36)}`;
+  const existingSlug = await prisma.article.findUnique({ where: { slug } });
+  if (existingSlug) slug = `${baseSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   // 10. Get "Redaksi" user as author
   let author = await prisma.user.findFirst({
