@@ -152,6 +152,13 @@ export default function RootLayout({
 
   return (
     <html lang="id" className={`${sourceSans.variable} ${lora.variable}`}>
+      <head>
+        {/* Resource hints — faster font & API loading = better Core Web Vitals */}
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body className="flex min-h-screen flex-col font-sans bg-surface text-txt-primary">
         <script
           type="application/ld+json"

@@ -51,11 +51,13 @@ export default function ArticleCard({
   verificationLabel = "UNVERIFIED",
   variant = "standard",
 }: ArticleCardProps) {
+  const isoDate = publishedAt ? new Date(publishedAt).toISOString() : undefined;
+
   /* ── Hero variant (large featured card — ABC News style) ── */
   if (variant === "hero" || variant === "featured") {
     return (
-      <article className="group">
-        <Link href={`/berita/${slug}`} className="block">
+      <article className="group" itemScope itemType="https://schema.org/NewsArticle">
+        <Link href={`/berita/${slug}`} className="block" itemProp="url">
           <div className="relative aspect-[16/9] w-full overflow-hidden rounded-sm">
             {featuredImage ? (
               <Image
@@ -65,6 +67,7 @@ export default function ArticleCard({
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 priority
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                itemProp="image"
               />
             ) : (
               <Image src="/placeholder-image.png" alt="Placeholder" fill className="object-cover opacity-60" />
@@ -75,23 +78,25 @@ export default function ArticleCard({
           <Link
             href={`/kategori/${category.slug}`}
             className="text-xs font-bold uppercase tracking-wide text-goto-green"
+            itemProp="articleSection"
           >
             {category.name}
           </Link>
           <Link href={`/berita/${slug}`}>
-            <h2 className="mt-1 font-serif text-lg font-bold leading-tight text-txt-primary hover:underline sm:text-xl lg:text-2xl">
+            <h2 className="mt-1 font-serif text-lg font-bold leading-tight text-txt-primary hover:underline sm:text-xl lg:text-2xl" itemProp="headline">
               {title}
             </h2>
           </Link>
           {excerpt && (
-            <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-txt-secondary">
+            <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-txt-secondary" itemProp="description">
               {truncate(excerpt, 200)}
             </p>
           )}
           <p className="mt-2 text-xs text-txt-muted">
-            {formatTime(publishedAt)}
+            {isoDate && <time dateTime={isoDate} itemProp="datePublished">{formatTime(publishedAt)}</time>}
+            {!isoDate && formatTime(publishedAt)}
             <span className="mx-1">&middot;</span>
-            {author.name}
+            <span itemProp="author">{author.name}</span>
           </p>
         </div>
       </article>
@@ -154,8 +159,8 @@ export default function ArticleCard({
 
   /* ── Standard / Default variant (medium vertical card — clean, no border/shadow) ── */
   return (
-    <article className="group">
-      <Link href={`/berita/${slug}`} className="block">
+    <article className="group" itemScope itemType="https://schema.org/NewsArticle">
+      <Link href={`/berita/${slug}`} className="block" itemProp="url">
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-sm">
           {featuredImage ? (
             <Image
@@ -164,6 +169,7 @@ export default function ArticleCard({
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+              itemProp="image"
             />
           ) : (
             <div className="h-full w-full bg-surface-secondary" />
@@ -174,18 +180,20 @@ export default function ArticleCard({
         <Link
           href={`/kategori/${category.slug}`}
           className="text-xs font-bold uppercase tracking-wide text-goto-green"
+          itemProp="articleSection"
         >
           {category.name}
         </Link>
         <Link href={`/berita/${slug}`}>
-          <h3 className="mt-1 font-serif line-clamp-2 text-base font-bold leading-snug text-txt-primary hover:underline">
+          <h3 className="mt-1 font-serif line-clamp-2 text-base font-bold leading-snug text-txt-primary hover:underline" itemProp="headline">
             {title}
           </h3>
         </Link>
         <p className="mt-2 text-xs text-txt-muted">
-          {formatTime(publishedAt)}
+          {isoDate && <time dateTime={isoDate} itemProp="datePublished">{formatTime(publishedAt)}</time>}
+          {!isoDate && formatTime(publishedAt)}
           <span className="mx-1">&middot;</span>
-          {author.name}
+          <span itemProp="author">{author.name}</span>
         </p>
       </div>
     </article>

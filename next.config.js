@@ -35,7 +35,8 @@ const nextConfig = {
       {
         source: "/berita/:slug*",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=300" },
+          // Articles are mostly immutable post-publish — cache longer for faster LCP
+          { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=86400" },
         ],
       },
       {

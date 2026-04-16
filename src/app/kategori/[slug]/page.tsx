@@ -78,16 +78,20 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const category = await getCategory(params.slug);
   if (!category) return { title: "Kategori Tidak Ditemukan" };
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
   const title = `${category.name} - Berita Hukum Terkini`;
-  const description = `Kumpulan berita ${category.name.toLowerCase()} terbaru dari Jurnalis Hukum Bandung.`;
+  const description = `Kumpulan berita ${category.name.toLowerCase()} terbaru dari Jurnalis Hukum Bandung. Analisis dan liputan lengkap.`;
 
   return {
     title,
     description,
+    keywords: `${category.name.toLowerCase()}, berita hukum, hukum bandung, ${category.name.toLowerCase()} bandung`,
     openGraph: {
       title: `${title} | Jurnalis Hukum Bandung`,
       description,
       type: "website",
+      url: `${appUrl}/kategori/${params.slug}`,
+      siteName: "Jurnalis Hukum Bandung",
     },
     twitter: {
       card: "summary",
@@ -95,7 +99,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description,
     },
     alternates: {
-      canonical: `/kategori/${params.slug}`,
+      canonical: `${appUrl}/kategori/${params.slug}`,
     },
   };
 }

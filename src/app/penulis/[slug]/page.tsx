@@ -16,11 +16,20 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const author = await getAuthorBySlug(params.slug);
   if (!author) return { title: "Penulis Tidak Ditemukan" };
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+  const description = author.bio || `Profil dan artikel oleh ${author.name}, jurnalis hukum di Jurnalis Hukum Bandung.`;
+
   return {
-    title: `${author.name} - Penulis`,
-    description: author.bio || `Profil penulis ${author.name} di Jurnalis Hukum Bandung.`,
+    title: `${author.name} — Jurnalis Hukum Bandung`,
+    description,
+    openGraph: {
+      title: `${author.name} — Jurnalis Hukum Bandung`,
+      description,
+      type: "profile",
+      url: `${appUrl}/penulis/${params.slug}`,
+    },
     alternates: {
-      canonical: `/penulis/${params.slug}`,
+      canonical: `${appUrl}/penulis/${params.slug}`,
     },
   };
 }
@@ -48,8 +57,49 @@ export default async function PenulisPage({ params }: { params: { slug: string }
     year: "numeric",
   });
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+  const authorUrl = `${appUrl}/penulis/${params.slug}`;
+
+  // E-E-A-T: Person structured data for author expertise signals
+  const personLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `${authorUrl}#person`,
+    name: author.name,
+    url: authorUrl,
+    ...(author.bio && { description: author.bio }),
+    ...(author.avatar && { image: author.avatar.startsWith("http") ? author.avatar : `${appUrl}${author.avatar}` }),
+    jobTitle: author.specialization || "Jurnalis Hukum",
+    worksFor: {
+      "@type": "NewsMediaOrganization",
+      "@id": `${appUrl}/#organization`,
+      name: "Jurnalis Hukum Bandung",
+      url: appUrl,
+    },
+    knowsAbout: [
+      "Hukum Pidana", "Hukum Perdata", "Hukum Tata Negara",
+      "HAM", "Peradilan", "Hukum Indonesia",
+      ...(author.specialization ? [author.specialization] : []),
+    ],
+    mainEntityOfPage: { "@type": "ProfilePage", "@id": authorUrl },
+  };
+
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Beranda", item: appUrl },
+      { "@type": "ListItem", position: 2, name: "Penulis", item: `${appUrl}/redaksi` },
+      { "@type": "ListItem", position: 3, name: author.name },
+    ],
+  };
+
   return (
     <div className="bg-surface min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([personLd, breadcrumbLd]) }}
+      />
       <div className="container-main py-8">
         {/* Author profile */}
         <div className="rounded-[12px] border border-border bg-surface p-6">
