@@ -653,10 +653,26 @@ export async function onArticlePublished(slug: string, articleId: string, catego
     );
   }
 
-  // Auto-generate 3 Sorotan pages (non-blocking)
+  // Auto-generate Sorotan pages + submit their URLs to search engines
   if (articleData) {
     tasks.push(
-      autoGenerateSorotan(articleId, slug, articleData.title, articleData.content).catch(() => null)
+      autoGenerateSorotan(articleId, slug, articleData.title, articleData.content)
+        .then(async (count) => {
+          if (count > 0) {
+            // Submit sorotan URLs to IndexNow for indexing
+            const sorotanPages = await prisma.sorotan.findMany({
+              where: { articleId },
+              select: { slug: true },
+            });
+            const sorotanUrls = sorotanPages.map((s) => `${BASE_URL}/sorotan/${s.slug}`);
+            if (sorotanUrls.length > 0) {
+              await submitToIndexNow([...sorotanUrls, `${BASE_URL}/sorotan`]).catch(() => null);
+              console.log(`[SEO] Submitted ${sorotanUrls.length} sorotan URLs to IndexNow`);
+            }
+          }
+          return count;
+        })
+        .catch(() => null)
     );
   }
 
