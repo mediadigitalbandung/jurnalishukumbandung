@@ -12,6 +12,32 @@ interface PageProps {
   params: { slug: string };
 }
 
+/** Clean AI-generated content: strip raw HTML tags shown as text, convert to proper paragraphs */
+function formatSorotanContent(content: string): string {
+  let html = content;
+
+  // If content has literal <p>, <h3> etc as text (AI outputted HTML tags)
+  // Check if it's already valid HTML (has closing tags properly)
+  const hasHtmlTags = /<(p|h[1-6]|ul|ol|li|strong|em|blockquote)[^>]*>/i.test(html);
+
+  if (hasHtmlTags) {
+    // Content already has HTML — just return it (dangerouslySetInnerHTML will render)
+    return html;
+  }
+
+  // Plain text — convert newlines to paragraphs
+  html = html
+    .split(/\n\n+/)
+    .filter((p) => p.trim())
+    .map((p) => `<p>${p.trim()}</p>`)
+    .join("");
+
+  // Single newlines within paragraphs
+  html = html.replace(/\n/g, "<br/>");
+
+  return html;
+}
+
 const angleLabels: Record<string, string> = {
   kronologi: "Kronologi",
   analisis: "Analisis Hukum",
@@ -225,8 +251,8 @@ export default async function SorotanPage({ params }: PageProps) {
 
             {/* Content — substantive 300-500 words */}
             <div
-              className="mt-8 article-content prose prose-lg max-w-none text-base sm:text-[17px] leading-[1.8] text-justify"
-              dangerouslySetInnerHTML={{ __html: sorotan.content }}
+              className="mt-8 article-content text-base sm:text-[17px] leading-[1.8] text-justify"
+              dangerouslySetInnerHTML={{ __html: formatSorotanContent(sorotan.content) }}
             />
 
             {/* CTA — Baca Berita Lengkap */}

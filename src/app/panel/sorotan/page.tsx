@@ -139,6 +139,11 @@ export default function SorotanPanel() {
   const [currentPage, setCurrentPage] = useState(1);
   const PER_PAGE = 15;
 
+  // Bulk generate all articles
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, currentArticle: "", currentAngle: "", done: 0, failed: 0 });
+  const [bulkStopped, setBulkStopped] = useState(false);
+
   // Filter articles
   const filteredArticles = articles.filter((a) => {
     if (searchQuery && !a.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -257,7 +262,7 @@ export default function SorotanPanel() {
                   {isPreview && a.sorotan && (
                     <div className="border-t border-border bg-surface-secondary px-6 py-5">
                       <h3 className="text-base font-bold text-txt-primary mb-3">{a.sorotan.title}</h3>
-                      <div className="article-content text-sm leading-relaxed text-txt-primary/80 max-h-96 overflow-y-auto" dangerouslySetInnerHTML={{ __html: a.sorotan.content }} />
+                      <div className="article-content text-sm leading-relaxed text-txt-primary/80 max-h-96 overflow-y-auto" dangerouslySetInnerHTML={{ __html: a.sorotan.content.replace(/<(p|h[1-6]|ul|ol|li)[^>]*>/gi, (m) => m).split(/\n\n+/).filter(Boolean).map(p => p.trim().startsWith("<") ? p : `<p>${p}</p>`).join("") }} />
                     </div>
                   )}
                 </div>
@@ -269,15 +274,111 @@ export default function SorotanPanel() {
     );
   }
 
+  const bulkStopRef = { current: false };
+
+  const generateAllArticles = async () => {
+    const incomplete = articles.filter((a) => (a.sorotanCount || 0) < 10);
+    if (incomplete.length === 0) { success("Semua artikel sudah lengkap sorotannya!"); return; }
+
+    setBulkGenerating(true);
+    setBulkStopped(false);
+    bulkStopRef.current = false;
+    const totalAngles = incomplete.reduce((sum, a) => sum + (10 - (a.sorotanCount || 0)), 0);
+    setBulkProgress({ current: 0, total: totalAngles, currentArticle: "", currentAngle: "", done: 0, failed: 0 });
+
+    let done = 0, failed = 0, current = 0;
+
+    for (const article of incomplete) {
+      if (bulkStopRef.current) break;
+
+      // Get which angles are missing for this article
+      try {
+        const res = await fetch(`/api/seo/generate-sorotan-single?articleId=${article.id}`);
+        const json = await res.json();
+        if (!json.success) continue;
+
+        const missingAngles = (json.data.angles || []).filter((a: AngleItem) => !a.generated);
+
+        for (const angle of missingAngles) {
+          if (bulkStopRef.current) break;
+
+          current++;
+          setBulkProgress({ current, total: totalAngles, currentArticle: article.title, currentAngle: angle.label, done, failed });
+
+          try {
+            const genRes = await fetch("/api/seo/generate-sorotan-single", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ articleId: article.id, angleIndex: angle.index }),
+            });
+            const genJson = await genRes.json();
+            if (genJson.success) done++;
+            else failed++;
+          } catch {
+            failed++;
+          }
+
+          setBulkProgress({ current, total: totalAngles, currentArticle: article.title, currentAngle: angle.label, done, failed });
+          await new Promise((r) => setTimeout(r, 2000)); // 2s delay between each
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    setBulkGenerating(false);
+    loadArticles();
+    success(`Selesai! ${done} sorotan berhasil, ${failed} gagal`);
+  };
+
+  const stopBulk = () => {
+    bulkStopRef.current = true;
+    setBulkStopped(true);
+  };
+
   // === LIST VIEW (no article selected) ===
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-txt-primary flex items-center gap-2">
-          <Sparkles size={28} className="text-blue-600" /> Sorotan SEO
-        </h1>
-        <p className="text-sm text-txt-secondary mt-1">Pilih artikel untuk generate sorotan satu per satu</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-txt-primary flex items-center gap-2">
+            <Sparkles size={28} className="text-blue-600" /> Sorotan SEO
+          </h1>
+          <p className="text-sm text-txt-secondary mt-1">Pilih artikel atau generate semua sekaligus</p>
+        </div>
+        {!bulkGenerating ? (
+          <button
+            onClick={generateAllArticles}
+            disabled={articles.filter((a) => (a.sorotanCount || 0) < 10).length === 0}
+            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            <Play size={16} />
+            Generate Semua Artikel ({articles.filter((a) => (a.sorotanCount || 0) < 10).length} artikel)
+          </button>
+        ) : (
+          <button onClick={stopBulk} className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700">
+            Stop
+          </button>
+        )}
       </div>
+
+      {/* Bulk Progress */}
+      {bulkGenerating && (
+        <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-blue-800">
+              <Loader2 size={14} className="inline animate-spin mr-1" />
+              Generating sorotan... {bulkProgress.current}/{bulkProgress.total}
+            </p>
+            <span className="text-xs text-blue-600">{bulkProgress.done} berhasil · {bulkProgress.failed} gagal</span>
+          </div>
+          <div className="h-2.5 w-full rounded-full bg-blue-100 overflow-hidden mb-2">
+            <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${(bulkProgress.current / Math.max(bulkProgress.total, 1)) * 100}%` }} />
+          </div>
+          <p className="text-xs text-blue-700 truncate">Artikel: {bulkProgress.currentArticle}</p>
+          <p className="text-xs text-blue-600">Angle: {bulkProgress.currentAngle}</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">

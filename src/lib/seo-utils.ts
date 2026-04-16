@@ -474,61 +474,61 @@ const SOROTAN_ANGLES = [
     angle: "kronologi",
     titlePrefix: "Kronologi",
     prompt: (title: string, content: string) =>
-      `Kamu adalah jurnalis hukum senior. Tulis KRONOLOGI LENGKAP kejadian dalam 400-500 kata bahasa Indonesia berdasarkan berita ini. Tulis narasi kronologis yang runtut. Sertakan detail waktu, tempat, pelaku. Langsung mulai narasi tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu adalah jurnalis hukum senior. Tulis KRONOLOGI LENGKAP kejadian dalam 400-500 kata bahasa Indonesia berdasarkan berita ini. Tulis narasi kronologis yang runtut. Sertakan detail waktu, tempat, pelaku. JANGAN gunakan HTML tags seperti <p>, <h3>, dll. Tulis plain text saja. Pisahkan paragraf dengan baris kosong. Langsung mulai narasi tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "analisis",
     titlePrefix: "Analisis Hukum",
     prompt: (title: string, content: string) =>
-      `Kamu adalah analis hukum senior Indonesia. Tulis ANALISIS HUKUM dalam 400-500 kata bahasa Indonesia. Bahas dasar hukum, pasal yang relevan, potensi sanksi, preseden kasus serupa, implikasi yuridis. Langsung mulai analisis tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu adalah analis hukum senior Indonesia. Tulis ANALISIS HUKUM dalam 400-500 kata bahasa Indonesia. Bahas dasar hukum, pasal yang relevan, potensi sanksi, preseden kasus serupa, implikasi yuridis. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai analisis tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "dampak",
     titlePrefix: "Dampak & Implikasi",
     prompt: (title: string, content: string) =>
-      `Kamu jurnalis investigasi. Tulis DAMPAK DAN IMPLIKASI kejadian ini dalam 400-500 kata bahasa Indonesia. Bahas siapa yang terdampak, dampak ke masyarakat, dampak ke sistem hukum, apa yang bisa terjadi selanjutnya. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu jurnalis investigasi. Tulis DAMPAK DAN IMPLIKASI kejadian ini dalam 400-500 kata bahasa Indonesia. Bahas siapa yang terdampak, dampak ke masyarakat, dampak ke sistem hukum, apa yang bisa terjadi selanjutnya. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "latar-belakang",
     titlePrefix: "Latar Belakang",
     prompt: (title: string, content: string) =>
-      `Kamu jurnalis senior. Tulis LATAR BELAKANG dan KONTEKS dari berita ini dalam 400-500 kata bahasa Indonesia. Jelaskan apa yang terjadi sebelumnya, mengapa ini terjadi, siapa pihak-pihak yang terlibat, dan bagaimana situasi sebelum kejadian ini. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu jurnalis senior. Tulis LATAR BELAKANG dan KONTEKS dari berita ini dalam 400-500 kata bahasa Indonesia. Jelaskan apa yang terjadi sebelumnya, mengapa ini terjadi, siapa pihak-pihak yang terlibat, dan bagaimana situasi sebelum kejadian ini. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "fakta-data",
     titlePrefix: "Fakta & Data",
     prompt: (title: string, content: string) =>
-      `Kamu editor berita. Tulis RANGKUMAN FAKTA DAN DATA KUNCI dari berita ini dalam 400-500 kata bahasa Indonesia. Sajikan fakta-fakta penting secara terstruktur: siapa, apa, di mana, kapan, mengapa, bagaimana. Sertakan angka dan data jika ada. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu editor berita. Tulis RANGKUMAN FAKTA DAN DATA KUNCI dari berita ini dalam 400-500 kata bahasa Indonesia. Sajikan fakta-fakta penting secara terstruktur: siapa, apa, di mana, kapan, mengapa, bagaimana. Sertakan angka dan data jika ada. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "regulasi",
     titlePrefix: "Regulasi Terkait",
     prompt: (title: string, content: string) =>
-      `Kamu pakar hukum Indonesia. Tulis tentang REGULASI DAN UNDANG-UNDANG yang terkait dengan kasus dalam berita ini dalam 400-500 kata bahasa Indonesia. Sebutkan UU, pasal, peraturan pemerintah, atau putusan MK yang relevan. Jelaskan isi regulasi dan hubungannya dengan kasus. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu pakar hukum Indonesia. Tulis tentang REGULASI DAN UNDANG-UNDANG yang terkait dengan kasus dalam berita ini dalam 400-500 kata bahasa Indonesia. Sebutkan UU, pasal, peraturan pemerintah, atau putusan MK yang relevan. Jelaskan isi regulasi dan hubungannya dengan kasus. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "profil",
     titlePrefix: "Profil & Pihak Terkait",
     prompt: (title: string, content: string) =>
-      `Kamu jurnalis. Tulis PROFIL PIHAK-PIHAK yang terlibat dalam berita ini dalam 400-500 kata bahasa Indonesia. Jelaskan siapa saja yang terlibat, apa peran mereka, latar belakang mereka, dan bagaimana mereka terhubung satu sama lain. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu jurnalis. Tulis PROFIL PIHAK-PIHAK yang terlibat dalam berita ini dalam 400-500 kata bahasa Indonesia. Jelaskan siapa saja yang terlibat, apa peran mereka, latar belakang mereka, dan bagaimana mereka terhubung satu sama lain. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "opini",
     titlePrefix: "Perspektif & Opini Ahli",
     prompt: (title: string, content: string) =>
-      `Kamu kolumnis hukum. Tulis PERSPEKTIF DAN OPINI mengenai kasus dalam berita ini dalam 400-500 kata bahasa Indonesia. Sajikan berbagai sudut pandang: pandangan ahli hukum, pandangan masyarakat, pandangan penegak hukum. Berikan analisis kritis yang berimbang. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu kolumnis hukum. Tulis PERSPEKTIF DAN OPINI mengenai kasus dalam berita ini dalam 400-500 kata bahasa Indonesia. Sajikan berbagai sudut pandang: pandangan ahli hukum, pandangan masyarakat, pandangan penegak hukum. Berikan analisis kritis yang berimbang. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "perbandingan",
     titlePrefix: "Perbandingan Kasus Serupa",
     prompt: (title: string, content: string) =>
-      `Kamu peneliti hukum. Tulis PERBANDINGAN dengan kasus-kasus serupa yang pernah terjadi di Indonesia dalam 400-500 kata bahasa Indonesia. Bandingkan dari segi modus, pelaku, hukuman, proses hukum, dan hasilnya. Jelaskan apa yang bisa dipelajari dari kasus sebelumnya. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu peneliti hukum. Tulis PERBANDINGAN dengan kasus-kasus serupa yang pernah terjadi di Indonesia dalam 400-500 kata bahasa Indonesia. Bandingkan dari segi modus, pelaku, hukuman, proses hukum, dan hasilnya. Jelaskan apa yang bisa dipelajari dari kasus sebelumnya. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
   {
     angle: "tanya-jawab",
     titlePrefix: "Tanya Jawab",
     prompt: (title: string, content: string) =>
-      `Kamu editor berita. Tulis penjelasan berita ini dalam format TANYA JAWAB (Q&A) dalam 400-500 kata bahasa Indonesia. Buat 5-7 pertanyaan yang kemungkinan ditanyakan pembaca beserta jawabannya. Format: "Pertanyaan: ... Jawaban: ..." untuk setiap pasang. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
+      `Kamu editor berita. Tulis penjelasan berita ini dalam format TANYA JAWAB (Q&A) dalam 400-500 kata bahasa Indonesia. Buat 5-7 pertanyaan yang kemungkinan ditanyakan pembaca beserta jawabannya. Format: "Pertanyaan: ... Jawaban: ..." untuk setiap pasang. JANGAN gunakan HTML tags. Tulis plain text saja, pisahkan paragraf dengan baris kosong. Langsung mulai tanpa judul.\n\nJudul: ${title}\nKonten: ${content}`,
   },
 ];
 
