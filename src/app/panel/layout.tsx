@@ -27,6 +27,7 @@ import {
   ImageIcon,
   XCircle,
   CheckCircle,
+  Globe,
   AlertCircle,
   Clock,
 } from "lucide-react";
@@ -55,6 +56,7 @@ const menuItems: MenuItem[] = [
   { name: "Polling", href: "/panel/polling", icon: Vote, adminOnly: true },
   { name: "Statistik", href: "/panel/statistik-editor", icon: BarChart3, editorOnly: true },
   { name: "Aktivitas", href: "/panel/aktivitas", icon: History, superAdminOnly: true },
+  { name: "SEO Monitor", href: "/panel/seo", icon: Globe, superAdminOnly: true },
   { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
   { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
   { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, superAdminOnly: true },

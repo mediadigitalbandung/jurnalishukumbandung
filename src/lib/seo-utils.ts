@@ -75,10 +75,19 @@ export async function submitUrlToGoogle(articleSlug: string, categorySlug?: stri
   const enabled = await isGoogleIndexingEnabled();
 
   if (credentials && enabled) {
-    // Submit article URL
+    // Submit article URL + update indexing status in DB
     tasks.push(
       submitToGoogleIndexingApi(articleUrl, credentials)
-        .then(r => ({ engine: "google-indexing-api", url: articleUrl, data: r }))
+        .then(async (r) => {
+          // Update article indexing status
+          try {
+            await prisma.article.updateMany({
+              where: { slug: articleSlug },
+              data: { lastIndexedAt: new Date(), indexStatus: r ? "submitted" : "failed" },
+            });
+          } catch { /* ignore */ }
+          return { engine: "google-indexing-api", url: articleUrl, data: r };
+        })
     );
     // Notify Google about homepage update
     tasks.push(
