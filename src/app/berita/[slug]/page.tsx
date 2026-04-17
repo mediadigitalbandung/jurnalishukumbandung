@@ -408,19 +408,44 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     }),
     publisher: {
       "@type": "NewsMediaOrganization",
+      "@id": `${appUrl}/#organization`,
       name: "Jurnalis Hukum Bandung",
+      alternateName: ["JHB", "Hukum Bandung"],
       url: appUrl,
       logo: {
         "@type": "ImageObject",
         url: `${appUrl}/logo-jhb.png`,
-        width: 512,
-        height: 512,
+        width: 600,
+        height: 60,
+        caption: "Jurnalis Hukum Bandung",
       },
       sameAs: [
         "https://twitter.com/jurnalishukumbdg",
       ],
       publishingPrinciples: `${appUrl}/kode-etik`,
+      ethicsPolicy: `${appUrl}/kode-etik`,
+      correctionsPolicy: `${appUrl}/pedoman-media`,
+      foundingDate: "2024",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Bandung",
+        addressRegion: "Jawa Barat",
+        addressCountry: "ID",
+      },
     },
+    // Dateline — lokasi berita (penting untuk Google News)
+    contentLocation: {
+      "@type": "Place",
+      name: "Bandung, Jawa Barat",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Bandung",
+        addressRegion: "Jawa Barat",
+        addressCountry: "ID",
+      },
+    },
+    // Thumbnail for Google News carousel
+    thumbnailUrl: imageUrl,
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": articleUrl,
@@ -448,6 +473,16 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
       "@type": "SpeakableSpecification",
       cssSelector: ["h1", ".article-content p:first-of-type"],
     },
+    // ReadAction — Google Assistant integration
+    potentialAction: {
+      "@type": "ReadAction",
+      target: [articleUrl],
+    },
+    // About — topical entities (category + tags)
+    about: [
+      { "@type": "Thing", name: article.category.name },
+      ...(article.tags?.map((t: { name: string }) => ({ "@type": "Thing", name: t.name })) || []),
+    ],
   };
 
   const breadcrumbLd = {
