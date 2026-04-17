@@ -33,6 +33,12 @@ const updateArticleSchema = z.object({
   assignedEditorId: z.string().optional().nullable(),
   authorId: z.string().optional(),
   coAuthors: z.string().optional().nullable(),
+  // Social publish per-article overrides
+  publishToInstagram: z.boolean().optional().nullable(),
+  publishToFacebook: z.boolean().optional().nullable(),
+  socialCaptionIg: z.string().optional().nullable(),
+  socialCaptionFb: z.string().optional().nullable(),
+  socialFbFormat: z.enum(["link_share", "photo", "multi_photo"]).optional().nullable(),
 });
 
 // GET /api/articles/:id

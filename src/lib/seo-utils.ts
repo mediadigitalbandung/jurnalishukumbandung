@@ -714,7 +714,14 @@ export async function onArticlePublished(slug: string, articleId: string, catego
     );
   }
 
-  console.log(`[SEO] Article published: ${slug}, submitting to Google + IndexNow + FAQ + Sorotan + Twitter. ${related.length} related articles found`);
+  // Auto-publish to Instagram + Facebook (non-blocking)
+  tasks.push(
+    import("./social/orchestrator")
+      .then(({ publishArticleToSocial }) => publishArticleToSocial(articleId))
+      .catch((err) => { console.error("[SOCIAL] orchestrator error:", err); return null; })
+  );
+
+  console.log(`[SEO] Article published: ${slug}, submitting to Google + IndexNow + FAQ + Sorotan + Twitter + IG/FB. ${related.length} related articles found`);
 
   await Promise.allSettled(tasks);
 

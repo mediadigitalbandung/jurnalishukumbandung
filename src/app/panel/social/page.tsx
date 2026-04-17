@@ -1,0 +1,611 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useToast } from "@/components/ui/Toast";
+import Link from "next/link";
+import {
+  Share2, Instagram, Facebook, Settings, CheckCircle, XCircle, Clock,
+  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X,
+} from "lucide-react";
+
+type GlobalSettings = {
+  autoPublishEnabled: boolean;
+  metaAccessToken: string | null;
+  fbPageId: string | null;
+  fbPageName: string | null;
+  igUserId: string | null;
+  igAccountName: string | null;
+  metaTokenExpiresAt: string | null;
+  captionPromptTemplate: string | null;
+  captionSafetyRules: string | null;
+  fixedHashtagsBrand: string[];
+  notificationEmail: string | null;
+};
+
+type IgSettings = {
+  enabled: boolean;
+  aspectRatio: string;
+  jpegQuality: number;
+  watermarkPngUrl: string | null;
+  hashtagCountTarget: number;
+  fixedHashtagsIg: string[];
+  captionToneOverride: string | null;
+  publishDelaySec: number;
+};
+
+type FbSettings = {
+  enabled: boolean;
+  defaultPostFormat: string;
+  aspectRatio: string;
+  jpegQuality: number;
+  hashtagCountTarget: number;
+  fixedHashtagsFb: string[];
+  captionToneOverride: string | null;
+  publishDelaySec: number;
+  linkPosition: string;
+};
+
+type SocialPost = {
+  id: string;
+  articleId: string;
+  platform: string;
+  status: string;
+  externalPostId: string | null;
+  externalUrl: string | null;
+  postFormat: string | null;
+  publishedAt: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  article: { title: string; slug: string };
+};
+
+type Stats = {
+  instagram: { success: number; failed: number };
+  facebook: { success: number; failed: number };
+};
+
+export default function SocialMediaPanel() {
+  const { success, error: showError } = useToast();
+  const [activeTab, setActiveTab] = useState<"global" | "instagram" | "facebook" | "logs">("global");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [global, setGlobal] = useState<GlobalSettings | null>(null);
+  const [ig, setIg] = useState<IgSettings | null>(null);
+  const [fb, setFb] = useState<FbSettings | null>(null);
+
+  // Logs state
+  const [posts, setPosts] = useState<SocialPost[]>([]);
+  const [stats, setStats] = useState<Stats>({ instagram: { success: 0, failed: 0 }, facebook: { success: 0, failed: 0 } });
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logFilter, setLogFilter] = useState<"all" | "instagram" | "facebook">("all");
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/social/settings");
+      const data = await res.json();
+      if (data.success) {
+        setGlobal(data.data.global || defaultGlobal());
+        setIg(data.data.instagram || defaultIg());
+        setFb(data.data.facebook || defaultFb());
+      }
+    } catch { showError("Gagal memuat settings"); }
+    setLoading(false);
+  }, [showError]);
+
+  const loadPosts = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const filter = logFilter !== "all" ? `?platform=${logFilter}` : "";
+      const res = await fetch(`/api/social/posts${filter}`);
+      const data = await res.json();
+      if (data.success) {
+        setPosts(data.data.posts || []);
+        setStats(data.data.stats || stats);
+      }
+    } catch { /* ignore */ }
+    setLogsLoading(false);
+  }, [logFilter]);
+
+  useEffect(() => { loadSettings(); }, [loadSettings]);
+  useEffect(() => { if (activeTab === "logs") loadPosts(); }, [activeTab, loadPosts]);
+
+  const saveSection = async (scope: "global" | "instagram" | "facebook", data: unknown) => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/social/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, data }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        success(`Settings ${scope} disimpan`);
+        loadSettings();
+      } else {
+        showError(json.error || "Gagal menyimpan");
+      }
+    } catch { showError("Gagal menyimpan"); }
+    setSaving(false);
+  };
+
+  const isMetaConnected = !!(global?.metaAccessToken && global?.fbPageId);
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-txt-primary">
+          <Share2 size={26} className="text-goto-green" />
+          Social Media Auto-Publish
+        </h1>
+        <p className="text-sm text-txt-secondary">Auto-publish artikel ke Instagram & Facebook Page</p>
+      </div>
+
+      {/* Connection status banner */}
+      <div className={`rounded-[12px] border p-4 ${isMetaConnected ? "border-goto-green/30 bg-goto-light" : "border-yellow-300 bg-yellow-50"}`}>
+        <div className="flex items-start gap-3">
+          {isMetaConnected ? <CheckCircle size={20} className="text-goto-green shrink-0 mt-0.5" /> : <AlertCircle size={20} className="text-yellow-600 shrink-0 mt-0.5" />}
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-txt-primary">
+              {isMetaConnected ? "Meta Connected" : "Meta Belum Terhubung"}
+            </p>
+            <p className="mt-0.5 text-xs text-txt-secondary">
+              {isMetaConnected
+                ? `FB Page: ${global?.fbPageName || "—"} · IG: ${global?.igAccountName || "—"}`
+                : "Hubungkan Facebook Page + Instagram Business Account untuk mulai auto-publish"}
+            </p>
+            {global?.metaTokenExpiresAt && (
+              <p className="mt-1 text-[10px] text-txt-muted">
+                Token expire: {new Date(global.metaTokenExpiresAt).toLocaleDateString("id-ID")}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border overflow-x-auto">
+        {([
+          { key: "global", label: "Global", icon: Settings },
+          { key: "instagram", label: "Instagram", icon: Instagram },
+          { key: "facebook", label: "Facebook", icon: Facebook },
+          { key: "logs", label: "Log Post", icon: RefreshCw },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 whitespace-nowrap px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              activeTab === tab.key ? "border-goto-green text-goto-green" : "border-transparent text-txt-secondary hover:text-txt-primary"
+            }`}
+          >
+            <tab.icon size={16} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center"><Loader2 size={24} className="mx-auto animate-spin text-goto-green" /></div>
+      ) : (
+        <>
+          {activeTab === "global" && global && (
+            <GlobalSettingsForm settings={global} onSave={(d) => saveSection("global", d)} saving={saving} />
+          )}
+          {activeTab === "instagram" && ig && (
+            <PlatformSettingsForm
+              settings={ig}
+              platform="instagram"
+              onSave={(d) => saveSection("instagram", d)}
+              saving={saving}
+            />
+          )}
+          {activeTab === "facebook" && fb && (
+            <PlatformSettingsForm
+              settings={fb}
+              platform="facebook"
+              onSave={(d) => saveSection("facebook", d)}
+              saving={saving}
+            />
+          )}
+          {activeTab === "logs" && (
+            <LogsView posts={posts} stats={stats} loading={logsLoading} filter={logFilter} setFilter={setLogFilter} onRefresh={loadPosts} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ───── Global Settings Form ───── */
+function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSettings; onSave: (d: Partial<GlobalSettings>) => void; saving: boolean }) {
+  const [form, setForm] = useState(settings);
+
+  return (
+    <div className="space-y-5">
+      {/* Master switch */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-txt-primary">Auto-Publish Master Switch</p>
+            <p className="text-xs text-txt-muted mt-0.5">Master on/off untuk auto-publish ke semua platform</p>
+          </div>
+          <button
+            onClick={() => setForm({ ...form, autoPublishEnabled: !form.autoPublishEnabled })}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.autoPublishEnabled ? "bg-goto-green" : "bg-surface-tertiary"}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.autoPublishEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Meta Credentials */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <h3 className="mb-3 text-sm font-semibold text-txt-primary">Meta API Credentials</h3>
+        <p className="text-xs text-txt-muted mb-4">Manual input Page Access Token dari Meta Developer dashboard (OAuth flow akan ditambahkan nanti).</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">Meta Access Token</label>
+            <input
+              type="password"
+              placeholder={form.metaAccessToken === "***configured***" ? "••••••••••••• (tersimpan)" : "EAAxxxx..."}
+              onChange={(e) => setForm({ ...form, metaAccessToken: e.target.value || null })}
+              className="input w-full text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">FB Page ID</label>
+            <input value={form.fbPageId || ""} onChange={(e) => setForm({ ...form, fbPageId: e.target.value || null })} className="input w-full text-sm" placeholder="1234567890" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">FB Page Name</label>
+            <input value={form.fbPageName || ""} onChange={(e) => setForm({ ...form, fbPageName: e.target.value || null })} className="input w-full text-sm" placeholder="Jurnalis Hukum Bandung" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">IG User ID</label>
+            <input value={form.igUserId || ""} onChange={(e) => setForm({ ...form, igUserId: e.target.value || null })} className="input w-full text-sm" placeholder="17841xxxxxx" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">IG Account Name</label>
+            <input value={form.igAccountName || ""} onChange={(e) => setForm({ ...form, igAccountName: e.target.value || null })} className="input w-full text-sm" placeholder="@jurnalishukumbdg" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">Token Expires At</label>
+            <input type="datetime-local" value={form.metaTokenExpiresAt ? form.metaTokenExpiresAt.slice(0, 16) : ""} onChange={(e) => setForm({ ...form, metaTokenExpiresAt: e.target.value ? new Date(e.target.value).toISOString() : null })} className="input w-full text-sm" />
+          </div>
+        </div>
+      </div>
+
+      {/* Brand Hashtags */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <h3 className="mb-3 text-sm font-semibold text-txt-primary">Brand Hashtags (Shared)</h3>
+        <p className="text-xs text-txt-muted mb-3">Hashtag yang selalu ditambahkan ke setiap post (IG + FB)</p>
+        <TagsInput
+          tags={form.fixedHashtagsBrand}
+          onChange={(tags) => setForm({ ...form, fixedHashtagsBrand: tags })}
+          placeholder="#HukumBandung, #JHB, #BeritaHukum"
+        />
+      </div>
+
+      {/* Notifications */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <h3 className="mb-3 text-sm font-semibold text-txt-primary">Notifikasi</h3>
+        <label className="mb-1 block text-xs font-medium text-txt-primary">Email untuk Failed Post</label>
+        <input type="email" value={form.notificationEmail || ""} onChange={(e) => setForm({ ...form, notificationEmail: e.target.value || null })} className="input w-full max-w-md text-sm" placeholder="admin@jurnalishukumbandung.com" />
+      </div>
+
+      <button
+        onClick={() => onSave(form)}
+        disabled={saving}
+        className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+      >
+        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+        Simpan Settings Global
+      </button>
+    </div>
+  );
+}
+
+/* ───── Platform Settings Form (IG + FB share this) ───── */
+function PlatformSettingsForm({ settings, platform, onSave, saving }: { settings: IgSettings | FbSettings; platform: "instagram" | "facebook"; onSave: (d: Partial<IgSettings | FbSettings>) => void; saving: boolean }) {
+  const [form, setForm] = useState(settings as IgSettings & FbSettings);
+  const isIg = platform === "instagram";
+
+  return (
+    <div className="space-y-5">
+      {/* Enable toggle */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-txt-primary">Enable Auto-Publish ke {isIg ? "Instagram" : "Facebook"}</p>
+            <p className="text-xs text-txt-muted mt-0.5">Jika off, tidak akan post ke platform ini meskipun master switch on</p>
+          </div>
+          <button onClick={() => setForm({ ...form, enabled: !form.enabled })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.enabled ? "bg-goto-green" : "bg-surface-tertiary"}`}>
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* FB-specific: post format */}
+      {!isIg && (
+        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <h3 className="mb-3 text-sm font-semibold text-txt-primary">Default Post Format</h3>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {[
+              { val: "link_share", label: "Link Share", desc: "Preview card dari OG tags (recommended)" },
+              { val: "photo", label: "Photo Post", desc: "Single image + caption dengan link" },
+              { val: "multi_photo", label: "Multi Photo", desc: "Multiple images (phase 2)" },
+            ].map((opt) => (
+              <button
+                key={opt.val}
+                onClick={() => setForm({ ...form, defaultPostFormat: opt.val })}
+                className={`rounded-[12px] border p-3 text-left transition-colors ${form.defaultPostFormat === opt.val ? "border-goto-green bg-goto-light" : "border-border hover:border-goto-green/50"}`}
+                disabled={opt.val === "multi_photo"}
+              >
+                <p className="text-sm font-semibold text-txt-primary">{opt.label}</p>
+                <p className="mt-0.5 text-xs text-txt-muted">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Image settings */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <h3 className="mb-3 text-sm font-semibold text-txt-primary">Image Settings</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">Aspect Ratio</label>
+            <select value={form.aspectRatio} onChange={(e) => setForm({ ...form, aspectRatio: e.target.value })} className="input w-full text-sm">
+              {isIg ? (
+                <>
+                  <option value="4:5">4:5 (Portrait, recommended IG)</option>
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="1.91:1">1.91:1 (Landscape)</option>
+                </>
+              ) : (
+                <>
+                  <option value="1.91:1">1.91:1 (Link preview, recommended FB)</option>
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="4:5">4:5 (Portrait)</option>
+                </>
+              )}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">JPEG Quality</label>
+            <input type="number" min="50" max="100" value={form.jpegQuality} onChange={(e) => setForm({ ...form, jpegQuality: parseInt(e.target.value) || 85 })} className="input w-full text-sm" />
+          </div>
+        </div>
+      </div>
+
+      {/* Hashtags */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <h3 className="mb-3 text-sm font-semibold text-txt-primary">Hashtags</h3>
+        <div className="grid gap-3 sm:grid-cols-2 mb-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">Target Count</label>
+            <input type="number" min="0" max="30" value={form.hashtagCountTarget} onChange={(e) => setForm({ ...form, hashtagCountTarget: parseInt(e.target.value) || 0 })} className="input w-full text-sm" />
+            <p className="mt-1 text-[10px] text-txt-muted">{isIg ? "IG: 10-15 recommended" : "FB: 3-5 recommended"}</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-txt-primary">Publish Delay (detik)</label>
+            <input type="number" min="0" value={form.publishDelaySec} onChange={(e) => setForm({ ...form, publishDelaySec: parseInt(e.target.value) || 0 })} className="input w-full text-sm" />
+            <p className="mt-1 text-[10px] text-txt-muted">{isIg ? "Delay sebelum post (0 = instant)" : "Stagger dari IG (300s = 5 menit after)"}</p>
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-txt-primary">Fixed Hashtags (khusus {isIg ? "IG" : "FB"})</label>
+          <TagsInput
+            tags={isIg ? form.fixedHashtagsIg : form.fixedHashtagsFb}
+            onChange={(tags) => setForm(isIg ? { ...form, fixedHashtagsIg: tags } : { ...form, fixedHashtagsFb: tags })}
+            placeholder={isIg ? "#HukumBandung, #Pengadilan" : "#Bandung, #JawaBarat"}
+          />
+        </div>
+      </div>
+
+      {/* FB-specific: link position + UTM */}
+      {!isIg && (
+        <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <h3 className="mb-3 text-sm font-semibold text-txt-primary">Link Behavior</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-txt-primary">Posisi Link</label>
+              <select value={form.linkPosition} onChange={(e) => setForm({ ...form, linkPosition: e.target.value })} className="input w-full text-sm">
+                <option value="end">Di akhir caption (preview card dominant)</option>
+                <option value="start">Di awal caption (push link)</option>
+              </select>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] text-txt-muted">UTM params akan otomatis ditambahkan: ?utm_source=facebook&utm_medium=social</p>
+        </div>
+      )}
+
+      {/* Caption tone override */}
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
+        <h3 className="mb-2 text-sm font-semibold text-txt-primary">Caption Tone Override</h3>
+        <p className="text-xs text-txt-muted mb-2">Kosongkan jika ingin pakai tone global</p>
+        <textarea
+          value={form.captionToneOverride || ""}
+          onChange={(e) => setForm({ ...form, captionToneOverride: e.target.value || null })}
+          className="input w-full text-sm min-h-[80px]"
+          placeholder={isIg ? "Contoh: Tone engaging, visual-first, pakai emoji sesekali..." : "Contoh: Tone informatif, to-the-point, professional..."}
+        />
+      </div>
+
+      <button onClick={() => onSave(form)} disabled={saving} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-semibold disabled:opacity-50">
+        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+        Simpan Settings {isIg ? "Instagram" : "Facebook"}
+      </button>
+    </div>
+  );
+}
+
+/* ───── Logs View ───── */
+function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { posts: SocialPost[]; stats: Stats; loading: boolean; filter: string; setFilter: (f: "all" | "instagram" | "facebook") => void; onRefresh: () => void }) {
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-50"><Instagram size={20} className="text-pink-600" /></div>
+            <div>
+              <p className="text-sm font-semibold text-txt-primary">Instagram</p>
+              <p className="text-xs text-txt-muted">{stats.instagram.success} sukses · {stats.instagram.failed} gagal</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50"><Facebook size={20} className="text-blue-600" /></div>
+            <div>
+              <p className="text-sm font-semibold text-txt-primary">Facebook</p>
+              <p className="text-xs text-txt-muted">{stats.facebook.success} sukses · {stats.facebook.failed} gagal</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter + Refresh */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex gap-1.5">
+          {(["all", "instagram", "facebook"] as const).map((f) => (
+            <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${filter === f ? "bg-goto-green text-white" : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary"}`}>
+              {f === "all" ? "Semua" : f === "instagram" ? "Instagram" : "Facebook"}
+            </button>
+          ))}
+        </div>
+        <button onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-txt-secondary hover:bg-surface-secondary">
+          <RefreshCw size={12} /> Refresh
+        </button>
+      </div>
+
+      {/* Log table */}
+      <div className="overflow-x-auto rounded-[12px] border border-border bg-surface shadow-card">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-border bg-surface-secondary">
+              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel</th>
+              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Platform</th>
+              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
+              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Format</th>
+              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Tanggal</th>
+              <th className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={6} className="px-4 py-12 text-center"><Loader2 size={24} className="mx-auto animate-spin text-goto-green" /></td></tr>
+            ) : posts.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-txt-muted">Belum ada log social post</td></tr>
+            ) : (
+              posts.map((p) => (
+                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50">
+                  <td className="px-4 py-3">
+                    <Link href={`/berita/${p.article.slug}`} target="_blank" className="text-sm font-medium text-txt-primary hover:text-goto-green truncate max-w-[260px] block">
+                      {p.article.title}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${p.platform === "instagram" ? "bg-pink-50 text-pink-600" : "bg-blue-50 text-blue-600"}`}>
+                      {p.platform === "instagram" ? <Instagram size={10} /> : <Facebook size={10} />}
+                      {p.platform}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.status === "success" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600"><CheckCircle size={10} /> Sukses</span>
+                    ) : p.status === "failed" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600" title={p.errorMessage || ""}><XCircle size={10} /> Gagal</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-600"><Clock size={10} /> Pending</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-txt-secondary">{p.postFormat || "-"}</td>
+                  <td className="px-4 py-3 text-xs text-txt-muted">{new Date(p.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</td>
+                  <td className="px-4 py-3 text-center">
+                    {p.externalUrl && (
+                      <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-goto-green hover:underline">
+                        <ExternalLink size={10} /> Lihat
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Tags Input Component ───── */
+function TagsInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (t: string[]) => void; placeholder?: string }) {
+  const [input, setInput] = useState("");
+
+  const add = () => {
+    const cleaned = input.trim().replace(/^#/, "");
+    if (cleaned && !tags.includes(cleaned)) {
+      onChange([...tags, cleaned]);
+      setInput("");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {tags.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1 rounded-full bg-goto-light px-2.5 py-1 text-xs font-medium text-goto-green">
+            #{t}
+            <button onClick={() => onChange(tags.filter((x) => x !== t))} className="text-goto-green hover:text-red-500"><X size={10} /></button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder={placeholder}
+          className="input flex-1 text-xs"
+        />
+        <button onClick={add} className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-txt-secondary hover:bg-surface-secondary">
+          <Plus size={12} /> Tambah
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Defaults ───── */
+function defaultGlobal(): GlobalSettings {
+  return {
+    autoPublishEnabled: false,
+    metaAccessToken: null, fbPageId: null, fbPageName: null,
+    igUserId: null, igAccountName: null, metaTokenExpiresAt: null,
+    captionPromptTemplate: null, captionSafetyRules: null,
+    fixedHashtagsBrand: [],
+    notificationEmail: null,
+  };
+}
+
+function defaultIg(): IgSettings {
+  return {
+    enabled: false, aspectRatio: "4:5", jpegQuality: 85,
+    watermarkPngUrl: null, hashtagCountTarget: 12, fixedHashtagsIg: [],
+    captionToneOverride: null, publishDelaySec: 0,
+  };
+}
+
+function defaultFb(): FbSettings {
+  return {
+    enabled: false, defaultPostFormat: "link_share",
+    aspectRatio: "1.91:1", jpegQuality: 85,
+    hashtagCountTarget: 4, fixedHashtagsFb: [],
+    captionToneOverride: null, publishDelaySec: 300,
+    linkPosition: "end",
+  };
+}
