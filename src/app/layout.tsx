@@ -24,7 +24,11 @@ const lora = Lora({
   weight: ["400", "500", "600", "700"],
 });
 
-export const viewport = { width: "device-width", initialScale: 1 };
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#00AA13",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -95,6 +99,11 @@ export const metadata: Metadata = {
   },
   other: {
     "google-site-verification": "aOYlnEshfJKwCD4v8OePC3vgPACRIRt2bO5s9dziFj0",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "JHB News",
+    "mobile-web-app-capable": "yes",
+    "format-detection": "telephone=no",
   },
 };
 

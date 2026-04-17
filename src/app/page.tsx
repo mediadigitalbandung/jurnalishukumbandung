@@ -288,6 +288,28 @@ export default async function HomePage() {
         }}
       />
 
+      {/* ItemList schema — featured/headline articles for rich results */}
+      {headlineArticles.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "ItemList",
+              name: "Berita Hukum Utama",
+              description: "Daftar berita hukum utama di Jurnalis Hukum Bandung",
+              numberOfItems: headlineArticles.length,
+              itemListElement: headlineArticles.map((a: any, i: number) => ({
+                "@type": "ListItem",
+                position: i + 1,
+                url: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/berita/${a.slug}`,
+                name: a.title,
+              })),
+            }),
+          }}
+        />
+      )}
+
       {/* NewsTicker removed — TrendingTags in PublicNav already shows trending */}
 
       {/* Banner Ad — Leaderboard (above headline) */}

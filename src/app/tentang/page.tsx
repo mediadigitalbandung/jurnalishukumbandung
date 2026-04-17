@@ -26,8 +26,60 @@ async function getSettings() {
 export default async function TentangPage() {
   const contact = await getSettings();
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+  const aboutLd = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: "Tentang Jurnalis Hukum Bandung",
+    url: `${appUrl}/tentang`,
+    mainEntity: {
+      "@type": "NewsMediaOrganization",
+      "@id": `${appUrl}/#organization`,
+      name: "Jurnalis Hukum Bandung",
+      url: appUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: `${appUrl}/logo-jhb.png`,
+        width: 512,
+        height: 512,
+      },
+      foundingDate: "2024",
+      description:
+        "Media digital hukum terpercaya untuk wilayah Bandung dan Jawa Barat. Menyajikan berita hukum akurat, terverifikasi, dan berimbang.",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: contact.alamat,
+        addressLocality: "Bandung",
+        addressRegion: "Jawa Barat",
+        addressCountry: "ID",
+      },
+      email: contact.email,
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "editorial",
+        email: contact.email,
+        availableLanguage: "id",
+      },
+      publishingPrinciples: `${appUrl}/kode-etik`,
+      ethicsPolicy: `${appUrl}/kode-etik`,
+      correctionsPolicy: `${appUrl}/pedoman-media`,
+    },
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Beranda", item: appUrl },
+      { "@type": "ListItem", position: 2, name: "Tentang Kami", item: `${appUrl}/tentang` },
+    ],
+  };
+
   return (
     <div className="bg-surface min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([aboutLd, breadcrumbLd]) }}
+      />
       <div className="container-main py-12">
         <div className="mx-auto max-w-3xl">
           <h1 className="flex items-center gap-3 text-xl font-bold text-txt-primary sm:text-2xl lg:text-3xl">

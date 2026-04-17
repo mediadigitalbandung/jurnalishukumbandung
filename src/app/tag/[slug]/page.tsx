@@ -81,8 +81,45 @@ export default async function TagPage({ params, searchParams }: PageProps) {
     pageNumbers.push(i);
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Beranda", item: appUrl },
+      { "@type": "ListItem", position: 2, name: `#${tag.name}`, item: `${appUrl}/tag/${params.slug}` },
+    ],
+  };
+
+  const collectionLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `Berita ${tag.name}`,
+    description: `Kumpulan berita dengan tag ${tag.name} dari Jurnalis Hukum Bandung.`,
+    url: `${appUrl}/tag/${params.slug}`,
+    about: { "@type": "Thing", name: tag.name },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: total,
+      itemListElement: articles.slice(0, 10).map((a, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: a.title,
+        url: `${appUrl}/berita/${a.slug}`,
+      })),
+    },
+  };
+
   return (
     <div className="bg-surface min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionLd) }}
+      />
       <div className="container-main py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-sm text-txt-secondary">

@@ -51,6 +51,15 @@ export default async function JadwalSidangPage() {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
+  const statusToSchema: Record<string, string> = {
+    scheduled: "https://schema.org/EventScheduled",
+    live: "https://schema.org/EventScheduled",
+    done: "https://schema.org/EventScheduled",
+    postponed: "https://schema.org/EventPostponed",
+  };
+
+  const allSchedules = [...todaySchedules, ...upcomingSchedules].slice(0, 20);
+
   return (
     <div className="bg-surface min-h-screen">
       {/* Structured Data — Event schema for court schedules */}
@@ -64,21 +73,47 @@ export default async function JadwalSidangPage() {
             description: "Jadwal sidang pengadilan di Bandung dan Jawa Barat hari ini",
             url: `${baseUrl}/jadwal-sidang`,
             numberOfItems: todaySchedules.length + upcomingSchedules.length,
-            itemListElement: todaySchedules.slice(0, 10).map((s, i) => ({
+            itemListElement: allSchedules.map((s, i) => ({
               "@type": "ListItem",
               position: i + 1,
               item: {
                 "@type": "Event",
                 name: s.title,
                 startDate: s.date.toISOString(),
+                eventStatus: statusToSchema[s.status] || "https://schema.org/EventScheduled",
+                eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
                 location: {
                   "@type": "Place",
                   name: s.court,
-                  address: { "@type": "PostalAddress", addressLocality: "Bandung", addressRegion: "Jawa Barat" },
+                  address: {
+                    "@type": "PostalAddress",
+                    addressLocality: "Bandung",
+                    addressRegion: "Jawa Barat",
+                    addressCountry: "ID",
+                  },
                 },
-                description: [s.agenda, s.defendant ? `Terdakwa: ${s.defendant}` : null].filter(Boolean).join(". "),
+                organizer: {
+                  "@type": "Organization",
+                  name: s.court,
+                },
+                description: [s.agenda, s.defendant ? `Terdakwa: ${s.defendant}` : null, s.caseNumber ? `No. Perkara: ${s.caseNumber}` : null].filter(Boolean).join(". "),
+                ...(s.articleSlug ? { url: `${baseUrl}/berita/${s.articleSlug}` } : {}),
               },
             })),
+          }),
+        }}
+      />
+      {/* BreadcrumbList */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Beranda", item: baseUrl },
+              { "@type": "ListItem", position: 2, name: "Jadwal Sidang", item: `${baseUrl}/jadwal-sidang` },
+            ],
           }),
         }}
       />
