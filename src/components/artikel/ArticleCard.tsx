@@ -196,7 +196,7 @@ export default function ArticleCard({
           {isoDate && <time dateTime={isoDate} itemProp="datePublished">{formatTime(publishedAt)}</time>}
           {!isoDate && formatTime(publishedAt)}
           <span className="mx-1">&middot;</span>
-          <span itemProp="author">{author.name}</span>
+          <span itemProp="author">{displayName(author)}</span>
         </p>
       </div>
     </article>

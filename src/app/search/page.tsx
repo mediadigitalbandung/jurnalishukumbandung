@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search as SearchIcon, SlidersHorizontal, Clock, Calendar, TrendingUp, ChevronLeft, ChevronRight, X, History } from "lucide-react";
 import ArticleCard from "@/components/artikel/ArticleCard";
+import { displayName } from "@/lib/author-display";
 
 interface SearchResult {
   title: string;
@@ -13,7 +14,7 @@ interface SearchResult {
   excerpt: string | null;
   featuredImage: string | null;
   category: { name: string; slug: string };
-  author: { name: string };
+  author: { name: string; role?: string | null };
   publishedAt: string;
   readTime: number | null;
   viewCount: number;
@@ -439,7 +440,7 @@ function SearchContent() {
                 <p className="mt-2 text-xs text-txt-muted">
                   {new Date(article.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
                   <span className="mx-1">&middot;</span>
-                  {article.author.name}
+                  {displayName(article.author)}
                 </p>
               </div>
             </article>

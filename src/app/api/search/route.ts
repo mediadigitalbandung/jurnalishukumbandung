@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       prisma.article.findMany({
         where,
         include: {
-          author: { select: { id: true, name: true } },
+          author: { select: { id: true, name: true, role: true } },
           category: { select: { id: true, name: true, slug: true } },
         },
         orderBy: { publishedAt: "desc" },
