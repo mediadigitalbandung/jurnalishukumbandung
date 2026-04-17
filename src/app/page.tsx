@@ -1,4 +1,4 @@
-export const revalidate = 60; // ISR: re-generate homepage every 60s
+export const revalidate = 30; // ISR: re-generate homepage every 30s
 
 import Link from "next/link";
 import Image from "next/image";

@@ -18,12 +18,12 @@ const nextConfig = {
   },
   async headers() {
     return [
-      // Homepage — short cache so new articles appear quickly
+      // Homepage — very short cache so new articles appear fast
       {
         source: "/",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=120" },
-          { key: "CDN-Cache-Control", value: "max-age=60" }, // Cloudflare edge: 1 min (match ISR)
+          { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" },
+          { key: "CDN-Cache-Control", value: "max-age=30" }, // Cloudflare edge: 30s (match ISR)
         ],
       },
       // Cache static assets — Cloudflare edge + browser
