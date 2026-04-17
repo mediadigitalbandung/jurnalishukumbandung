@@ -283,29 +283,43 @@ export async function runFullSeoPing() {
 
 export async function purgeCloudflareCache(urls?: string[]) {
   const zoneId = process.env.CLOUDFLARE_ZONE_ID;
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-  
-  if (!zoneId || !token) return null;
-  
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const globalKey = process.env.CLOUDFLARE_GLOBAL_API_KEY;
+  const email = process.env.CLOUDFLARE_EMAIL;
+
+  if (!zoneId) {
+    console.log("[SEO] CLOUDFLARE_ZONE_ID not set, skipping cache purge");
+    return null;
+  }
+
+  // Build auth headers — prefer Global API Key, fallback to API Token
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (globalKey && email) {
+    headers["X-Auth-Email"] = email;
+    headers["X-Auth-Key"] = globalKey;
+  } else if (apiToken) {
+    headers["Authorization"] = `Bearer ${apiToken}`;
+  } else {
+    console.log("[SEO] No Cloudflare auth configured, skipping cache purge");
+    return null;
+  }
+
   try {
-    const payload = urls && urls.length > 0 
-      ? { files: urls } 
-      : { purge_everything: true }; // Flush all cache if no specific URLs
-      
+    const payload = urls && urls.length > 0
+      ? { files: urls }
+      : { purge_everything: true };
+
     const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/purge_cache`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
+      headers,
+      body: JSON.stringify(payload),
     });
-    
+
     const data = await res.json();
-    console.log("[SEO] Cloudflare Purged:", data.success);
+    console.log(`[SEO] Cloudflare Purge: ${data.success ? "OK" : "FAIL"} (${urls?.length || "all"} URLs)`);
     return data;
   } catch (error) {
-    console.error("[SEO] Cloudflare Purge API Error:", error);
+    console.error("[SEO] Cloudflare Purge Error:", error);
     return null;
   }
 }

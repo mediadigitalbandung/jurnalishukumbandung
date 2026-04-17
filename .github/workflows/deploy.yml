@@ -20,6 +20,14 @@ jobs:
             git pull origin master
             npm install
 
+            # Fix Cloudflare env vars (correct zone for jurnalishukumbandung.com)
+            sed -i '/CLOUDFLARE_ZONE_ID/d' .env
+            sed -i '/CLOUDFLARE_GLOBAL_API_KEY/d' .env
+            sed -i '/CLOUDFLARE_EMAIL/d' .env
+            echo 'CLOUDFLARE_ZONE_ID=${{ secrets.CF_ZONE_ID }}' >> .env
+            echo 'CLOUDFLARE_GLOBAL_API_KEY=${{ secrets.CF_GLOBAL_API_KEY }}' >> .env
+            echo 'CLOUDFLARE_EMAIL=${{ secrets.CF_EMAIL }}' >> .env
+
             # Migrasi role lama ke baru SEBELUM schema push (pakai raw SQL via prisma)
             node -e "
             const { PrismaClient } = require('@prisma/client');
