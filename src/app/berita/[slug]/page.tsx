@@ -21,6 +21,7 @@ import { notFound } from "next/navigation";
 // Note: DOMPurify removed — content sanitized at input via API validation
 import { slugify } from "@/lib/utils";
 import { generateInternalLinksHtml } from "@/lib/seo-utils";
+import { displayName, isEditorialRole, EDITORIAL_BYLINE } from "@/lib/author-display";
 
 async function getArticle(slug: string) {
   const article = await prisma.article.findUnique({
@@ -40,12 +41,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const imageUrl = article.featuredImage
     ? (article.featuredImage.startsWith("http") ? article.featuredImage : `${appUrl}${article.featuredImage}`)
     : `${appUrl}/logo-jhb.png`;
+  const authorDisplayName = displayName(article.author);
+  const authorIsEditorial = isEditorialRole(article.author);
+  const authorUrl = authorIsEditorial ? `${appUrl}/redaksi` : `${appUrl}/penulis/${slugify(authorDisplayName)}`;
 
   return {
     title: article.title,
     description,
     keywords: article.tags?.map((t: { name: string }) => t.name).join(", "),
-    authors: [{ name: article.author.name, url: `${appUrl}/penulis/${slugify(article.author.name)}` }],
+    authors: [{ name: authorDisplayName, url: authorUrl }],
     openGraph: {
       title,
       description,
@@ -55,7 +59,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       locale: "id_ID",
       publishedTime: article.publishedAt?.toISOString(),
       modifiedTime: article.updatedAt.toISOString(),
-      authors: [article.author.name],
+      authors: [authorDisplayName],
       section: article.category.name,
       tags: article.tags?.map((t: { name: string }) => t.name),
       images: [{ url: imageUrl, width: 1200, height: 630, alt: article.title, type: "image/jpeg" }],
@@ -83,7 +87,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       "news_keywords": article.tags?.map((t: { name: string }) => t.name).join(", ") || "",
       "article:published_time": article.publishedAt?.toISOString() || "",
       "article:modified_time": article.updatedAt.toISOString(),
-      "article:author": article.author.name,
+      "article:author": authorDisplayName,
       "article:section": article.category.name,
     },
   };
@@ -262,15 +266,21 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     ARCHIVED: { label: "Diarsipkan", color: "bg-gray-600" },
   };
 
-  // Resolve editor/reviewer name
+  // Resolve editor/reviewer name (SUPER_ADMIN ditampilkan sebagai "Redaksi")
   let editorName: string | null = null;
   if (article.reviewedBy) {
     const reviewer = await prisma.user.findUnique({
       where: { id: article.reviewedBy },
-      select: { name: true },
+      select: { name: true, role: true },
     });
-    editorName = reviewer?.name || null;
+    editorName = reviewer ? displayName(reviewer) : null;
   }
+
+  // Compute author display name once — reused across HTML, schema, meta
+  const authorDisplayName = displayName(article.author);
+  const authorIsEditorial = isEditorialRole(article.author);
+  const authorSlug = slugify(authorDisplayName);
+  const authorHref = authorIsEditorial ? "/redaksi" : `/penulis/${authorSlug}`;
 
   // Fetch related articles — smart scoring: shared tags > same category > recent
   const articleTagIds = article.tags.map((t: { id: string }) => t.id);
@@ -396,8 +406,8 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     dateModified: article.updatedAt.toISOString(),
     author: {
       "@type": "Person",
-      name: article.author.name,
-      url: `${appUrl}/penulis/${slugify(article.author.name)}`,
+      name: authorDisplayName,
+      url: authorIsEditorial ? `${appUrl}/redaksi` : `${appUrl}/penulis/${authorSlug}`,
       ...(article.author.bio && { description: article.author.bio }),
     },
     ...(editorName && {
@@ -524,7 +534,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
       )}
       <ReadingProgress />
       <CopyProtection
-        authorName={article.author.name}
+        authorName={authorDisplayName}
         articleUrl={articleUrl}
         articleTitle={article.title}
         categoryName={article.category.name}
@@ -601,7 +611,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
               {/* Meta bar */}
               <div className="mt-4 text-sm text-txt-muted">
-                <span>Penulis: <span className="text-txt-primary font-medium">{article.coAuthors ? "Tim Redaksi" : article.author.name}</span></span>
+                <span>Penulis: <span className="text-txt-primary font-medium">{article.coAuthors ? "Tim Redaksi" : authorDisplayName}</span></span>
                 {editorName && (
                   <>
                     <span className="mx-2">&middot;</span>
@@ -834,19 +844,21 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                   /* Single author view */
                   <div className="flex gap-5">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-goto-green text-xl font-bold text-white">
-                      {article.author.name.charAt(0)}
+                      {authorDisplayName.charAt(0)}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-txt-primary">{article.author.name}</h3>
-                      <p className="text-sm text-goto-green font-medium">Jurnalis</p>
-                      <p className="mt-2 text-sm leading-relaxed text-txt-secondary">
-                        {article.author.bio}
-                      </p>
+                      <h3 className="text-lg font-semibold text-txt-primary">{authorDisplayName}</h3>
+                      <p className="text-sm text-goto-green font-medium">{authorIsEditorial ? "Jurnalis Hukum Bandung" : "Jurnalis"}</p>
+                      {!authorIsEditorial && article.author.bio && (
+                        <p className="mt-2 text-sm leading-relaxed text-txt-secondary">
+                          {article.author.bio}
+                        </p>
+                      )}
                       <Link
-                        href={`/penulis/${slugify(article.author.name)}`}
+                        href={authorHref}
                         className="mt-3 inline-block text-sm font-medium text-goto-green transition-colors hover:text-goto-dark"
                       >
-                        Lihat semua artikel &rarr;
+                        {authorIsEditorial ? "Tentang Redaksi" : "Lihat semua artikel"} &rarr;
                       </Link>
                     </div>
                   </div>

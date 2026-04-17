@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { displayName } from "@/lib/author-display";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function GET() {
       <pubDate>${a.publishedAt?.toUTCString() || ""}</pubDate>
       <guid isPermaLink="true">${siteUrl}/berita/${escapeXml(a.slug)}</guid>
       <category>${escapeXml(a.category.name)}</category>
-      <dc:creator>${escapeXml(a.author.name)}</dc:creator>${imageUrl ? `\n      <media:content url="${escapeXml(imageUrl)}" medium="image" />\n      <media:thumbnail url="${escapeXml(imageUrl)}" />` : ""}
+      <dc:creator>${escapeXml(displayName(a.author))}</dc:creator>${imageUrl ? `\n      <media:content url="${escapeXml(imageUrl)}" medium="image" />\n      <media:thumbnail url="${escapeXml(imageUrl)}" />` : ""}
     </item>`;
     })
     .join("\n");

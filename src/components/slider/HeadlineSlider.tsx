@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { displayName } from "@/lib/author-display";
 
 interface HeadlineItem {
   title: string;
@@ -11,7 +12,7 @@ interface HeadlineItem {
   excerpt?: string | null;
   featuredImage?: string | null;
   category: { name: string; slug: string };
-  author: { name: string };
+  author: { name: string; role?: string | null };
   publishedAt: Date | string | null;
   readTime?: number | null;
 }
@@ -139,7 +140,7 @@ export default function HeadlineSlider({ items }: HeadlineSliderProps) {
                 )}
 
                 <div className="mt-3 flex items-center gap-2 text-[11px] text-white/35">
-                  <span>{article.author.name}</span>
+                  <span>{displayName(article.author)}</span>
                   <span className="h-2.5 w-px bg-white/15" />
                   <span>{formatDate(article.publishedAt)}</span>
                   {article.readTime && (

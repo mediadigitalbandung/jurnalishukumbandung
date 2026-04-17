@@ -8,7 +8,10 @@ import { notFound } from "next/navigation";
 import { slugify } from "@/lib/utils";
 
 async function getAuthorBySlug(slug: string) {
-  const users = await prisma.user.findMany({ where: { isActive: true } });
+  // SUPER_ADMIN di-hidden dari halaman publik — mereka selalu tampil sebagai "Redaksi"
+  const users = await prisma.user.findMany({
+    where: { isActive: true, role: { not: "SUPER_ADMIN" } },
+  });
   return users.find((u) => slugify(u.name) === slug) || null;
 }
 

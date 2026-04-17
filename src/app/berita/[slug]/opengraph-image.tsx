@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/prisma";
+import { displayName } from "@/lib/author-display";
 
 export const runtime = "nodejs";
 export const alt = "Jurnalis Hukum Bandung";
@@ -13,7 +14,7 @@ export default async function OGImage({ params }: { params: { slug: string } }) 
       title: true,
       excerpt: true,
       publishedAt: true,
-      author: { select: { name: true } },
+      author: { select: { name: true, role: true } },
       category: { select: { name: true } },
     },
   });
@@ -182,7 +183,7 @@ export default async function OGImage({ params }: { params: { slug: string } }) 
           {/* Author + date */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <span style={{ fontSize: "16px", fontWeight: "600", color: "#1C1C1E" }}>
-              {article.author.name}
+              {displayName(article.author)}
             </span>
             <span style={{ fontSize: "14px", color: "#9CA3AF" }}>
               {publishDate}

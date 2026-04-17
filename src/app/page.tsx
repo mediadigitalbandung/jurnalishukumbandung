@@ -16,6 +16,7 @@ import { videoStoryData } from "@/lib/video-data";
 import HorizontalScroll from "@/components/layout/HorizontalScroll";
 import { Scale, BookOpen, Gavel, Shield, Users, Landmark, LucideIcon, Globe, Monitor, Building2, FileText, AlertTriangle, Radio,Calendar, Play, Vote, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { displayName } from "@/lib/author-display";
 
 const categoryIconMap: Record<string, LucideIcon> = {
   "hukum-pidana": Gavel,
@@ -131,7 +132,7 @@ export default async function HomePage() {
     id: true, title: true, slug: true, excerpt: true, featuredImage: true,
     publishedAt: true, viewCount: true, readTime: true, coAuthors: true,
     verificationLabel: true,
-    author: { select: { name: true } },
+    author: { select: { name: true, role: true } },
     category: { select: { name: true, slug: true } },
   } as const;
 
@@ -631,7 +632,7 @@ export default async function HomePage() {
                             {featured.title}
                           </h3>
                           <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/50">
-                            <span className="text-goto-green font-semibold">{featured.author.name}</span>
+                            <span className="text-goto-green font-semibold">{displayName(featured.author)}</span>
                             <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
                           </div>
                         </div>
@@ -663,7 +664,7 @@ export default async function HomePage() {
                               </h4>
                             </Link>
                             <div className="mt-1 flex items-center gap-1.5 text-[10px] text-txt-muted">
-                              <span className="text-goto-green font-semibold">{a.author.name}</span>
+                              <span className="text-goto-green font-semibold">{displayName(a.author)}</span>
                               <span>{a.publishedAt ? new Date(a.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
                             </div>
                           </div>
@@ -696,7 +697,7 @@ export default async function HomePage() {
                               </h4>
                             </Link>
                             <div className="mt-1 flex items-center gap-1.5 text-[10px] text-txt-muted">
-                              <span className="text-goto-green font-semibold">{a.author.name}</span>
+                              <span className="text-goto-green font-semibold">{displayName(a.author)}</span>
                               <span>{a.publishedAt ? new Date(a.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
                             </div>
                           </div>
