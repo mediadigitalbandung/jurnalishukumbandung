@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     // 2. IndexNow (Bing/Yandex)
     let indexNowOk = false;
     try {
-      const key = "acababc0b4221f7d8becd200e2bb2627";
+      const key = "46c220e15eca4f9db0a70049aa82a734";
       const res = await fetch("https://api.indexnow.org/indexnow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

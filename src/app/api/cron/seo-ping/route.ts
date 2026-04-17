@@ -179,8 +179,8 @@ async function runAutoReindex() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         host: "jurnalishukumbandung.com",
-        key: "jurnalishukumbandung",
-        keyLocation: `${BASE_URL}/jurnalishukumbandung.txt`,
+        key: "46c220e15eca4f9db0a70049aa82a734",
+        keyLocation: `${BASE_URL}/46c220e15eca4f9db0a70049aa82a734.txt`,
         urlList: indexNowUrls.slice(0, 10000),
       }),
     });
