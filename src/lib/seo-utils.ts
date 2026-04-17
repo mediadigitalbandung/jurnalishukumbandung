@@ -282,10 +282,27 @@ export async function runFullSeoPing() {
 /* ── 2.5 Cloudflare Auto-Purge Cache ────────────────────────────── */
 
 export async function purgeCloudflareCache(urls?: string[]) {
-  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  const globalKey = process.env.CLOUDFLARE_GLOBAL_API_KEY;
-  const email = process.env.CLOUDFLARE_EMAIL;
+  // Read from env first, fallback to DB systemsetting
+  let zoneId = process.env.CLOUDFLARE_ZONE_ID;
+  let apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  let globalKey = process.env.CLOUDFLARE_GLOBAL_API_KEY;
+  let email = process.env.CLOUDFLARE_EMAIL;
+
+  // Fallback to DB if env not loaded (PM2 env cache issue)
+  if (!zoneId || (!globalKey && !apiToken)) {
+    try {
+      const settings = await prisma.systemSetting.findMany({
+        where: {
+          key: { in: ["cloudflare_zone_id", "cloudflare_api_token", "cloudflare_global_api_key", "cloudflare_email"] },
+        },
+      });
+      const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
+      zoneId = zoneId || map.cloudflare_zone_id;
+      apiToken = apiToken || map.cloudflare_api_token;
+      globalKey = globalKey || map.cloudflare_global_api_key;
+      email = email || map.cloudflare_email;
+    } catch { /* ignore */ }
+  }
 
   if (!zoneId) {
     console.log("[SEO] CLOUDFLARE_ZONE_ID not set, skipping cache purge");
