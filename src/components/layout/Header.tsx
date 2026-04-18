@@ -107,22 +107,22 @@ export default function Header() {
                 priority
               />
               <span className="flex items-baseline gap-1 sm:gap-2">
-                <span className="text-sm font-bold text-white sm:text-2xl lg:text-3xl">
+                <span className="text-sm font-bold text-white sm:text-xl lg:text-2xl">
                   Jurnalis Hukum
                 </span>
-                <span className="text-[10px] text-white/50 sm:text-base lg:text-xl">Bandung</span>
+                <span className="hidden text-[10px] text-white/50 sm:inline sm:text-sm lg:text-base">Bandung</span>
               </span>
             </Link>
 
             {/* Right: Date + Search (desktop) + actions */}
-            <div className="flex items-center gap-3">
-            {/* Live date */}
-            <span className="hidden text-xs text-white/40 lg:block">
+            <div className="flex items-center gap-2 lg:gap-3">
+            {/* Live date — xl only to prevent overflow */}
+            <span className="hidden text-xs text-white/40 xl:block">
               {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </span>
-            <div className="hidden h-5 w-px bg-white/20 lg:block" />
-            {/* Search — hidden on mobile, shown inline on md+ */}
-            <form action="/search" className="relative hidden md:block md:w-64 lg:w-80" role="search" aria-label="Pencarian artikel">
+            <div className="hidden h-5 w-px bg-white/20 xl:block" />
+            {/* Search — hidden below lg, narrower at lg, wider at xl */}
+            <form action="/search" className="relative hidden lg:block lg:w-52 xl:w-72" role="search" aria-label="Pencarian artikel">
               <Search
                 size={16}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-txt-muted"
@@ -137,14 +137,14 @@ export default function Header() {
               />
             </form>
 
-              {/* Bookmark link */}
+              {/* Bookmark link — xl only */}
               <Link
                 href="/bookmark"
-                className="hidden md:flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:text-white hover:bg-white/10"
+                className="hidden xl:flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:text-white hover:bg-white/10"
                 title="Bookmark Saya"
               >
                 <Bookmark size={14} />
-                <span className="hidden lg:inline">Bookmark</span>
+                <span className="hidden xl:inline">Bookmark</span>
               </Link>
 
               {/* User area */}
@@ -212,8 +212,8 @@ export default function Header() {
               </button>
             </div>
           </div>
-          {/* Mobile search bar — smooth hide on scroll */}
-          <div className={`overflow-hidden md:hidden transition-all duration-500 ease-in-out ${scrolled || mobileMenuOpen ? "max-h-0 pb-0 opacity-0 -translate-y-2" : "max-h-14 pb-3 opacity-100 translate-y-0"}`}>
+          {/* Mobile/tablet search bar — shows below lg, smooth hide on scroll */}
+          <div className={`overflow-hidden lg:hidden transition-all duration-500 ease-in-out ${scrolled || mobileMenuOpen ? "max-h-0 pb-0 opacity-0 -translate-y-2" : "max-h-14 pb-3 opacity-100 translate-y-0"}`}>
             <form action="/search" className="relative" role="search" aria-label="Pencarian artikel (mobile)">
               <Search
                 size={16}
