@@ -1084,6 +1084,24 @@ export default function EditArticlePage() {
           </div>
         )}
 
+        {currentStatus === "ARCHIVED" && isAdmin && (
+          <div className="mb-6 rounded-[12px] border-2 border-gray-300 bg-gray-50 p-5">
+            <h3 className="flex items-center gap-2 text-base font-bold text-gray-700">
+              <XCircle size={18} />
+              Artikel Diarsipkan
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">Artikel ini tidak tampil di publik. Anda bisa mempublikasikan kembali atau menghapusnya.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button onClick={handleAdminPublish} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] bg-goto-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-goto-dark disabled:opacity-50">
+                <Upload size={16} /> Publish Kembali
+              </button>
+              <button onClick={() => handleAdminStatusChange("DRAFT")} disabled={saving} className="flex items-center gap-1.5 rounded-[12px] border border-blue-300 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                <Undo2 size={16} /> Kembalikan ke Draf
+              </button>
+            </div>
+          </div>
+        )}
+
         {currentStatus === "IN_REVIEW" && (
           <div className="mb-6 rounded-[12px] border-2 border-yellow-300 bg-yellow-50 p-5">
             <h3 className="flex items-center gap-2 text-base font-bold text-yellow-800">

@@ -475,8 +475,8 @@ export async function PUT(
         return successResponse(updated);
       }
 
-      // Admin: DRAFT/IN_REVIEW/REJECTED → PUBLISHED (langsung publish, skip semua)
-      if (data.status === "PUBLISHED" && ["DRAFT", "IN_REVIEW", "REJECTED"].includes(article.status)) {
+      // Admin: DRAFT/IN_REVIEW/REJECTED/ARCHIVED → PUBLISHED (langsung publish, skip semua)
+      if (data.status === "PUBLISHED" && ["DRAFT", "IN_REVIEW", "REJECTED", "ARCHIVED"].includes(article.status)) {
         const updated = await prisma.article.update({
           where: { id: params.id },
           data: { status: "PUBLISHED", verificationLabel: "VERIFIED", publishedAt: new Date(), reviewedBy: session.user.id, reviewedAt: new Date() },
@@ -485,6 +485,7 @@ export async function PUT(
         await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish: ${article.status} → PUBLISHED. Artikel: ${article.title}`);
         revalidatePath("/");
         revalidatePath("/berita");
+        onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
         return successResponse(updated);
       }
 
