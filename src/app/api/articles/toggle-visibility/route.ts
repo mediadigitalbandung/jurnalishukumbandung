@@ -2,6 +2,12 @@ import { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
+import { purgeCloudflareCache } from "@/lib/seo-utils";
+
+const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+function purgeHomepage() {
+  return purgeCloudflareCache([BASE, `${BASE}/`, `${BASE}/berita`]).catch(() => null);
+}
 
 // POST /api/articles/toggle-visibility — hide or unhide article
 export async function POST(req: NextRequest) {
@@ -30,6 +36,7 @@ export async function POST(req: NextRequest) {
       });
       revalidatePath("/");
       revalidatePath("/berita");
+      purgeHomepage();
       return successResponse({ message: `Artikel "${article.title}" disembunyikan`, status: "ARCHIVED" });
     } else {
       // Unhide: restore to PUBLISHED
@@ -39,6 +46,7 @@ export async function POST(req: NextRequest) {
       });
       revalidatePath("/");
       revalidatePath("/berita");
+      purgeHomepage();
       return successResponse({ message: `Artikel "${article.title}" ditampilkan kembali`, status: "PUBLISHED" });
     }
   } catch (error) {

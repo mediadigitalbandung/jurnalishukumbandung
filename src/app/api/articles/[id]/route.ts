@@ -18,7 +18,12 @@ import {
   sendArticlePublishedEmail,
   sendNewReviewEmail,
 } from "@/lib/email";
-import { onArticlePublished, autoGenerateSeoFields } from "@/lib/seo-utils";
+import { onArticlePublished, autoGenerateSeoFields, purgeCloudflareCache } from "@/lib/seo-utils";
+
+const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+function purgeHomepage() {
+  return purgeCloudflareCache([BASE, `${BASE}/`, `${BASE}/berita`]).catch(() => null);
+}
 
 const updateArticleSchema = z.object({
   title: z.string().min(5).max(255).optional(),
@@ -347,6 +352,7 @@ export async function PUT(
 
         revalidatePath("/");
         revalidatePath("/berita");
+        purgeHomepage();
         return successResponse(updated);
       }
 
@@ -687,6 +693,7 @@ export async function PUT(
 
         revalidatePath("/");
         revalidatePath("/berita");
+        purgeHomepage();
         return successResponse(updated);
       }
 
