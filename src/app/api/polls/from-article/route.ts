@@ -1,24 +1,22 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { successResponse, errorResponse, requireRole } from "@/lib/api-utils";
-import Anthropic from "@anthropic-ai/sdk";
+import { successResponse, errorResponse, requireRole, ApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireRole(request, ["SUPER_ADMIN", "EDITOR"]);
-  if (!authResult.success) return errorResponse(authResult.error || "Unauthorized", 403);
+  await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
   try {
     const body = await request.json();
     const { articleId } = body;
-    if (!articleId) return errorResponse("articleId wajib diisi", 400);
+    if (!articleId) return errorResponse(new ApiError("articleId wajib diisi", 400));
 
     // Check if poll already exists for this article
-    const existingPoll = await prisma.poll.findUnique({
+    const existingPoll = await prisma.poll.findFirst({
       where: { articleId },
       include: { options: { select: { id: true, label: true, votes: true } } },
     });
     if (existingPoll) {
-      return errorResponse("Polling untuk artikel ini sudah ada", 409);
+      return errorResponse(new ApiError("Polling untuk artikel ini sudah ada", 409));
     }
 
     // Fetch article
@@ -32,17 +30,34 @@ export async function POST(request: NextRequest) {
         categoryId: true,
       },
     });
-    if (!article) return errorResponse("Artikel tidak ditemukan", 404);
+    if (!article) return errorResponse(new ApiError("Artikel tidak ditemukan", 404));
 
-    // Generate poll using Claude AI
-    const client = new Anthropic();
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
-      messages: [
-        {
-          role: "user",
-          content: `Kamu adalah asisten jurnalis hukum. Berdasarkan artikel berita hukum berikut, buatlah 1 pertanyaan polling yang menarik untuk pembaca dan 4 pilihan jawaban yang relevan.
+    // Get DeepSeek API key
+    const setting = await prisma.systemSetting.findUnique({ where: { key: "deepseek_api_key" } });
+    if (!setting?.value) return errorResponse(new ApiError("API Key AI belum dikonfigurasi", 400));
+
+    // Generate poll using DeepSeek AI
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    let aiResponse: Response;
+    try {
+      aiResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${setting.value}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "Kamu adalah asisten jurnalis hukum. Balas HANYA dalam format JSON yang diminta tanpa penjelasan apapun.",
+            },
+            {
+              role: "user",
+              content: `Berdasarkan artikel berita hukum berikut, buatlah 1 pertanyaan polling yang menarik untuk pembaca dan 4 pilihan jawaban yang relevan.
 
 Judul artikel: ${article.title}${article.excerpt ? `\nRingkasan: ${article.excerpt}` : ""}
 
@@ -54,12 +69,22 @@ Aturan:
 
 Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
 {"question":"pertanyaan polling","options":["pilihan 1","pilihan 2","pilihan 3","pilihan 4"]}`,
-        },
-      ],
-    });
+            },
+          ],
+          max_tokens: 400,
+          temperature: 0.7,
+        }),
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-    const text =
-      message.content[0].type === "text" ? message.content[0].text.trim() : "";
+    if (!aiResponse.ok) {
+      return errorResponse(new ApiError("AI gagal generate pertanyaan polling", 500));
+    }
+
+    const aiData = await aiResponse.json();
+    const text = aiData.choices?.[0]?.message?.content?.trim() || "";
 
     // Parse AI response
     let pollData: { question: string; options: string[] };
@@ -75,7 +100,7 @@ Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
         throw new Error("Invalid structure");
       }
     } catch {
-      return errorResponse("AI gagal generate pertanyaan polling", 500);
+      return errorResponse(new ApiError("AI gagal generate pertanyaan polling", 500));
     }
 
     // Create poll linked to article
@@ -97,10 +122,10 @@ Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
       },
     });
 
-    return successResponse(poll, "Polling berhasil dibuat dari artikel");
+    return successResponse(poll, 201);
   } catch (err) {
     console.error("[from-article]", err);
-    return errorResponse("Terjadi kesalahan server", 500);
+    return errorResponse(err);
   }
 }
 
@@ -108,7 +133,7 @@ Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const articleId = searchParams.get("articleId");
-  if (!articleId) return errorResponse("articleId wajib diisi", 400);
+  if (!articleId) return errorResponse(new ApiError("articleId wajib diisi", 400));
 
   const poll = await prisma.poll.findUnique({
     where: { articleId },

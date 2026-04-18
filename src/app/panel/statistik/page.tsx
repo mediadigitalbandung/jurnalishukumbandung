@@ -1,0 +1,752 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
+import {
+  FileText,
+  Eye,
+  MessageCircle,
+  Hash,
+  Users,
+  TrendingUp,
+  Globe,
+  Search,
+  BarChart3,
+  Cloud,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  Settings,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import Link from "next/link";
+
+// Dynamically import Recharts to avoid SSR issues
+const AreaChart = dynamic(() => import("recharts").then((m) => m.AreaChart), { ssr: false });
+const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
+const PieChart = dynamic(() => import("recharts").then((m) => m.PieChart), { ssr: false });
+const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
+const Area = dynamic(() => import("recharts").then((m) => m.Area), { ssr: false });
+const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
+const Pie = dynamic(() => import("recharts").then((m) => m.Pie), { ssr: false });
+const Line = dynamic(() => import("recharts").then((m) => m.Line), { ssr: false });
+const Cell = dynamic(() => import("recharts").then((m) => m.Cell), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then((m) => m.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
+const Legend = dynamic(() => import("recharts").then((m) => m.Legend), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
+
+const TABS = ["overview", "internal", "search-console", "analytics", "cloudflare"] as const;
+type Tab = typeof TABS[number];
+
+const TAB_LABELS: Record<Tab, { label: string; icon: React.ElementType }> = {
+  overview: { label: "Overview", icon: BarChart3 },
+  internal: { label: "Internal", icon: FileText },
+  "search-console": { label: "Search Console", icon: Search },
+  analytics: { label: "Google Analytics", icon: TrendingUp },
+  cloudflare: { label: "Cloudflare", icon: Cloud },
+};
+
+const PIE_COLORS = ["#00AA13", "#0088CC", "#FF9500", "#FF3B30", "#AF52DE", "#5856D6", "#34C759", "#FF6B00"];
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+  return `${(bytes / 1073741824).toFixed(2)} GB`;
+}
+
+function formatNumber(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}jt`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}rb`;
+  return n.toString();
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  color = "green",
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: "green" | "blue" | "orange" | "red" | "purple";
+}) {
+  const colorMap = {
+    green: "bg-green-50 text-goto-green",
+    blue: "bg-blue-50 text-blue-600",
+    orange: "bg-orange-50 text-orange-500",
+    red: "bg-red-50 text-red-500",
+    purple: "bg-purple-50 text-purple-600",
+  };
+  return (
+    <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-11 w-11 items-center justify-center rounded-full ${colorMap[color]}`}>
+          <Icon size={22} />
+        </div>
+        <div>
+          <p className="text-sm text-txt-secondary">{label}</p>
+          <p className="text-2xl font-bold text-txt-primary">{value}</p>
+          {sub && <p className="text-xs text-txt-muted mt-0.5">{sub}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnconfiguredCard({ title, keys }: { title: string; keys: string[] }) {
+  return (
+    <div className="rounded-[12px] border border-dashed border-border bg-surface-secondary p-8 text-center">
+      <WifiOff size={40} className="mx-auto text-txt-muted mb-3" />
+      <h3 className="text-lg font-semibold text-txt-primary mb-1">{title} Belum Dikonfigurasi</h3>
+      <p className="text-sm text-txt-secondary mb-4">
+        Masukkan credentials ke tabel <code className="bg-border px-1 rounded text-xs">system_settings</code> untuk mengaktifkan.
+      </p>
+      <div className="inline-block text-left bg-surface border border-border rounded-[10px] p-4 text-sm">
+        <p className="font-semibold text-txt-primary mb-2">Keys yang dibutuhkan:</p>
+        {keys.map((k) => (
+          <div key={k} className="flex items-center gap-2 py-1">
+            <Settings size={13} className="text-txt-muted flex-shrink-0" />
+            <code className="text-xs text-goto-green">{k}</code>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4">
+        <Link
+          href="/panel/pengaturan"
+          className="inline-flex items-center gap-2 rounded-full bg-goto-green px-4 py-2 text-sm font-medium text-white hover:bg-goto-dark transition-colors"
+        >
+          <Settings size={14} />
+          Buka Pengaturan
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function shortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+// ───── TABS ─────
+
+function OverviewTab({
+  internal,
+  gsc,
+  ga,
+  cf,
+}: {
+  internal: Record<string, unknown> | null;
+  gsc: Record<string, unknown> | null;
+  ga: Record<string, unknown> | null;
+  cf: Record<string, unknown> | null;
+}) {
+  const sum = (internal as { summary?: Record<string, number> } | null)?.summary;
+  const gscTotals = (gsc as { totals?: Record<string, number> } | null)?.totals;
+  const gaSummary = (ga as { summary?: Record<string, number> } | null)?.summary;
+  const cfTotals = (cf as { totals?: Record<string, number> } | null)?.totals;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={FileText} label="Total Artikel" value={formatNumber(sum?.publishedArticles || 0)} sub={`${sum?.draftArticles || 0} draft`} color="green" />
+        <StatCard icon={Eye} label="Total Views" value={formatNumber(sum?.totalViews || 0)} color="blue" />
+        <StatCard icon={MessageCircle} label="Komentar" value={formatNumber(sum?.totalComments || 0)} color="orange" />
+        <StatCard icon={Users} label="Pengguna" value={formatNumber(sum?.totalUsers || 0)} sub={`${sum?.totalTags || 0} tags`} color="purple" />
+      </div>
+
+      {/* External sources summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Search Console */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <div className="flex items-center gap-2 mb-3">
+            <Search size={18} className="text-blue-500" />
+            <h3 className="font-semibold text-txt-primary">Google Search Console</h3>
+            {gsc && (gsc as { configured?: boolean }).configured !== false
+              ? <CheckCircle size={14} className="text-goto-green ml-auto" />
+              : <WifiOff size={14} className="text-txt-muted ml-auto" />}
+          </div>
+          {gscTotals ? (
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div><p className="text-xl font-bold text-txt-primary">{formatNumber(gscTotals.clicks || 0)}</p><p className="text-xs text-txt-muted">Klik</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{formatNumber(gscTotals.impressions || 0)}</p><p className="text-xs text-txt-muted">Impresi</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{(gscTotals.avgCtr || 0).toFixed(1)}%</p><p className="text-xs text-txt-muted">CTR</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">#{(gscTotals.avgPosition || 0).toFixed(1)}</p><p className="text-xs text-txt-muted">Posisi</p></div>
+            </div>
+          ) : (
+            <p className="text-sm text-txt-muted text-center py-4">Belum dikonfigurasi</p>
+          )}
+        </div>
+
+        {/* GA4 */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp size={18} className="text-orange-500" />
+            <h3 className="font-semibold text-txt-primary">Google Analytics</h3>
+            {ga && (ga as { configured?: boolean }).configured !== false
+              ? <CheckCircle size={14} className="text-goto-green ml-auto" />
+              : <WifiOff size={14} className="text-txt-muted ml-auto" />}
+          </div>
+          {gaSummary ? (
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div><p className="text-xl font-bold text-txt-primary">{formatNumber(gaSummary.sessions || 0)}</p><p className="text-xs text-txt-muted">Sesi</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{formatNumber(gaSummary.pageViews || 0)}</p><p className="text-xs text-txt-muted">Pageview</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{(gaSummary.bounceRate || 0).toFixed(1)}%</p><p className="text-xs text-txt-muted">Bounce</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{formatDuration(gaSummary.avgSessionDuration || 0)}</p><p className="text-xs text-txt-muted">Durasi</p></div>
+            </div>
+          ) : (
+            <p className="text-sm text-txt-muted text-center py-4">Belum dikonfigurasi</p>
+          )}
+        </div>
+
+        {/* Cloudflare */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <div className="flex items-center gap-2 mb-3">
+            <Cloud size={18} className="text-orange-400" />
+            <h3 className="font-semibold text-txt-primary">Cloudflare</h3>
+            {cf && (cf as { configured?: boolean }).configured !== false
+              ? <CheckCircle size={14} className="text-goto-green ml-auto" />
+              : <WifiOff size={14} className="text-txt-muted ml-auto" />}
+          </div>
+          {cfTotals ? (
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div><p className="text-xl font-bold text-txt-primary">{formatNumber((cfTotals as { requests?: number }).requests || 0)}</p><p className="text-xs text-txt-muted">Request</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{formatBytes((cfTotals as { bytes?: number }).bytes || 0)}</p><p className="text-xs text-txt-muted">Bandwidth</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{formatNumber((cfTotals as { uniques?: number }).uniques || 0)}</p><p className="text-xs text-txt-muted">Pengunjung</p></div>
+              <div><p className="text-xl font-bold text-txt-primary">{(cfTotals as { cacheRatio?: number }).cacheRatio || 0}%</p><p className="text-xs text-txt-muted">Cache</p></div>
+            </div>
+          ) : (
+            <p className="text-sm text-txt-muted text-center py-4">Belum dikonfigurasi</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InternalTab({ data }: { data: Record<string, unknown> | null }) {
+  if (!data) return <div className="text-center py-16 text-txt-muted">Memuat data...</div>;
+
+  const articlesPerDay = (data.articlesPerDay as { date: string; count: number }[]) || [];
+  const commentsPerDay = (data.commentsPerDay as { date: string; count: number }[]) || [];
+  const categoryStats = (data.categoryStats as { name: string; count: number }[]) || [];
+  const topTags = (data.topTags as { name: string; count: number }[]) || [];
+  const topArticles = (data.topArticlesByViews as { title: string; slug: string; views: number; category: string }[]) || [];
+  const summary = (data.summary as Record<string, number>) || {};
+
+  const combined = articlesPerDay.map((d, i) => ({
+    date: shortDate(d.date),
+    artikel: d.count,
+    komentar: commentsPerDay[i]?.count || 0,
+  }));
+
+  return (
+    <div className="space-y-6">
+      {/* Status cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard icon={CheckCircle} label="Terbit" value={formatNumber(summary.publishedArticles || 0)} color="green" />
+        <StatCard icon={FileText} label="Draft" value={formatNumber(summary.draftArticles || 0)} color="blue" />
+        <StatCard icon={AlertCircle} label="Review" value={formatNumber(summary.reviewArticles || 0)} color="orange" />
+        <StatCard icon={Hash} label="Total Tags" value={formatNumber(summary.totalTags || 0)} color="purple" />
+      </div>
+
+      {/* Artikel + Komentar per hari */}
+      <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+        <h3 className="font-semibold text-txt-primary mb-4">Aktivitas 30 Hari Terakhir</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={combined} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradArtikel" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00AA13" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#00AA13" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradKomentar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#0088CC" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#0088CC" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Area type="monotone" dataKey="artikel" stroke="#00AA13" fill="url(#gradArtikel)" strokeWidth={2} name="Artikel Terbit" />
+            <Area type="monotone" dataKey="komentar" stroke="#0088CC" fill="url(#gradKomentar)" strokeWidth={2} name="Komentar" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category distribution */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Artikel per Kategori</h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={categoryStats} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                {categoryStats.map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Top tags */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Top 20 Tags</h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={topTags.slice(0, 12)} layout="vertical" margin={{ left: 5, right: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 10 }} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#00AA13" radius={[0, 4, 4, 0]} name="Artikel" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Top articles by views */}
+      <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+        <h3 className="font-semibold text-txt-primary mb-4">Top 10 Artikel Terbanyak Dibaca</h3>
+        <div className="space-y-2">
+          {topArticles.map((a, i) => (
+            <div key={a.slug} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+              <span className="w-7 h-7 flex items-center justify-center rounded-full bg-surface-secondary text-sm font-bold text-txt-secondary flex-shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-txt-primary truncate">{a.title}</p>
+                <p className="text-xs text-txt-muted">{a.category}</p>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Eye size={13} className="text-txt-muted" />
+                <span className="text-sm font-semibold text-txt-primary">{formatNumber(a.views)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchConsoleTab({ data }: { data: Record<string, unknown> | null }) {
+  if (!data) return <div className="text-center py-16 text-txt-muted">Memuat data...</div>;
+  if ((data as { configured?: boolean }).configured === false) {
+    return (
+      <UnconfiguredCard
+        title="Google Search Console"
+        keys={["google_service_account", "search_console_site_url"]}
+      />
+    );
+  }
+
+  const totals = (data.totals as Record<string, number>) || {};
+  const dailyData = (data.dailyData as { date: string; clicks: number; impressions: number; ctr: number; position: number }[]) || [];
+  const topQueries = (data.topQueries as { query: string; clicks: number; impressions: number; ctr: number; position: number }[]) || [];
+  const topPages = (data.topPages as { page: string; clicks: number; impressions: number }[]) || [];
+
+  const chartData = dailyData.map((d) => ({ ...d, date: shortDate(d.date) }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard icon={Eye} label="Total Klik" value={formatNumber(totals.clicks || 0)} color="green" />
+        <StatCard icon={Globe} label="Impresi" value={formatNumber(totals.impressions || 0)} color="blue" />
+        <StatCard icon={TrendingUp} label="CTR Rata-rata" value={`${(totals.avgCtr || 0).toFixed(1)}%`} color="orange" />
+        <StatCard icon={Search} label="Posisi Rata-rata" value={`#${(totals.avgPosition || 0).toFixed(1)}`} color="purple" />
+      </div>
+
+      {/* Clicks + Impressions trend */}
+      <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+        <h3 className="font-semibold text-txt-primary mb-4">Klik & Impresi Harian</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+            <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Line yAxisId="left" type="monotone" dataKey="clicks" stroke="#00AA13" strokeWidth={2} dot={false} name="Klik" />
+            <Line yAxisId="right" type="monotone" dataKey="impressions" stroke="#0088CC" strokeWidth={2} dot={false} name="Impresi" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top queries */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Top Kata Kunci</h3>
+          <div className="space-y-2">
+            {topQueries.map((q, i) => (
+              <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
+                <span className="w-6 text-xs text-txt-muted text-right flex-shrink-0">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-txt-primary truncate">{q.query}</p>
+                  <p className="text-xs text-txt-muted">CTR {q.ctr}% · Posisi #{q.position}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-semibold text-txt-primary">{formatNumber(q.clicks)}</p>
+                  <p className="text-xs text-txt-muted">klik</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top pages */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Top Halaman</h3>
+          <div className="space-y-2">
+            {topPages.map((p, i) => (
+              <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
+                <span className="w-6 text-xs text-txt-muted text-right flex-shrink-0">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-txt-primary truncate">{p.page.replace("https://jurnalishukumbandung.com", "")}</p>
+                  <p className="text-xs text-txt-muted">{formatNumber(p.impressions)} impresi</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-semibold text-txt-primary">{formatNumber(p.clicks)}</p>
+                  <p className="text-xs text-txt-muted">klik</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsTab({ data }: { data: Record<string, unknown> | null }) {
+  if (!data) return <div className="text-center py-16 text-txt-muted">Memuat data...</div>;
+  if ((data as { configured?: boolean }).configured === false) {
+    return (
+      <UnconfiguredCard
+        title="Google Analytics GA4"
+        keys={["google_service_account", "ga4_property_id"]}
+      />
+    );
+  }
+
+  const summary = (data.summary as Record<string, number> | null);
+  const dailyData = (data.dailyData as { date: string; sessions: number; pageViews: number; newUsers: number }[]) || [];
+  const deviceData = (data.deviceData as { device: string; sessions: number; pageViews: number }[]) || [];
+  const countryData = (data.countryData as { country: string; sessions: number }[]) || [];
+
+  const chartData = dailyData.map((d) => ({ ...d, date: shortDate(d.date) }));
+  const totalSessionsForPercent = deviceData.reduce((a, d) => a + d.sessions, 0);
+
+  return (
+    <div className="space-y-6">
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <StatCard icon={Users} label="Sesi" value={formatNumber(summary.sessions || 0)} color="green" />
+          <StatCard icon={Eye} label="Pageview" value={formatNumber(summary.pageViews || 0)} color="blue" />
+          <StatCard icon={TrendingUp} label="User Baru" value={formatNumber(summary.newUsers || 0)} color="orange" />
+          <StatCard icon={Globe} label="Total User" value={formatNumber(summary.totalUsers || 0)} color="purple" />
+          <StatCard icon={AlertCircle} label="Bounce Rate" value={`${(summary.bounceRate || 0).toFixed(1)}%`} color="red" />
+          <StatCard icon={CheckCircle} label="Durasi/Sesi" value={formatDuration(summary.avgSessionDuration || 0)} color="green" />
+        </div>
+      )}
+
+      {/* Sessions + Pageviews trend */}
+      <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+        <h3 className="font-semibold text-txt-primary mb-4">Sesi & Pageview Harian</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradSessions" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00AA13" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#00AA13" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradPageviews" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#0088CC" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#0088CC" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Area type="monotone" dataKey="sessions" stroke="#00AA13" fill="url(#gradSessions)" strokeWidth={2} name="Sesi" />
+            <Area type="monotone" dataKey="pageViews" stroke="#0088CC" fill="url(#gradPageviews)" strokeWidth={2} name="Pageview" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Device breakdown */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Perangkat Pengunjung</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={deviceData} dataKey="sessions" nameKey="device" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                {deviceData.map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="mt-2 space-y-1">
+            {deviceData.map((d, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="capitalize text-txt-primary">{d.device}</span>
+                </div>
+                <span className="text-txt-secondary">{totalSessionsForPercent > 0 ? Math.round((d.sessions / totalSessionsForPercent) * 100) : 0}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top countries */}
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Asal Pengunjung (Top 10)</h3>
+          <div className="space-y-2">
+            {countryData.map((c, i) => {
+              const maxSessions = countryData[0]?.sessions || 1;
+              const pct = Math.round((c.sessions / maxSessions) * 100);
+              return (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="w-5 text-xs text-txt-muted text-right">{i + 1}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-sm text-txt-primary">{c.country}</span>
+                      <span className="text-sm font-semibold text-txt-primary">{formatNumber(c.sessions)}</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-surface-secondary overflow-hidden">
+                      <div className="h-full bg-goto-green rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CloudflareTab({ data }: { data: Record<string, unknown> | null }) {
+  if (!data) return <div className="text-center py-16 text-txt-muted">Memuat data...</div>;
+  if ((data as { configured?: boolean }).configured === false) {
+    return (
+      <UnconfiguredCard
+        title="Cloudflare"
+        keys={["cloudflare_api_token", "cloudflare_zone_id"]}
+      />
+    );
+  }
+
+  const totals = (data.totals as Record<string, number> | null);
+  const dailyData = (data.dailyData as { date: string; requests: number; pageViews: number; bytes: number; uniques: number; threats: number }[]) || [];
+  const chartData = dailyData.map((d) => ({ ...d, date: shortDate(d.date), bandwidth: Math.round(d.bytes / 1048576) }));
+
+  return (
+    <div className="space-y-6">
+      {totals && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatCard icon={Globe} label="Total Request" value={formatNumber(totals.requests || 0)} color="orange" />
+          <StatCard icon={Wifi} label="Bandwidth" value={formatBytes(totals.bytes || 0)} color="blue" />
+          <StatCard icon={Users} label="Pengunjung Unik" value={formatNumber(totals.uniques || 0)} color="green" />
+          <StatCard icon={CheckCircle} label="Cache Ratio" value={`${totals.cacheRatio || 0}%`} color="purple" />
+        </div>
+      )}
+
+      {/* Requests trend */}
+      <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+        <h3 className="font-semibold text-txt-primary mb-4">Traffic Harian (Requests)</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradRequests" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#FF9500" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#FF9500" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradUniques" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00AA13" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#00AA13" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Area type="monotone" dataKey="requests" stroke="#FF9500" fill="url(#gradRequests)" strokeWidth={2} name="Request" />
+            <Area type="monotone" dataKey="uniques" stroke="#00AA13" fill="url(#gradUniques)" strokeWidth={2} name="Pengunjung Unik" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Bandwidth + threats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Bandwidth Harian (MB)</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v) => [`${v} MB`, "Bandwidth"]} />
+              <Bar dataKey="bandwidth" fill="#0088CC" radius={[3, 3, 0, 0]} name="Bandwidth (MB)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+          <h3 className="font-semibold text-txt-primary mb-4">Ancaman Terblokir Harian</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="threats" fill="#FF3B30" radius={[3, 3, 0, 0]} name="Ancaman" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───── MAIN PAGE ─────
+
+export default function StatistikPage() {
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [days, setDays] = useState(30);
+  const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const [internalData, setInternalData] = useState<Record<string, unknown> | null>(null);
+  const [gscData, setGscData] = useState<Record<string, unknown> | null>(null);
+  const [gaData, setGaData] = useState<Record<string, unknown> | null>(null);
+  const [cfData, setCfData] = useState<Record<string, unknown> | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [intRes, gscRes, gaRes, cfRes] = await Promise.all([
+        fetch("/api/stats/internal"),
+        fetch(`/api/stats/google-search?days=${days}`),
+        fetch(`/api/stats/google-analytics?days=${days}`),
+        fetch(`/api/stats/cloudflare?days=${days}`),
+      ]);
+      const [intJson, gscJson, gaJson, cfJson] = await Promise.all([
+        intRes.json(),
+        gscRes.json(),
+        gaRes.json(),
+        cfRes.json(),
+      ]);
+      setInternalData(intJson.data || null);
+      setGscData(gscJson.data || null);
+      setGaData(gaJson.data || null);
+      setCfData(cfJson.data || null);
+      setLastUpdated(new Date());
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [days]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-txt-primary">Statistik Website</h1>
+          <p className="text-sm text-txt-secondary mt-0.5">
+            {lastUpdated
+              ? `Diperbarui: ${lastUpdated.toLocaleTimeString("id-ID")}`
+              : "Memuat data..."}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Period selector */}
+          <select
+            value={days}
+            onChange={(e) => setDays(parseInt(e.target.value))}
+            className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-goto-green"
+          >
+            <option value={7}>7 hari</option>
+            <option value={30}>30 hari</option>
+            <option value={60}>60 hari</option>
+            <option value={90}>90 hari</option>
+          </select>
+          <button
+            onClick={fetchAll}
+            disabled={loading}
+            className="flex items-center gap-2 rounded-full bg-goto-green px-4 py-2 text-sm font-medium text-white hover:bg-goto-dark transition-colors disabled:opacity-60"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Tab navigation */}
+      <div className="flex gap-1 overflow-x-auto rounded-[12px] bg-surface-secondary p-1 border border-border">
+        {TABS.map((tab) => {
+          const { label, icon: Icon } = TAB_LABELS[tab];
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-[10px] px-4 py-2.5 text-sm font-medium transition-colors flex-shrink-0 ${
+                activeTab === tab
+                  ? "bg-surface text-txt-primary shadow-card"
+                  : "text-txt-secondary hover:text-txt-primary"
+              }`}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Loading overlay */}
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-txt-muted">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-goto-green border-t-transparent" />
+          Memuat data...
+        </div>
+      )}
+
+      {/* Tab content */}
+      {activeTab === "overview" && (
+        <OverviewTab internal={internalData} gsc={gscData} ga={gaData} cf={cfData} />
+      )}
+      {activeTab === "internal" && <InternalTab data={internalData} />}
+      {activeTab === "search-console" && <SearchConsoleTab data={gscData} />}
+      {activeTab === "analytics" && <AnalyticsTab data={gaData} />}
+      {activeTab === "cloudflare" && <CloudflareTab data={cfData} />}
+    </div>
+  );
+}
