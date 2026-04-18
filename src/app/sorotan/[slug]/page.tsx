@@ -80,7 +80,16 @@ const angleIcons: Record<string, typeof BookOpen> = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const sorotan = await prisma.sorotan.findUnique({
     where: { slug: params.slug },
-    include: { article: { select: { title: true, slug: true, featuredImage: true, category: { select: { name: true } }, author: { select: { name: true } } } } },
+    include: {
+      article: {
+        select: {
+          title: true, slug: true, featuredImage: true,
+          category: { select: { name: true } },
+          author: { select: { name: true } },
+          tags: { select: { name: true } },
+        },
+      },
+    },
   });
   if (!sorotan) return { title: "Sorotan Tidak Ditemukan" };
 
@@ -90,10 +99,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? (sorotan.article.featuredImage.startsWith("http") ? sorotan.article.featuredImage : `${appUrl}${sorotan.article.featuredImage}`)
     : `${appUrl}/logo-jhb.png`;
 
+  const articleTagNames = sorotan.article.tags?.map((t: { name: string }) => t.name) ?? [];
+  const keywordsStr = [
+    angleLabels[sorotan.angle]?.toLowerCase() || sorotan.angle,
+    sorotan.article.category.name.toLowerCase(),
+    ...articleTagNames.map((t: string) => t.toLowerCase()),
+    "hukum bandung",
+    "berita hukum",
+  ].join(", ");
+
   return {
     title: sorotan.title,
     description: plainContent,
-    keywords: `${angleLabels[sorotan.angle]?.toLowerCase() || sorotan.angle}, ${sorotan.article.category.name.toLowerCase()}, hukum bandung, berita hukum`,
+    keywords: keywordsStr,
     openGraph: {
       title: sorotan.title,
       description: plainContent,
@@ -178,6 +196,7 @@ export default async function SorotanPage({ params }: PageProps) {
     },
     mainEntityOfPage: `${appUrl}/sorotan/${params.slug}`,
     articleSection: article.category.name,
+    keywords: article.tags?.map((t: { name: string }) => t.name).join(", ") || article.category.name,
     wordCount,
     isAccessibleForFree: true,
     inLanguage: "id-ID",

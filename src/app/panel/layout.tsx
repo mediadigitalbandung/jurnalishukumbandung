@@ -32,6 +32,7 @@ import {
   Share2,
   AlertCircle,
   Clock,
+  Hash,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ const menuItems: MenuItem[] = [
   { name: "Polling", href: "/panel/polling", icon: Vote, adminOnly: true },
   { name: "Statistik", href: "/panel/statistik-editor", icon: BarChart3, editorOnly: true },
   { name: "Aktivitas", href: "/panel/aktivitas", icon: History, superAdminOnly: true },
+  { name: "Tags Manager", href: "/panel/tags", icon: Hash, adminOnly: true },
   { name: "SEO Monitor", href: "/panel/seo", icon: Globe, superAdminOnly: true },
   { name: "Sorotan SEO", href: "/panel/sorotan", icon: Sparkles, superAdminOnly: true },
   { name: "Auto-Artikel", href: "/panel/auto-artikel", icon: Bot, superAdminOnly: true },

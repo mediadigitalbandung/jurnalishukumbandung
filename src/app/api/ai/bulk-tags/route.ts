@@ -1,41 +1,19 @@
 import { NextRequest } from "next/server";
 import { requireRole, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
+import { slugify } from "@/lib/utils";
 
-export async function POST(req: NextRequest) {
-  try {
-    await requireRole(["SUPER_ADMIN", "EDITOR"]);
-
-    // Get DeepSeek API key
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-    if (!setting?.value) {
-      throw new ApiError("API Key AI belum dikonfigurasi", 400);
-    }
-
-    // Get articles that have fewer than 5 tags
-    const articles = await prisma.article.findMany({
-      where: { status: "PUBLISHED" },
-      include: { tags: true, category: true },
-    });
-
-    const articlesNeedingTags = articles.filter(a => a.tags.length < 5);
-
-    let processed = 0;
-    let totalTagsAdded = 0;
-    const results: { title: string; tags: string[] }[] = [];
-
-    for (const article of articlesNeedingTags) {
-      try {
-        const plainContent = article.content.replace(/<[^>]*>/g, "").slice(0, 1500);
-
-        const prompt = `Berikan 8-10 tag SEO-friendly dalam Bahasa Indonesia untuk artikel berita hukum berikut.
+async function generateTagsForArticle(
+  article: { id: string; title: string; content: string; tags: { name: string }[]; category: { name: string } | null },
+  apiKey: string
+): Promise<string[]> {
+  const plainContent = article.content.replace(/<[^>]*>/g, "").slice(0, 1500);
+  const prompt = `Berikan 8-10 tag SEO-friendly dalam Bahasa Indonesia untuk artikel berita hukum berikut.
 Tag harus:
 - Kata kunci yang orang mungkin cari di Google
 - Campuran: topik spesifik + lokasi + hukum umum
 - Huruf kecil, pisahkan dengan koma
-- Jangan ulangi tag yang sudah ada: ${article.tags.map(t => t.name).join(", ")}
+- Jangan ulangi tag yang sudah ada: ${article.tags.map((t) => t.name).join(", ")}
 
 Judul: ${article.title}
 Kategori: ${article.category?.name || ""}
@@ -43,85 +21,123 @@ Konten: ${plainContent}
 
 Format jawaban HANYA tag dipisah koma, tanpa penjelasan.`;
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-        let response: Response;
-        try {
-          response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            signal: controller.signal,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${setting.value}`,
-            },
-            body: JSON.stringify({
-              model: "deepseek-chat",
-              messages: [
-                { role: "system", content: "Kamu adalah SEO specialist untuk media berita hukum Indonesia. Jawab HANYA dengan daftar tag dipisah koma." },
-                { role: "user", content: prompt },
-              ],
-              max_tokens: 200,
-              temperature: 0.8,
-            }),
-          });
-        } finally {
-          clearTimeout(timeout);
-        }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: "Kamu adalah SEO specialist untuk media berita hukum Indonesia. Jawab HANYA dengan daftar tag dipisah koma." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 200,
+        temperature: 0.8,
+      }),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
-        if (!response.ok) continue;
+  if (!response.ok) return [];
 
-        const data = await response.json();
-        const result = data.choices?.[0]?.message?.content?.trim() || "";
+  const data = await response.json();
+  const result = data.choices?.[0]?.message?.content?.trim() || "";
 
-        // Parse tags
-        const newTags = result
-          .split(",")
-          .map((t: string) => t.trim().toLowerCase())
-          .filter((t: string) => t.length > 1 && t.length < 50)
-          .slice(0, 10);
+  return result
+    .split(",")
+    .map((t: string) => t.trim().toLowerCase())
+    .filter((t: string) => t.length > 1 && t.length < 50)
+    .slice(0, 10);
+}
 
+async function upsertTagsForArticle(articleId: string, newTags: string[]): Promise<number> {
+  let added = 0;
+  for (const tagName of newTags) {
+    const slug = slugify(tagName);
+    if (!slug) continue;
+    try {
+      await prisma.tag.upsert({
+        where: { slug },
+        update: {},
+        create: { name: tagName, slug },
+      });
+      const existing = await prisma.tag.findUnique({
+        where: { slug },
+        include: { articles: { where: { id: articleId } } },
+      });
+      if (existing && existing.articles.length === 0) {
+        await prisma.article.update({
+          where: { id: articleId },
+          data: { tags: { connect: { id: existing.id } } },
+        });
+        added++;
+      }
+    } catch { /* skip duplicate or invalid tags */ }
+  }
+  return added;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    await requireRole(["SUPER_ADMIN", "EDITOR"]);
+
+    const setting = await prisma.systemSetting.findUnique({ where: { key: "deepseek_api_key" } });
+    if (!setting?.value) throw new ApiError("API Key AI belum dikonfigurasi", 400);
+
+    const body = await req.json().catch(() => ({}));
+    const articleId: string | undefined = body?.articleId;
+
+    // ── Single-article mode ──
+    if (articleId) {
+      const article = await prisma.article.findUnique({
+        where: { id: articleId },
+        include: { tags: true, category: true },
+      });
+      if (!article) throw new ApiError("Artikel tidak ditemukan", 404);
+
+      const newTags = await generateTagsForArticle(article, setting.value);
+      if (newTags.length === 0) {
+        return successResponse({ processed: 0, totalTagsAdded: 0, results: [] });
+      }
+      const added = await upsertTagsForArticle(articleId, newTags);
+      return successResponse({
+        processed: 1,
+        totalTagsAdded: added,
+        totalArticles: 1,
+        articlesSkipped: 0,
+        results: [{ title: article.title, tags: newTags }],
+      });
+    }
+
+    // ── Bulk mode ──
+    const articles = await prisma.article.findMany({
+      where: { status: "PUBLISHED" },
+      include: { tags: true, category: true },
+    });
+
+    const articlesNeedingTags = articles.filter((a) => a.tags.length < 5);
+    let processed = 0;
+    let totalTagsAdded = 0;
+    const results: { title: string; tags: string[] }[] = [];
+
+    for (const article of articlesNeedingTags) {
+      try {
+        const newTags = await generateTagsForArticle(article, setting.value);
         if (newTags.length === 0) continue;
-
-        // Create tags and connect to article
-        for (const tagName of newTags) {
-          const slug = tagName.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-          if (!slug) continue;
-
-          try {
-            await prisma.tag.upsert({
-              where: { slug },
-              update: {},
-              create: { name: tagName, slug },
-            });
-
-            // Connect tag to article if not already connected
-            const existing = await prisma.tag.findUnique({
-              where: { slug },
-              include: { articles: { where: { id: article.id } } },
-            });
-
-            if (existing && existing.articles.length === 0) {
-              await prisma.article.update({
-                where: { id: article.id },
-                data: {
-                  tags: { connect: { id: existing.id } },
-                },
-              });
-              totalTagsAdded++;
-            }
-          } catch {
-            // Skip duplicate or invalid tags
-          }
-        }
-
+        const added = await upsertTagsForArticle(article.id, newTags);
+        totalTagsAdded += added;
         results.push({ title: article.title, tags: newTags });
         processed++;
-
-        // Small delay to avoid rate limiting DeepSeek
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch {
-        // Skip failed articles, continue with next
-      }
+        await new Promise((r) => setTimeout(r, 500));
+      } catch { /* skip failed articles */ }
     }
 
     return successResponse({

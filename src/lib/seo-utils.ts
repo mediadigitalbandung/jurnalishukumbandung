@@ -640,6 +640,55 @@ export async function autoGenerateSorotan(
   }
 }
 
+/* ── 7.5 Auto-generate tags on publish if article has < 3 tags ── */
+
+async function autoGenerateTagsForArticle(
+  articleId: string,
+  title: string,
+  content: string,
+  existingTags: { id: string; name: string }[]
+): Promise<number> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: "deepseek_api_key" } });
+    if (!setting?.value) return 0;
+
+    const plainContent = stripHtml(content).slice(0, 1500);
+    const prompt = `Berikan 8-10 tag SEO-friendly dalam Bahasa Indonesia untuk artikel berita hukum berikut.
+Tag harus: kata kunci yang dicari di Google, campuran topik spesifik + lokasi + hukum umum, huruf kecil, pisahkan koma.
+Jangan ulangi tag yang sudah ada: ${existingTags.map((t) => t.name).join(", ")}
+Judul: ${title}
+Konten: ${plainContent}
+Format: HANYA tag dipisah koma, tanpa penjelasan.`;
+
+    const result = await callDeepSeek(setting.value, prompt, 200);
+    const newTags = result
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 1 && t.length < 50)
+      .slice(0, 10);
+
+    let added = 0;
+    const { slugify: slugifyFn } = await import("@/lib/utils");
+    for (const tagName of newTags) {
+      const slug = slugifyFn(tagName);
+      if (!slug) continue;
+      try {
+        await prisma.tag.upsert({ where: { slug }, update: {}, create: { name: tagName, slug } });
+        const tag = await prisma.tag.findUnique({ where: { slug }, include: { articles: { where: { id: articleId } } } });
+        if (tag && tag.articles.length === 0) {
+          await prisma.article.update({ where: { id: articleId }, data: { tags: { connect: { id: tag.id } } } });
+          added++;
+        }
+      } catch { /* skip invalid */ }
+    }
+    if (added > 0) console.log(`[SEO] Auto-generated ${added} tags for article ${articleId}`);
+    return added;
+  } catch (error) {
+    console.error("[SEO] Auto-tag generation error:", error);
+    return 0;
+  }
+}
+
 /* ── 8. Full SEO automation on publish ─────────────────────────── */
 
 export async function onArticlePublished(slug: string, articleId: string, categoryId: string) {
@@ -671,11 +720,16 @@ export async function onArticlePublished(slug: string, articleId: string, catego
   // Get article data for FAQ generation + internal linking
   const articleData = await prisma.article.findUnique({
     where: { id: articleId },
-    select: { title: true, content: true, faqData: true, tags: { select: { id: true } } },
+    select: { title: true, content: true, faqData: true, tags: { select: { id: true, name: true } } },
   });
   const tagIds = articleData?.tags.map((t) => t.id) || [];
 
   const related = await getRelatedArticleSuggestions(articleId, categoryId, tagIds);
+
+  // Auto-generate tags if article has fewer than 3 tags (non-blocking)
+  if (articleData && articleData.tags.length < 3) {
+    tasks.push(autoGenerateTagsForArticle(articleId, articleData.title, articleData.content, articleData.tags).catch(() => null));
+  }
 
   // Auto-generate FAQ if not already present (non-blocking)
   if (articleData && !articleData.faqData) {
