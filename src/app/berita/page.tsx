@@ -12,12 +12,23 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const canonicalUrl = page > 1 ? `${appUrl}/berita?page=${page}` : `${appUrl}/berita`;
 
   return {
-    title: page > 1 ? `Semua Berita — Halaman ${page}` : "Semua Berita",
-    description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
+    title: page > 1 ? `Semua Berita Hukum — Halaman ${page}` : "Semua Berita Hukum Terbaru",
+    description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung. Liputan sidang, kasus hukum, analisis hukum pidana, perdata, dan tata negara.",
     openGraph: {
-      title: "Semua Berita - Jurnalis Hukum Bandung",
+      title: "Semua Berita Hukum Terbaru | Jurnalis Hukum Bandung",
       description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
       type: "website",
+      url: canonicalUrl,
+      siteName: "Jurnalis Hukum Bandung",
+      locale: "id_ID",
+      images: [{ url: `${appUrl}/logo-jhb.png`, width: 512, height: 512, alt: "Jurnalis Hukum Bandung" }],
+    },
+    twitter: {
+      card: "summary",
+      site: "@jurnalishukumbdg",
+      title: "Semua Berita Hukum Terbaru | Jurnalis Hukum Bandung",
+      description: "Kumpulan seluruh berita hukum terbaru dari Jurnalis Hukum Bandung.",
+      images: [`${appUrl}/logo-jhb.png`],
     },
     alternates: {
       canonical: canonicalUrl,
@@ -214,7 +225,7 @@ export default async function BeritaPage({ searchParams }: PageProps) {
 
         {/* Article grid */}
         {articles.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
             {articles.map((article) => (
               <ArticleCard key={article.slug} {...article} variant="standard" />
             ))}

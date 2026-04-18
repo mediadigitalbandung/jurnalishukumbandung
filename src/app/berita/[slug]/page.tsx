@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const authorUrl = `${appUrl}/penulis/${slugify(authorDisplayName)}`;
 
   return {
-    title: article.title,
+    title: article.seoTitle || article.title,
     description,
     keywords: article.tags?.map((t: { name: string }) => t.name).join(", "),
     authors: [{ name: authorDisplayName, url: authorUrl }],
@@ -876,7 +876,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                   </div>
                   <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
                     {relatedArticles.map((related) => (
-                      <div key={related.slug} className="shrink-0 w-[260px] sm:w-[280px]">
+                      <div key={related.slug} className="shrink-0 w-[min(260px,calc(100vw-2.5rem))] sm:w-[280px]">
                         <ArticleCard {...related} variant="standard" />
                       </div>
                     ))}

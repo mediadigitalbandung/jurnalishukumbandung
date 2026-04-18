@@ -103,7 +103,7 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
 
             {/* Content at bottom */}
             <div
-              className="absolute bottom-0 left-0 right-0 px-4 pb-8 pt-3 sm:px-8 sm:pb-9 lg:px-12"
+              className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 sm:px-8 sm:pb-9 lg:px-12"
               style={{
                 transform: isActive ? "translateY(0)" : "translateY(12px)",
                 opacity: isActive ? 1 : 0,
@@ -112,11 +112,11 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
                   : "transform 0.3s ease, opacity 0.2s ease",
               }}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/50">
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
                 {article.category.name}
               </span>
               <Link href={`/berita/${article.slug}`}>
-                <h3 className="mt-1 font-serif text-sm sm:text-[15px] font-bold leading-snug text-white line-clamp-3">
+                <h3 className="mt-1 font-serif text-sm sm:text-base font-bold leading-snug text-white line-clamp-3">
                   {article.title}
                 </h3>
               </Link>
@@ -125,7 +125,7 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
                   {article.excerpt}
                 </p>
               )}
-              <span className="mt-2 block text-[10px] text-white/30">
+              <span className="mt-2 block text-xs text-white/30">
                 {formatDate(article.publishedAt)}
               </span>
             </div>
@@ -140,7 +140,7 @@ export default function BreakingSlider({ items }: BreakingSliderProps) {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
-          <span className="text-[11px] font-bold uppercase tracking-widest text-white">
+          <span className="text-xs font-bold uppercase tracking-wider text-white">
             Breaking News
           </span>
         </div>

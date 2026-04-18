@@ -286,7 +286,7 @@ function SearchContent() {
                 setTimeout(() => setInputFocused(false), 200);
               }}
               placeholder="Cari berita hukum..."
-              className="input w-full py-3 pl-12 pr-4 text-lg"
+              className="input w-full py-3 pl-12 pr-4 text-base sm:text-lg"
               autoFocus
             />
           </div>

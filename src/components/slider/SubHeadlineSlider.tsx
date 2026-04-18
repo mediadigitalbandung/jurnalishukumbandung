@@ -113,13 +113,13 @@ export default function SubHeadlineSlider({ items }: SubHeadlineSliderProps) {
 
                   {/* Content overlay */}
                   <Link href={`/berita/${article.slug}`} className="absolute inset-0 flex flex-col justify-end p-4">
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-white/60">
                       {article.category.name}
                     </span>
-                    <h3 className="mt-1 font-serif text-sm font-bold leading-snug text-white line-clamp-2">
+                    <h3 className="mt-1 font-serif text-sm sm:text-base font-bold leading-snug text-white line-clamp-2">
                       {article.title}
                     </h3>
-                    <span className="mt-1.5 text-[10px] text-white/40">
+                    <span className="mt-1.5 text-xs text-white/40">
                       {formatDate(article.publishedAt)}
                     </span>
                   </Link>

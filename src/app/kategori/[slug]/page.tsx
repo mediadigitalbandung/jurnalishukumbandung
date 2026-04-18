@@ -81,6 +81,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
   const title = `${category.name} - Berita Hukum Terkini`;
   const description = `Kumpulan berita ${category.name.toLowerCase()} terbaru dari Jurnalis Hukum Bandung. Analisis dan liputan lengkap.`;
+  const ogImage = `${appUrl}/logo-jhb.png`;
 
   return {
     title,
@@ -92,11 +93,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       type: "website",
       url: `${appUrl}/kategori/${params.slug}`,
       siteName: "Jurnalis Hukum Bandung",
+      locale: "id_ID",
+      images: [{ url: ogImage, width: 512, height: 512, alt: `${category.name} - Jurnalis Hukum Bandung` }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
+      site: "@jurnalishukumbdg",
       title: `${title} | Jurnalis Hukum Bandung`,
       description,
+      images: [ogImage],
     },
     alternates: {
       canonical: `${appUrl}/kategori/${params.slug}`,
@@ -211,7 +216,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
             </div>
             <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
               {categoryPolling[params.slug].map((poll, idx) => (
-                <div key={idx} className="shrink-0 w-[300px] sm:w-[340px] rounded-[12px] border border-border bg-surface-secondary overflow-hidden">
+                <div key={idx} className="shrink-0 w-[min(300px,calc(100vw-2.5rem))] sm:w-[340px] rounded-[12px] border border-border bg-surface-secondary overflow-hidden">
                   {poll.image && (
                     <div className="relative w-full aspect-[2/1]">
                       <Image src={poll.image} alt={poll.question} fill className="object-cover" />
@@ -232,7 +237,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] text-txt-muted mt-3">{poll.totalVotes.toLocaleString("id-ID")} suara</p>
+                  <p className="text-xs text-txt-muted mt-3">{poll.totalVotes.toLocaleString("id-ID")} suara</p>
                   </div>
                 </div>
               ))}
