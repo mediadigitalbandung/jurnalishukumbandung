@@ -18,12 +18,13 @@ const nextConfig = {
   },
   async headers() {
     return [
-      // Homepage — very short cache so new articles appear fast
+      // Homepage — no Cloudflare edge cache so revalidatePath takes effect immediately
       {
         source: "/",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" },
-          { key: "CDN-Cache-Control", value: "max-age=30" }, // Cloudflare edge: 30s (match ISR)
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+          { key: "Cloudflare-CDN-Cache-Control", value: "no-store" },
         ],
       },
       // Cache static assets — Cloudflare edge + browser

@@ -1,4 +1,4 @@
-export const revalidate = 30; // ISR: re-generate homepage every 30s
+export const revalidate = 5; // ISR: regenerate every 5s (Cloudflare no-store, so Next.js ISR is the only cache)
 
 import Link from "next/link";
 import Image from "next/image";
