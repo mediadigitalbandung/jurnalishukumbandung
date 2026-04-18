@@ -98,7 +98,6 @@ export const metadata: Metadata = {
     },
   },
   other: {
-    "google-site-verification": "aOYlnEshfJKwCD4v8OePC3vgPACRIRt2bO5s9dziFj0",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": "JHB News",

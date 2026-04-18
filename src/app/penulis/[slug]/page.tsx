@@ -21,6 +21,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
   const description = author.bio || `Profil dan artikel oleh ${author.name}, jurnalis hukum di Jurnalis Hukum Bandung.`;
+  const avatarUrl = author.avatar
+    ? (author.avatar.startsWith("http") ? author.avatar : `${appUrl}${author.avatar}`)
+    : `${appUrl}/logo-jhb.png`;
 
   return {
     title: `${author.name} — Jurnalis Hukum Bandung`,
@@ -30,6 +33,16 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description,
       type: "profile",
       url: `${appUrl}/penulis/${params.slug}`,
+      siteName: "Jurnalis Hukum Bandung",
+      locale: "id_ID",
+      images: [{ url: avatarUrl, width: 512, height: 512, alt: `${author.name} - Jurnalis Hukum Bandung` }],
+    },
+    twitter: {
+      card: "summary",
+      site: "@jurnalishukumbdg",
+      title: `${author.name} — Jurnalis Hukum Bandung`,
+      description,
+      images: [avatarUrl],
     },
     alternates: {
       canonical: `${appUrl}/penulis/${params.slug}`,

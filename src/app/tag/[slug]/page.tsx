@@ -36,6 +36,16 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       description: `Berita terbaru tentang ${tag.name} di Bandung.`,
       type: "website",
       url: canonicalUrl,
+      siteName: "Jurnalis Hukum Bandung",
+      locale: "id_ID",
+      images: [{ url: `${appUrl}/logo-jhb.png`, width: 512, height: 512, alt: `${tag.name} - Jurnalis Hukum Bandung` }],
+    },
+    twitter: {
+      card: "summary",
+      site: "@jurnalishukumbdg",
+      title: `${tag.name} — Berita Hukum Bandung`,
+      description: `Berita terbaru tentang ${tag.name} di Bandung.`,
+      images: [`${appUrl}/logo-jhb.png`],
     },
     alternates: {
       canonical: canonicalUrl,
