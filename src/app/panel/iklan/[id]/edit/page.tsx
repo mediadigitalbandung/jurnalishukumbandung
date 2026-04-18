@@ -38,7 +38,7 @@ function formatDateInput(dateStr: string): string {
 export default function EditIklanPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params.id as string;
+  const id = (params?.id ?? "") as string;
   const { success, error: showError } = useToast();
 
   const [loading, setLoading] = useState(true);

@@ -237,7 +237,7 @@ export default function Header() {
         <div className="container-main">
           <ul className="flex items-center gap-1 overflow-x-auto lg:overflow-visible scrollbar-hide lg:justify-between lg:gap-0">
             {categoryNavMain.map((item) => {
-              const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              const isActive = item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href) ?? false;
               return (
               <li key={item.href} className="shrink-0">
                 <Link

@@ -331,7 +331,7 @@ function LoadingSkeleton() {
 export default function RevisionsPage() {
   const router = useRouter();
   const params = useParams();
-  const articleId = params.id as string;
+  const articleId = (params?.id ?? "") as string;
   useSession();
 
   const [loading, setLoading] = useState(true);

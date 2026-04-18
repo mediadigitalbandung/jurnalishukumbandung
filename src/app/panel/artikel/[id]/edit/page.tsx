@@ -93,7 +93,7 @@ function LoadingSkeleton() {
 export default function EditArticlePage() {
   const router = useRouter();
   const params = useParams();
-  const articleId = params.id as string;
+  const articleId = (params?.id ?? "") as string;
   const { data: session } = useSession();
   const { success, error: showError } = useToast();
   const { confirm } = useConfirm();
@@ -230,16 +230,16 @@ export default function EditArticlePage() {
 
   // Load research notes from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(`research_notes_${params.id}`);
+    const saved = localStorage.getItem(`research_notes_${params?.id}`);
     if (saved) setResearchNotes(saved);
-  }, [params.id]);
+  }, [params?.id]);
 
   // Auto-save research notes on change
   useEffect(() => {
     if (researchNotes) {
-      localStorage.setItem(`research_notes_${params.id}`, researchNotes);
+      localStorage.setItem(`research_notes_${params?.id}`, researchNotes);
     }
-  }, [researchNotes, params.id]);
+  }, [researchNotes, params?.id]);
 
   const [checklist, setChecklist] = useState({
     notClickbait: false,

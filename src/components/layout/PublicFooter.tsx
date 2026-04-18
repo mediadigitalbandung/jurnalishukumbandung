@@ -4,7 +4,7 @@ import Footer from "./Footer";
 
 export default function PublicFooter() {
   const pathname = usePathname();
-  const hideFooter = pathname.startsWith("/panel") || pathname === "/login";
+  const hideFooter = pathname?.startsWith("/panel") || pathname === "/login";
   if (hideFooter) return null;
   return <Footer />;
 }

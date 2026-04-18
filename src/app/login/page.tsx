@@ -17,7 +17,7 @@ function LoginContent() {
 
   const { data: session } = useSession();
   const searchParams = useSearchParams();
-  const sessionExpired = searchParams.get("reason") === "session_expired";
+  const sessionExpired = searchParams?.get("reason") === "session_expired";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
