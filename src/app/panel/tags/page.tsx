@@ -64,6 +64,7 @@ export default function TagsManagerPage() {
   const [tagTotalPages, setTagTotalPages] = useState(1);
   const [tagTotal, setTagTotal] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [generatingTagId, setGeneratingTagId] = useState<string | null>(null);
 
   if (sessionStatus !== "loading" && session && !["SUPER_ADMIN", "EDITOR"].includes(userRole)) {
     redirect("/panel/dashboard");
@@ -168,6 +169,30 @@ export default function TagsManagerPage() {
       showError(err instanceof Error ? err.message : "Gagal bulk generate");
     } finally {
       setGeneratingBulk(false);
+    }
+  }
+
+  // ── Generate auto-article from tag ──
+  async function handleGenerateFromTag(tagId: string, tagName: string) {
+    setGeneratingTagId(tagId);
+    try {
+      const res = await fetch("/api/cron/auto-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 1, tagId, tagName }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gagal generate artikel");
+      if (json.data?.generated > 0) {
+        success(`Artikel dari tag "${tagName}" berhasil digenerate sebagai DRAFT`);
+      } else {
+        const firstError = json.data?.results?.[0]?.error || "Tidak ada artikel sumber dengan tag ini";
+        showError(firstError);
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal generate artikel");
+    } finally {
+      setGeneratingTagId(null);
     }
   }
 
@@ -448,14 +473,24 @@ export default function TagsManagerPage() {
                       {tag._count.articles} artikel
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleDeleteTag(tag.id, tag.name)}
-                    disabled={deletingId === tag.id}
-                    className="p-2 rounded-lg text-txt-muted hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
-                    title="Hapus tag"
-                  >
-                    {deletingId === tag.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleGenerateFromTag(tag.id, tag.name)}
+                      disabled={generatingTagId === tag.id || deletingId === tag.id}
+                      className="p-2 rounded-lg text-txt-muted hover:text-goto-green hover:bg-goto-light transition-colors disabled:opacity-40"
+                      title="Generate artikel dari tag ini"
+                    >
+                      {generatingTagId === tag.id ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTag(tag.id, tag.name)}
+                      disabled={deletingId === tag.id || generatingTagId === tag.id}
+                      className="p-2 rounded-lg text-txt-muted hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                      title="Hapus tag"
+                    >
+                      {deletingId === tag.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    </button>
+                  </div>
                 </div>
               ))}
               {tags.length === 0 && (
