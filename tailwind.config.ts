@@ -39,9 +39,9 @@ const config: Config = {
         full: "9999px",
       },
       boxShadow: {
-        card: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-        "card-hover": "0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04)",
-        nav: "0 1px 3px rgba(0,0,0,0.05)",
+        card: "0 2px 8px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.06)",
+        "card-hover": "0 12px 32px rgba(0,0,0,0.13), 0 4px 12px rgba(0,0,0,0.08)",
+        nav: "0 2px 6px rgba(0,0,0,0.07)",
       },
       animation: {
         "fade-in": "fadeIn 0.4s ease-out",

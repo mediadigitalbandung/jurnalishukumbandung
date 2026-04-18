@@ -117,10 +117,10 @@ export default function Header() {
             {/* Right: Date + Search (desktop) + actions */}
             <div className="flex items-center gap-3">
             {/* Live date */}
-            <span className="hidden text-xs text-white/40 md:block">
+            <span className="hidden text-xs text-white/40 lg:block">
               {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </span>
-            <div className="hidden h-5 w-px bg-white/20 md:block" />
+            <div className="hidden h-5 w-px bg-white/20 lg:block" />
             {/* Search — hidden on mobile, shown inline on md+ */}
             <form action="/search" className="relative hidden md:block md:w-64 lg:w-80" role="search" aria-label="Pencarian artikel">
               <Search
