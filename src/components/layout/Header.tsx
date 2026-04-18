@@ -302,12 +302,12 @@ export default function Header() {
 
         {/* Panel */}
         <div
-          className={`absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-surface transition-transform duration-300 ease-out shadow-2xl ${
+          className={`absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-surface transition-transform duration-300 ease-out shadow-2xl flex flex-col ${
             mobileMenuOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
           {/* Mobile header */}
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div className="flex-none flex items-center justify-between border-b border-border px-5 py-4">
             <span className="text-sm font-bold text-txt-primary">Menu</span>
             <button
               onClick={() => setMobileMenuOpen(false)}
@@ -319,7 +319,7 @@ export default function Header() {
           </div>
 
           {/* Mobile nav items */}
-          <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: "calc(100vh - 130px)" }}>
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             <div className="px-3 py-2">
               <span className="px-3 text-[11px] font-semibold uppercase tracking-wider text-txt-muted">
                 Kategori
@@ -361,7 +361,7 @@ export default function Header() {
           </div>
 
           {/* Mobile footer — login/user */}
-          <div className="absolute bottom-0 left-0 right-0 border-t border-border px-5 py-4">
+          <div className="flex-none border-t border-border px-5 py-4">
             {session ? (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
