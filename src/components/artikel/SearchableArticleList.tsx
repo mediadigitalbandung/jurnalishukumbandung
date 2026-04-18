@@ -4,15 +4,13 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, SlidersHorizontal, Clock, Eye, ChevronLeft, ChevronRight } from "lucide-react";
-import { displayName } from "@/lib/author-display";
-
 interface Article {
   title: string;
   slug: string;
   excerpt?: string | null;
   featuredImage?: string | null;
   category: { name: string; slug: string };
-  author: { name: string; role?: string | null };
+  author: { name: string };
   publishedAt: Date | string | null;
   readTime?: number | null;
   viewCount?: number;
@@ -41,7 +39,7 @@ export default function SearchableArticleList({ articles, categoryName }: Search
         (a) =>
           a.title.toLowerCase().includes(q) ||
           a.excerpt?.toLowerCase().includes(q) ||
-          displayName(a.author).toLowerCase().includes(q)
+          a.author.name.toLowerCase().includes(q)
       );
     }
 
@@ -133,7 +131,7 @@ export default function SearchableArticleList({ articles, categoryName }: Search
               <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-txt-muted">
                 <span className="text-goto-green font-semibold">{article.category.name}</span>
                 <span className="h-2.5 w-px bg-border" />
-                <span>{displayName(article.author)}</span>
+                <span>{article.author.name}</span>
                 <span className="h-2.5 w-px bg-border" />
                 <span className="flex items-center gap-1">
                   <Clock size={10} />

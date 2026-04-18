@@ -21,7 +21,6 @@ import { notFound } from "next/navigation";
 // Note: DOMPurify removed — content sanitized at input via API validation
 import { slugify } from "@/lib/utils";
 import { generateInternalLinksHtml } from "@/lib/seo-utils";
-import { displayName, isEditorialRole, EDITORIAL_BYLINE } from "@/lib/author-display";
 
 async function getArticle(slug: string) {
   const article = await prisma.article.findUnique({
@@ -41,9 +40,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const imageUrl = article.featuredImage
     ? (article.featuredImage.startsWith("http") ? article.featuredImage : `${appUrl}${article.featuredImage}`)
     : `${appUrl}/logo-jhb.png`;
-  const authorDisplayName = displayName(article.author);
-  const authorIsEditorial = isEditorialRole(article.author);
-  const authorUrl = authorIsEditorial ? `${appUrl}/redaksi` : `${appUrl}/penulis/${slugify(authorDisplayName)}`;
+  const authorDisplayName = article.author.name;
+  const authorUrl = `${appUrl}/penulis/${slugify(authorDisplayName)}`;
 
   return {
     title: article.title,
@@ -266,21 +264,18 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     ARCHIVED: { label: "Diarsipkan", color: "bg-gray-600" },
   };
 
-  // Resolve editor/reviewer name (SUPER_ADMIN ditampilkan sebagai "Redaksi")
   let editorName: string | null = null;
   if (article.reviewedBy) {
     const reviewer = await prisma.user.findUnique({
       where: { id: article.reviewedBy },
-      select: { name: true, role: true },
+      select: { name: true },
     });
-    editorName = reviewer ? displayName(reviewer) : null;
+    editorName = reviewer ? reviewer.name : null;
   }
 
-  // Compute author display name once — reused across HTML, schema, meta
-  const authorDisplayName = displayName(article.author);
-  const authorIsEditorial = isEditorialRole(article.author);
+  const authorDisplayName = article.author.name;
   const authorSlug = slugify(authorDisplayName);
-  const authorHref = authorIsEditorial ? "/redaksi" : `/penulis/${authorSlug}`;
+  const authorHref = `/penulis/${authorSlug}`;
 
   // Fetch related articles — smart scoring: shared tags > same category > recent
   const articleTagIds = article.tags.map((t: { id: string }) => t.id);
@@ -407,7 +402,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     author: {
       "@type": "Person",
       name: authorDisplayName,
-      url: authorIsEditorial ? `${appUrl}/redaksi` : `${appUrl}/penulis/${authorSlug}`,
+      url: `${appUrl}/penulis/${authorSlug}`,
       ...(article.author.bio && { description: article.author.bio }),
     },
     ...(editorName && {
@@ -848,8 +843,8 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-txt-primary">{authorDisplayName}</h3>
-                      <p className="text-sm text-goto-green font-medium">{authorIsEditorial ? "Jurnalis Hukum Bandung" : "Jurnalis"}</p>
-                      {!authorIsEditorial && article.author.bio && (
+                      <p className="text-sm text-goto-green font-medium">Jurnalis</p>
+                      {article.author.bio && (
                         <p className="mt-2 text-sm leading-relaxed text-txt-secondary">
                           {article.author.bio}
                         </p>
@@ -858,7 +853,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                         href={authorHref}
                         className="mt-3 inline-block text-sm font-medium text-goto-green transition-colors hover:text-goto-dark"
                       >
-                        {authorIsEditorial ? "Tentang Redaksi" : "Lihat semua artikel"} &rarr;
+                        Lihat semua artikel &rarr;
                       </Link>
                     </div>
                   </div>

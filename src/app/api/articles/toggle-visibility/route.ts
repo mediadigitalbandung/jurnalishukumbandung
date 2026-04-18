@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest) {
         where: { id: articleId },
         data: { status: "ARCHIVED" },
       });
+      revalidatePath("/");
+      revalidatePath("/berita");
       return successResponse({ message: `Artikel "${article.title}" disembunyikan`, status: "ARCHIVED" });
     } else {
       // Unhide: restore to PUBLISHED
@@ -34,6 +37,8 @@ export async function POST(req: NextRequest) {
         where: { id: articleId },
         data: { status: "PUBLISHED" },
       });
+      revalidatePath("/");
+      revalidatePath("/berita");
       return successResponse({ message: `Artikel "${article.title}" ditampilkan kembali`, status: "PUBLISHED" });
     }
   } catch (error) {

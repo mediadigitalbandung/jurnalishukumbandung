@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import {
@@ -312,6 +313,8 @@ export async function PUT(
         // SEO automation (non-blocking)
         onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
 
+        revalidatePath("/");
+        revalidatePath("/berita");
         return successResponse(updated);
       }
 
@@ -342,6 +345,8 @@ export async function PUT(
 
         await notifyArticleStatusChange(article.id, article.title, "ARCHIVED", article.authorId, data.reviewNote || undefined);
 
+        revalidatePath("/");
+        revalidatePath("/berita");
         return successResponse(updated);
       }
 
@@ -472,6 +477,8 @@ export async function PUT(
           include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
         });
         await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish: ${article.status} → PUBLISHED. Artikel: ${article.title}`);
+        revalidatePath("/");
+        revalidatePath("/berita");
         return successResponse(updated);
       }
 
@@ -483,6 +490,8 @@ export async function PUT(
           include: { author: { select: { id: true, name: true } }, category: { select: { id: true, name: true, slug: true } }, tags: true, sources: true },
         });
         await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish dari review: IN_REVIEW → PUBLISHED. Artikel: ${article.title}`);
+        revalidatePath("/");
+        revalidatePath("/berita");
         return successResponse(updated);
       }
 
@@ -644,6 +653,8 @@ export async function PUT(
         // SEO automation (non-blocking)
         onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
 
+        revalidatePath("/");
+        revalidatePath("/berita");
         return successResponse(updated);
       }
 
@@ -674,6 +685,8 @@ export async function PUT(
 
         await notifyArticleStatusChange(article.id, article.title, "ARCHIVED", article.authorId, data.reviewNote || undefined);
 
+        revalidatePath("/");
+        revalidatePath("/berita");
         return successResponse(updated);
       }
 

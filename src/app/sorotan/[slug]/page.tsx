@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Clock, Scale, AlertTriangle, ArrowRight, BookOpen, FileText, Gavel, Users, MessageSquare, GitCompare, HelpCircle } from "lucide-react";
 import { slugify } from "@/lib/utils";
-import { displayName, isEditorialRole } from "@/lib/author-display";
 
 interface PageProps {
   params: { slug: string };
@@ -81,7 +80,7 @@ const angleIcons: Record<string, typeof BookOpen> = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const sorotan = await prisma.sorotan.findUnique({
     where: { slug: params.slug },
-    include: { article: { select: { title: true, slug: true, featuredImage: true, category: { select: { name: true } }, author: { select: { name: true, role: true } } } } },
+    include: { article: { select: { title: true, slug: true, featuredImage: true, category: { select: { name: true } }, author: { select: { name: true } } } } },
   });
   if (!sorotan) return { title: "Sorotan Tidak Ditemukan" };
 
@@ -123,7 +122,7 @@ export default async function SorotanPage({ params }: PageProps) {
         select: {
           id: true, title: true, slug: true, excerpt: true, featuredImage: true,
           publishedAt: true, readTime: true, viewCount: true,
-          author: { select: { name: true, bio: true, role: true } },
+          author: { select: { name: true, bio: true } },
           category: { select: { name: true, slug: true } },
           tags: { select: { name: true, slug: true } },
         },
@@ -169,10 +168,8 @@ export default async function SorotanPage({ params }: PageProps) {
     dateModified: sorotan.createdAt.toISOString(),
     author: {
       "@type": "Person",
-      name: displayName(article.author),
-      url: isEditorialRole(article.author)
-        ? `${appUrl}/redaksi`
-        : `${appUrl}/penulis/${slugify(displayName(article.author))}`,
+      name: article.author.name,
+      url: `${appUrl}/penulis/${slugify(article.author.name)}`,
     },
     publisher: {
       "@type": "NewsMediaOrganization",
@@ -343,7 +340,7 @@ export default async function SorotanPage({ params }: PageProps) {
               <Link href={`/berita/${article.slug}`} className="text-sm font-semibold text-txt-primary hover:text-goto-green leading-snug">
                 {article.title}
               </Link>
-              <p className="mt-2 text-xs text-txt-muted">{displayName(article.author)} &middot; {article.readTime || 0} menit baca</p>
+              <p className="mt-2 text-xs text-txt-muted">{article.author.name} &middot; {article.readTime || 0} menit baca</p>
             </div>
 
             {/* Related articles */}

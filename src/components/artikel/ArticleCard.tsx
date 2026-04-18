@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { truncate } from "@/lib/utils";
-import { displayName } from "@/lib/author-display";
 
 interface ArticleCardProps {
   title: string;
@@ -9,7 +8,7 @@ interface ArticleCardProps {
   excerpt?: string | null;
   featuredImage?: string | null;
   category: { name: string; slug: string };
-  author: { name: string; role?: string | null };
+  author: { name: string };
   publishedAt: Date | string | null;
   readTime?: number | null;
   viewCount?: number;
@@ -97,7 +96,7 @@ export default function ArticleCard({
             {isoDate && <time dateTime={isoDate} itemProp="datePublished">{formatTime(publishedAt)}</time>}
             {!isoDate && formatTime(publishedAt)}
             <span className="mx-1">&middot;</span>
-            <span itemProp="author">{displayName(author)}</span>
+            <span itemProp="author">{author.name}</span>
           </p>
         </div>
       </article>
@@ -196,7 +195,7 @@ export default function ArticleCard({
           {isoDate && <time dateTime={isoDate} itemProp="datePublished">{formatTime(publishedAt)}</time>}
           {!isoDate && formatTime(publishedAt)}
           <span className="mx-1">&middot;</span>
-          <span itemProp="author">{displayName(author)}</span>
+          <span itemProp="author">{author.name}</span>
         </p>
       </div>
     </article>
