@@ -2,10 +2,12 @@ import { NextRequest } from "next/server";
 import { requireRole, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { callAI, hasAIKey } from "@/lib/ai-client";
+
+const SYSTEM_PROMPT = "Kamu adalah SEO specialist untuk media berita hukum Indonesia. Jawab HANYA dengan daftar tag dipisah koma.";
 
 async function generateTagsForArticle(
-  article: { id: string; title: string; content: string; tags: { name: string }[]; category: { name: string } | null },
-  apiKey: string
+  article: { id: string; title: string; content: string; tags: { name: string }[]; category: { name: string } | null }
 ): Promise<string[]> {
   const plainContent = article.content.replace(/<[^>]*>/g, "").slice(0, 1500);
   const prompt = `Berikan 8-10 tag SEO-friendly dalam Bahasa Indonesia untuk artikel berita hukum berikut.
@@ -21,36 +23,7 @@ Konten: ${plainContent}
 
 Format jawaban HANYA tag dipisah koma, tanpa penjelasan.`;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
-  let response: Response;
-  try {
-    response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: "Kamu adalah SEO specialist untuk media berita hukum Indonesia. Jawab HANYA dengan daftar tag dipisah koma." },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 200,
-        temperature: 0.8,
-      }),
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  if (!response.ok) return [];
-
-  const data = await response.json();
-  const result = data.choices?.[0]?.message?.content?.trim() || "";
-
+  const result = await callAI(SYSTEM_PROMPT, prompt, 200);
   return result
     .split(",")
     .map((t: string) => t.trim().toLowerCase())
@@ -89,8 +62,7 @@ export async function POST(req: NextRequest) {
   try {
     await requireRole(["SUPER_ADMIN", "EDITOR"]);
 
-    const setting = await prisma.systemSetting.findUnique({ where: { key: "deepseek_api_key" } });
-    if (!setting?.value) throw new ApiError("API Key AI belum dikonfigurasi", 400);
+    if (!(await hasAIKey())) throw new ApiError("API Key AI belum dikonfigurasi", 400);
 
     const body = await req.json().catch(() => ({}));
     const articleId: string | undefined = body?.articleId;
@@ -103,7 +75,7 @@ export async function POST(req: NextRequest) {
       });
       if (!article) throw new ApiError("Artikel tidak ditemukan", 404);
 
-      const newTags = await generateTagsForArticle(article, setting.value);
+      const newTags = await generateTagsForArticle(article);
       if (newTags.length === 0) {
         return successResponse({ processed: 0, totalTagsAdded: 0, results: [] });
       }
@@ -130,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     for (const article of articlesNeedingTags) {
       try {
-        const newTags = await generateTagsForArticle(article, setting.value);
+        const newTags = await generateTagsForArticle(article);
         if (newTags.length === 0) continue;
         const added = await upsertTagsForArticle(article.id, newTags);
         totalTagsAdded += added;

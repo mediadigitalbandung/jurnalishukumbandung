@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { callAI, hasAIKey } from "@/lib/ai-client";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 const SITE_URL = "https://jurnalishukumbandung.com";
@@ -354,14 +355,11 @@ export async function autoGenerateSeoFields(
     return { seoTitle: existingSeoTitle, seoDescription: existingSeoDesc };
   }
 
+  const SEO_SYSTEM = "Kamu asisten SEO untuk media berita hukum Indonesia. Jawab singkat dan langsung.";
+
   // Try AI generation
   try {
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-
-    if (!setting?.value) {
-      // Fallback: generate from title/content without AI
+    if (!(await hasAIKey())) {
       return {
         seoTitle: existingSeoTitle || title.slice(0, 60),
         seoDescription: existingSeoDesc || stripHtml(content).slice(0, 155),
@@ -373,24 +371,19 @@ export async function autoGenerateSeoFields(
       seoDescription: existingSeoDesc || stripHtml(content).slice(0, 155),
     };
 
-    // Generate missing fields
     const tasks: Promise<void>[] = [];
 
     if (!existingSeoTitle) {
       tasks.push(
-        callDeepSeek(
-          setting.value,
-          `Buatkan SEO title (maks 60 karakter, bahasa Indonesia) untuk artikel berita hukum ini. Hanya berikan title-nya saja tanpa penjelasan. Judul: ${title}`
-        ).then((r) => { results.seoTitle = r.slice(0, 60); })
+        callAI(SEO_SYSTEM, `Buatkan SEO title (maks 60 karakter, bahasa Indonesia) untuk artikel berita hukum ini. Hanya berikan title-nya saja tanpa penjelasan. Judul: ${title}`)
+          .then((r) => { results.seoTitle = r.slice(0, 60); })
       );
     }
 
     if (!existingSeoDesc) {
       tasks.push(
-        callDeepSeek(
-          setting.value,
-          `Buatkan meta description (maks 155 karakter, bahasa Indonesia) untuk artikel berita hukum ini. Hanya berikan deskripsi-nya saja tanpa penjelasan. Judul: ${title}. Konten: ${stripHtml(content).slice(0, 1000)}`
-        ).then((r) => { results.seoDescription = r.slice(0, 155); })
+        callAI(SEO_SYSTEM, `Buatkan meta description (maks 155 karakter, bahasa Indonesia) untuk artikel berita hukum ini. Hanya berikan deskripsi-nya saja tanpa penjelasan. Judul: ${title}. Konten: ${stripHtml(content).slice(0, 1000)}`)
+          .then((r) => { results.seoDescription = r.slice(0, 155); })
       );
     }
 
@@ -454,10 +447,7 @@ export async function autoGenerateFaq(
   content: string
 ): Promise<{ q: string; a: string }[]> {
   try {
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-    if (!setting?.value) return [];
+    if (!(await hasAIKey())) return [];
 
     const plainContent = stripHtml(content).slice(0, 3000);
     const prompt = `Berdasarkan artikel berita hukum berikut, buatkan 4-5 pertanyaan FAQ (Frequently Asked Questions) beserta jawabannya.
@@ -468,7 +458,7 @@ Format WAJIB JSON array seperti ini (JANGAN tambahkan teks lain, HANYA JSON):
 Judul: ${title}
 Konten: ${plainContent}`;
 
-    const result = await callDeepSeek(setting.value, prompt, 500);
+    const result = await callAI("Kamu asisten SEO untuk media berita hukum Indonesia. Jawab singkat dan langsung.", prompt, 500);
 
     // Parse JSON from AI response
     const jsonMatch = result.match(/\[[\s\S]*\]/);
@@ -574,10 +564,7 @@ export async function autoGenerateSorotan(
     const existing = await prisma.sorotan.count({ where: { articleId } });
     if (existing >= SOROTAN_ANGLES.length) return existing;
 
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-    if (!setting?.value) return 0;
+    if (!(await hasAIKey())) return 0;
 
     const plainContent = stripHtml(content).slice(0, 4000);
     let created = 0;
@@ -597,8 +584,8 @@ export async function autoGenerateSorotan(
       }
 
       try {
-        const generatedContent = await callDeepSeek(
-          setting.value,
+        const generatedContent = await callAI(
+          "Kamu asisten SEO untuk media berita hukum Indonesia. Jawab singkat dan langsung.",
           angle.prompt(title, plainContent),
           800
         );
@@ -649,8 +636,7 @@ async function autoGenerateTagsForArticle(
   existingTags: { id: string; name: string }[]
 ): Promise<number> {
   try {
-    const setting = await prisma.systemSetting.findUnique({ where: { key: "deepseek_api_key" } });
-    if (!setting?.value) return 0;
+    if (!(await hasAIKey())) return 0;
 
     const plainContent = stripHtml(content).slice(0, 1500);
     const prompt = `Berikan 8-10 tag SEO-friendly dalam Bahasa Indonesia untuk artikel berita hukum berikut.
@@ -660,7 +646,7 @@ Judul: ${title}
 Konten: ${plainContent}
 Format: HANYA tag dipisah koma, tanpa penjelasan.`;
 
-    const result = await callDeepSeek(setting.value, prompt, 200);
+    const result = await callAI("Kamu asisten SEO untuk media berita hukum Indonesia. Jawab singkat dan langsung.", prompt, 200);
     const newTags = result
       .split(",")
       .map((t) => t.trim().toLowerCase())
@@ -869,32 +855,3 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 }
 
-async function callDeepSeek(apiKey: string, prompt: string, maxTokens = 100): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: "Kamu asisten SEO untuk media berita hukum Indonesia. Jawab singkat dan langsung." },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.5,
-      }),
-    });
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
-  } finally {
-    clearTimeout(timeout);
-  }
-}

@@ -227,7 +227,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
       <nav className="flex-1 space-y-1">
         {filteredMenu.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
+          const isActive = pathname?.startsWith(item.href) ?? false;
           return (
             <Link
               key={item.href}

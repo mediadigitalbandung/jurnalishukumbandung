@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiError, successResponse, errorResponse, requireRole } from "@/lib/api-utils";
 import { slugify, calculateReadTime } from "@/lib/utils";
+import { callAI, hasAIKey } from "@/lib/ai-client";
 
 export const dynamic = "force-dynamic";
 
@@ -23,65 +24,27 @@ const TARGET_KEYWORDS = [
   "kejaksaan bandung",
 ];
 
-async function getDeepSeekKey(): Promise<string | null> {
-  const setting = await prisma.systemSetting.findUnique({
-    where: { key: "deepseek_api_key" },
-  });
-  return setting?.value || null;
-}
+const AUTO_ARTICLE_SYSTEM = "Kamu adalah jurnalis senior media berita hukum 'Jurnalis Hukum Bandung'. Tulis artikel berita dalam Bahasa Indonesia yang profesional, informatif, dan berdasarkan fakta. Gunakan gaya penulisan jurnalistik berita (5W+1H). Jangan gunakan markdown formatting seperti ** atau ##, tulis dalam format HTML dengan tag <h2>, <h3>, <p>, <ul>, <li>, <blockquote>.";
 
-async function callDeepSeek(apiKey: string, prompt: string, maxTokens = 2000, retries = 2): Promise<string> {
+async function callAIWithRetry(prompt: string, maxTokens = 2000, retries = 2): Promise<string> {
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
     try {
-      const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Kamu adalah jurnalis senior media berita hukum 'Jurnalis Hukum Bandung'. Tulis artikel berita dalam Bahasa Indonesia yang profesional, informatif, dan berdasarkan fakta. Gunakan gaya penulisan jurnalistik berita (5W+1H). Jangan gunakan markdown formatting seperti ** atau ##, tulis dalam format HTML dengan tag <h2>, <h3>, <p>, <ul>, <li>, <blockquote>.",
-            },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: maxTokens,
-          temperature: 0.8,
-        }),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        console.error(`[AUTO-ARTICLE] DeepSeek error ${res.status}: ${errText.slice(0, 200)}`);
-        if (attempt < retries) { await new Promise((r) => setTimeout(r, 3000)); continue; }
-        throw new Error(`DeepSeek API error: ${res.status}`);
-      }
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content?.trim() || "";
-      if (!content && attempt < retries) { await new Promise((r) => setTimeout(r, 3000)); continue; }
-      return content;
+      const text = await callAI(AUTO_ARTICLE_SYSTEM, prompt, maxTokens, 90000);
+      if (text) return text;
+      if (attempt < retries) { await new Promise((r) => setTimeout(r, 3000)); continue; }
     } catch (e) {
-      clearTimeout(timeout);
       if (attempt < retries) {
         console.log(`[AUTO-ARTICLE] Attempt ${attempt + 1} failed, retrying...`);
         await new Promise((r) => setTimeout(r, 3000));
         continue;
       }
       throw e;
-    } finally {
-      clearTimeout(timeout);
     }
   }
-  throw new Error("DeepSeek failed after retries");
+  throw new Error("AI failed after retries");
 }
 
-async function generateArticle(apiKey: string, tagName?: string, tagId?: string) {
+async function generateArticle(tagName?: string, tagId?: string) {
   // 1. Pick keyword — use tag name if provided, else random from list
   const keyword = tagName || TARGET_KEYWORDS[Math.floor(Math.random() * TARGET_KEYWORDS.length)];
   const relatedKeywords = TARGET_KEYWORDS.filter((k) => k !== keyword).sort(() => Math.random() - 0.5).slice(0, 3);
@@ -165,7 +128,7 @@ TAGS: [${keyword}, tag2, tag3, tag4, tag5]
 KONTEN:
 [isi paraphrase dalam HTML]`;
 
-  const result = await callDeepSeek(apiKey, prompt, 2500);
+  const result = await callAIWithRetry(prompt, 2500);
 
   // 7. Parse result — robust parsing with fallbacks
   const titleMatch = result.match(/JUDUL:\s*(.+)/i);
@@ -302,15 +265,14 @@ async function handleAutoArticle(request: NextRequest) {
     });
     const count = Math.min(10, Math.max(1, requestCount || parseInt(countSetting?.value || "1")));
 
-    const apiKey = await getDeepSeekKey();
-    if (!apiKey) {
-      return successResponse({ message: "DeepSeek API key not configured", generated: 0 });
+    if (!(await hasAIKey())) {
+      return successResponse({ message: "AI API key not configured", generated: 0 });
     }
 
     const results = [];
     for (let i = 0; i < count; i++) {
       try {
-        const result = await generateArticle(apiKey, tagName, tagId);
+        const result = await generateArticle(tagName, tagId);
         results.push({ success: true, ...result });
       } catch (e) {
         results.push({ success: false, error: String(e).slice(0, 100) });

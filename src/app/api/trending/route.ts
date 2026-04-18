@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { successResponse } from "@/lib/api-utils";
-import { prisma } from "@/lib/prisma";
+import { callAI } from "@/lib/ai-client";
 
 export const revalidate = 3600; // Cache for 1 hour
 
@@ -72,12 +72,6 @@ export async function GET(request: NextRequest) {
 
 async function filterWithAI(trends: string[], region = "all"): Promise<string[] | null> {
   try {
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-
-    if (!setting?.value) return null;
-
     const regionContext = region === "bandung" || region === "jabar"
       ? `\n- PRIORITASKAN topik yang relevan dengan Bandung dan Jawa Barat (pengadilan Bandung, kebijakan Pemkot/Pemprov Jabar, kasus hukum lokal, DPRD Jabar, dll)
 - Tambahkan 2-3 isu hukum lokal Bandung/Jabar yang sedang aktual jika kurang dari 8 tags`
@@ -98,30 +92,11 @@ Aturan:
 - Format output: HANYA daftar tags dipisah baris baru, tanpa nomor, tanpa penjelasan
 - Setiap tag maksimal 5 kata`;
 
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${setting.value}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: "Kamu adalah asisten editor untuk media berita hukum Indonesia. Tugasmu mengkurasi trending tags agar relevan dengan portal berita hukum.",
-          },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 300,
-        temperature: 0.5,
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content?.trim() || "";
+    const result = await callAI(
+      "Kamu adalah asisten editor untuk media berita hukum Indonesia. Tugasmu mengkurasi trending tags agar relevan dengan portal berita hukum.",
+      prompt,
+      300
+    );
 
     // Parse: each line is a tag
     const tags = result

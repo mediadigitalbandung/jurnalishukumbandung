@@ -48,6 +48,9 @@ export default function PengaturanPage() {
   const [loaded, setLoaded] = useState(false);
 
   // AI settings state
+  const [anthropicApiKey, setAnthropicApiKey] = useState("");
+  const [anthropicKeyVisible, setAnthropicKeyVisible] = useState(false);
+  const [anthropicSaving, setAnthropicSaving] = useState(false);
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiKeyVisible, setAiKeyVisible] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
@@ -105,6 +108,7 @@ export default function PengaturanPage() {
       .then((json) => {
         if (json?.data) {
           const d = json.data;
+          if (d.anthropic_api_key) setAnthropicApiKey(d.anthropic_api_key);
           if (d.deepseek_api_key) setAiApiKey(d.deepseek_api_key);
           if (d.google_credentials_json) setGoogleCredentials(d.google_credentials_json);
           if (d.google_indexing_enabled !== undefined) setGoogleEnabled(d.google_indexing_enabled === "true");
@@ -150,6 +154,23 @@ export default function PengaturanPage() {
       showToast("Pengaturan berhasil disimpan");
     } catch {
       showToast("Tersimpan lokal, gagal sinkron ke server");
+    }
+  };
+
+  const handleSaveAnthropicKey = async () => {
+    setAnthropicSaving(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "anthropic_api_key", value: anthropicApiKey }),
+      });
+      if (res.ok) showToast("Anthropic API Key berhasil disimpan");
+      else showToast("Gagal menyimpan Anthropic API Key");
+    } catch {
+      showToast("Gagal menyimpan Anthropic API Key");
+    } finally {
+      setAnthropicSaving(false);
     }
   };
 
@@ -517,15 +538,49 @@ export default function PengaturanPage() {
         <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
           <div className="mb-4 flex items-center gap-2">
             <Bot size={20} className="text-goto-green" />
-            <h2 className="text-lg font-semibold text-txt-primary">
-              Konfigurasi AI
-            </h2>
+            <h2 className="text-lg font-semibold text-txt-primary">Konfigurasi AI</h2>
           </div>
-          <div className="space-y-4">
+          <div className="mb-4 rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <strong>Prioritas:</strong> Claude (Anthropic) digunakan utama. Jika tidak tersedia atau gagal, otomatis fallback ke DeepSeek.
+          </div>
+          <div className="space-y-6">
+            {/* Anthropic (PRIMARY) */}
             <div>
-              <label className="mb-1.5 block text-base font-medium text-txt-primary">
-                DeepSeek API Key
-              </label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <label className="text-base font-medium text-txt-primary">Claude API Key (Anthropic)</label>
+                <span className="text-xs font-bold bg-goto-light text-goto-green px-2 py-0.5 rounded-full">UTAMA</span>
+              </div>
+              <div className="relative">
+                <input
+                  type={anthropicKeyVisible ? "text" : "password"}
+                  value={anthropicApiKey}
+                  onChange={(e) => setAnthropicApiKey(e.target.value)}
+                  className="input pr-10"
+                  placeholder="sk-ant-..."
+                />
+                <button
+                  type="button"
+                  onClick={() => setAnthropicKeyVisible(!anthropicKeyVisible)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary"
+                >
+                  {anthropicKeyVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <p className="mt-1 text-sm text-txt-muted">Menggunakan model claude-haiku-4-5. Dapatkan key di console.anthropic.com</p>
+              <div className="flex justify-end mt-3">
+                <button onClick={handleSaveAnthropicKey} disabled={anthropicSaving} className="btn-primary">
+                  <Save size={16} />
+                  {anthropicSaving ? "Menyimpan..." : "Simpan Claude Key"}
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-5">
+              {/* DeepSeek (FALLBACK) */}
+              <div className="flex items-center gap-2 mb-1.5">
+                <label className="text-base font-medium text-txt-primary">DeepSeek API Key</label>
+                <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">FALLBACK</span>
+              </div>
               <div className="relative">
                 <input
                   type={aiKeyVisible ? "text" : "password"}
@@ -542,27 +597,13 @@ export default function PengaturanPage() {
                   {aiKeyVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              <p className="mt-1 text-sm text-txt-muted">
-                Dapatkan API key dari{" "}
-                <a
-                  href="https://platform.deepseek.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gold hover:underline"
-                >
-                  platform.deepseek.com
-                </a>
-              </p>
-            </div>
-            <div className="flex justify-end">
-              <button
-                onClick={handleSaveAiKey}
-                disabled={aiSaving}
-                className="btn-primary"
-              >
-                <Save size={16} />
-                {aiSaving ? "Menyimpan..." : "Simpan API Key"}
-              </button>
+              <p className="mt-1 text-sm text-txt-muted">Digunakan jika Claude tidak tersedia. Dapatkan key di platform.deepseek.com</p>
+              <div className="flex justify-end mt-3">
+                <button onClick={handleSaveAiKey} disabled={aiSaving} className="btn-primary">
+                  <Save size={16} />
+                  {aiSaving ? "Menyimpan..." : "Simpan DeepSeek Key"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

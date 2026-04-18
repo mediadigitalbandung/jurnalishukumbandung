@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { requireAuth, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { aiRateLimit } from "@/lib/rate-limit";
+import { callAI, hasAIKey } from "@/lib/ai-client";
+
+const SYSTEM_PROMPT = "Kamu adalah asisten AI untuk media berita hukum Indonesia. Jawab dalam Bahasa Indonesia.";
 
 const PROMPTS: Record<string, (title: string, content: string) => string> = {
   tags: (title, content) =>
@@ -41,71 +44,27 @@ export async function POST(req: NextRequest) {
       throw new ApiError("Feature tidak valid. Gunakan: tags, summary, seo_title, meta_description", 400);
     }
 
-    // Get API key from SystemSetting
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-
-    if (!setting?.value) {
+    if (!(await hasAIKey())) {
       throw new ApiError("API Key AI belum dikonfigurasi. Hubungi administrator.", 400);
     }
 
     const prompt = PROMPTS[feature](title, content);
+    const result = await callAI(SYSTEM_PROMPT, prompt, 500);
 
-    // Call DeepSeek API with 30s timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    let response: Response;
-    try {
-      response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${setting.value}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "system",
-              content: "Kamu adalah asisten AI untuk media berita hukum Indonesia. Jawab dalam Bahasa Indonesia.",
-            },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    if (!response.ok) {
-      throw new ApiError("Gagal menghubungi AI service. Coba lagi nanti.", 502);
-    }
-
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content?.trim() || "";
-    const usage = data.usage || {};
-    const inputTokens = usage.prompt_tokens || 0;
-    const outputTokens = usage.completion_tokens || 0;
-    const totalTokens = usage.total_tokens || 0;
-
-    // Log usage
+    // Log usage (tokens not available without provider info, log 0)
     await prisma.aIUsageLog.create({
       data: {
         userId: session.user.id,
         userName: session.user.name,
         feature,
-        inputTokens,
-        outputTokens,
-        totalTokens,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
         articleTitle: title,
       },
     });
 
-    return successResponse({ result, tokensUsed: totalTokens });
+    return successResponse({ result, tokensUsed: 0 });
   } catch (error) {
     return errorResponse(error);
   }

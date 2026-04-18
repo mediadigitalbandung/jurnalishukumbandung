@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse, requireRole, ApiError } from "@/lib/api-utils";
+import { callAI, hasAIKey } from "@/lib/ai-client";
+
+const SYSTEM_PROMPT = "Kamu adalah asisten jurnalis hukum. Balas HANYA dalam format JSON yang diminta tanpa penjelasan apapun.";
 
 export async function POST(request: NextRequest) {
   await requireRole(["SUPER_ADMIN", "EDITOR"]);
@@ -22,42 +25,15 @@ export async function POST(request: NextRequest) {
     // Fetch article
     const article = await prisma.article.findUnique({
       where: { id: articleId },
-      select: {
-        id: true,
-        title: true,
-        excerpt: true,
-        featuredImage: true,
-        categoryId: true,
-      },
+      select: { id: true, title: true, excerpt: true, featuredImage: true, categoryId: true },
     });
     if (!article) return errorResponse(new ApiError("Artikel tidak ditemukan", 404));
 
-    // Get DeepSeek API key
-    const setting = await prisma.systemSetting.findUnique({ where: { key: "deepseek_api_key" } });
-    if (!setting?.value) return errorResponse(new ApiError("API Key AI belum dikonfigurasi", 400));
+    if (!(await hasAIKey())) {
+      return errorResponse(new ApiError("API Key AI belum dikonfigurasi", 400));
+    }
 
-    // Generate poll using DeepSeek AI
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    let aiResponse: Response;
-    try {
-      aiResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${setting.value}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "system",
-              content: "Kamu adalah asisten jurnalis hukum. Balas HANYA dalam format JSON yang diminta tanpa penjelasan apapun.",
-            },
-            {
-              role: "user",
-              content: `Berdasarkan artikel berita hukum berikut, buatlah 1 pertanyaan polling yang menarik untuk pembaca dan 4 pilihan jawaban yang relevan.
+    const userPrompt = `Berdasarkan artikel berita hukum berikut, buatlah 1 pertanyaan polling yang menarik untuk pembaca dan 4 pilihan jawaban yang relevan.
 
 Judul artikel: ${article.title}${article.excerpt ? `\nRingkasan: ${article.excerpt}` : ""}
 
@@ -68,23 +44,9 @@ Aturan:
 - Gunakan Bahasa Indonesia yang baik
 
 Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
-{"question":"pertanyaan polling","options":["pilihan 1","pilihan 2","pilihan 3","pilihan 4"]}`,
-            },
-          ],
-          max_tokens: 400,
-          temperature: 0.7,
-        }),
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+{"question":"pertanyaan polling","options":["pilihan 1","pilihan 2","pilihan 3","pilihan 4"]}`;
 
-    if (!aiResponse.ok) {
-      return errorResponse(new ApiError("AI gagal generate pertanyaan polling", 500));
-    }
-
-    const aiData = await aiResponse.json();
-    const text = aiData.choices?.[0]?.message?.content?.trim() || "";
+    const text = await callAI(SYSTEM_PROMPT, userPrompt, 400);
 
     // Parse AI response
     let pollData: { question: string; options: string[] };
@@ -92,11 +54,7 @@ Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON");
       pollData = JSON.parse(jsonMatch[0]);
-      if (
-        !pollData.question ||
-        !Array.isArray(pollData.options) ||
-        pollData.options.length < 2
-      ) {
+      if (!pollData.question || !Array.isArray(pollData.options) || pollData.options.length < 2) {
         throw new Error("Invalid structure");
       }
     } catch {
@@ -112,14 +70,10 @@ Balas HANYA dalam format JSON berikut tanpa penjelasan apapun:
         articleId: article.id,
         isActive: true,
         options: {
-          create: pollData.options
-            .slice(0, 4)
-            .map((label: string) => ({ label: label.slice(0, 100) })),
+          create: pollData.options.slice(0, 4).map((label: string) => ({ label: label.slice(0, 100) })),
         },
       },
-      include: {
-        options: { select: { id: true, label: true, votes: true } },
-      },
+      include: { options: { select: { id: true, label: true, votes: true } } },
     });
 
     return successResponse(poll, 201);
@@ -135,11 +89,9 @@ export async function GET(request: NextRequest) {
   const articleId = searchParams.get("articleId");
   if (!articleId) return errorResponse(new ApiError("articleId wajib diisi", 400));
 
-  const poll = await prisma.poll.findUnique({
+  const poll = await prisma.poll.findFirst({
     where: { articleId },
-    include: {
-      options: { select: { id: true, label: true, votes: true } },
-    },
+    include: { options: { select: { id: true, label: true, votes: true } } },
   });
 
   return successResponse({ poll: poll || null });

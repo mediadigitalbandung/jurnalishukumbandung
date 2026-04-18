@@ -9,6 +9,7 @@ const ALLOWED_KEYS = [
   "contact_email",
   "alamat_redaksi",
   "website_url",
+  "anthropic_api_key",
   "deepseek_api_key",
   "resend_api_key",
   "notification_email_from",

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireAuth, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { callAI, hasAIKey } from "@/lib/ai-client";
 
 const SOROTAN_ANGLES = [
   { angle: "kronologi", titlePrefix: "Kronologi", prompt: (t: string, c: string) => `Kamu adalah jurnalis hukum senior. Tulis KRONOLOGI LENGKAP kejadian dalam 400-500 kata bahasa Indonesia berdasarkan berita ini. Tulis narasi kronologis yang runtut. Sertakan detail waktu, tempat, pelaku. Tulis dalam format HTML (<p>, <h3>, <ul>). JANGAN gunakan markdown. Langsung mulai narasi tanpa judul.\n\nJudul: ${t}\nKonten: ${c}` },
@@ -37,49 +38,24 @@ export async function POST(req: NextRequest) {
     });
     if (!article) throw new ApiError("Artikel tidak ditemukan", 404);
 
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: "deepseek_api_key" },
-    });
-    if (!setting?.value) throw new ApiError("DeepSeek API key belum dikonfigurasi", 400);
+    if (!(await hasAIKey())) throw new ApiError("API Key AI belum dikonfigurasi", 400);
 
     const angle = SOROTAN_ANGLES[angleIndex];
     const plainContent = article.content?.replace(/<[^>]*>/g, "").slice(0, 4000) || "";
 
-    // Call DeepSeek with retry
+    // Call AI with retry
     let generatedContent = "";
     for (let attempt = 0; attempt < 3; attempt++) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90000);
       try {
-        const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${setting.value}`,
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: "Kamu adalah jurnalis hukum profesional Indonesia. Tulis konten dalam Bahasa Indonesia. Gunakan format HTML (<p>, <h3>, <ul>, <li>, <blockquote>, <strong>). JANGAN gunakan markdown." },
-              { role: "user", content: angle.prompt(article.title, plainContent) },
-            ],
-            max_tokens: 1000,
-            temperature: 0.7,
-          }),
-        });
-        if (!res.ok) {
-          clearTimeout(timeout);
-          if (attempt < 2) { await new Promise((r) => setTimeout(r, 3000)); continue; }
-          throw new ApiError(`DeepSeek error: ${res.status}`, 500);
-        }
-        const data = await res.json();
-        generatedContent = data.choices?.[0]?.message?.content?.trim() || "";
-        clearTimeout(timeout);
+        generatedContent = await callAI(
+          "Kamu adalah jurnalis hukum profesional Indonesia. Tulis konten dalam Bahasa Indonesia. Gunakan format HTML (<p>, <h3>, <ul>, <li>, <blockquote>, <strong>). JANGAN gunakan markdown.",
+          angle.prompt(article.title, plainContent),
+          1000,
+          90000
+        );
         if (generatedContent && generatedContent.length >= 100) break;
         if (attempt < 2) { await new Promise((r) => setTimeout(r, 2000)); continue; }
       } catch (e) {
-        clearTimeout(timeout);
         if (attempt < 2) { await new Promise((r) => setTimeout(r, 3000)); continue; }
         throw e;
       }
