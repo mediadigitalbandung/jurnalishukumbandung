@@ -33,6 +33,8 @@ import {
   FileText,
   Printer,
   StickyNote,
+  Vote,
+  ExternalLink,
 } from "lucide-react";
 // ImageUploader removed — images now inserted inline via RichTextEditor
 import { stripHtml, downloadTextFile, exportArticlePdf } from "@/lib/export-utils";
@@ -154,6 +156,10 @@ export default function EditArticlePage() {
   const [researchNotes, setResearchNotes] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
 
+  // Polling state
+  const [existingPoll, setExistingPoll] = useState<{ id: string; question: string; options: { id: string; label: string; votes: number }[] } | null>(null);
+  const [generatingPoll, setGeneratingPoll] = useState(false);
+
   // Word counter calculations
   const plainText = content.replace(/<[^>]*>/g, "").trim();
   const wordCount = plainText ? plainText.split(/\s+/).length : 0;
@@ -165,6 +171,34 @@ export default function EditArticlePage() {
     const match = content.match(/<img[^>]+src="([^"]+)"/);
     if (match) setFeaturedImage(match[1]);
   }, [content]);
+
+  // Fetch existing poll for this article
+  useEffect(() => {
+    if (!articleId) return;
+    fetch(`/api/polls/from-article?articleId=${articleId}`)
+      .then((r) => r.json())
+      .then((json) => { if (json.data?.poll) setExistingPoll(json.data.poll); })
+      .catch(() => {});
+  }, [articleId]);
+
+  const handleGeneratePoll = async () => {
+    setGeneratingPoll(true);
+    try {
+      const res = await fetch("/api/polls/from-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gagal membuat polling");
+      setExistingPoll(json.data);
+      success("Polling berhasil dibuat dari artikel ini!");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal membuat polling");
+    } finally {
+      setGeneratingPoll(false);
+    }
+  };
 
   // Auto-save every 30 seconds (only when status is DRAFT)
   useEffect(() => {
@@ -1266,6 +1300,62 @@ export default function EditArticlePage() {
                 <img src={featuredImage} alt="Featured" className="mt-1 max-h-48 rounded-[8px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               </div>
             )}
+
+            {/* Polling Card */}
+            <div className={`rounded-[12px] border-2 p-4 ${existingPoll ? "border-goto-green/40 bg-goto-50" : "border-border bg-surface"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-txt-muted">
+                  <Vote size={14} className={existingPoll ? "text-goto-green" : "text-txt-muted"} />
+                  Polling Artikel
+                </label>
+                {existingPoll && (
+                  <a
+                    href="/panel/polling"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-goto-green hover:underline"
+                  >
+                    Kelola <ExternalLink size={10} />
+                  </a>
+                )}
+              </div>
+
+              {existingPoll ? (
+                <div>
+                  <p className="text-sm font-semibold text-txt-primary leading-snug mb-2">
+                    {existingPoll.question}
+                  </p>
+                  <ul className="space-y-1">
+                    {existingPoll.options.map((opt) => (
+                      <li key={opt.id} className="flex items-center gap-2 text-xs text-txt-secondary">
+                        <span className="h-1.5 w-1.5 rounded-full bg-goto-green shrink-0" />
+                        {opt.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-goto-green font-medium flex items-center gap-1">
+                    <CheckCircle size={12} /> Polling sudah ada
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-txt-muted mb-3">
+                    AI akan generate pertanyaan polling dari judul & ringkasan artikel, menggunakan gambar utama artikel sebagai ilustrasi.
+                  </p>
+                  <button
+                    onClick={handleGeneratePoll}
+                    disabled={generatingPoll}
+                    className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 text-sm"
+                  >
+                    {generatingPoll ? (
+                      <><Loader2 size={15} className="animate-spin" /> Membuat Polling…</>
+                    ) : (
+                      <><Sparkles size={15} /> Buat Polling Otomatis</>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Pengaturan SEO */}
             <div className={`rounded-[12px] border-2 ${!seoTitle && !seoDescription ? "border-yellow-300 bg-yellow-50/50" : "border-border bg-surface"}`}>

@@ -137,6 +137,7 @@ model Article {
 
   sorotan           Sorotan[]
   socialPosts       SocialPost[]
+  poll              Poll?
 
   @@index([status])
   @@index([authorId])
@@ -487,6 +488,8 @@ model Poll {
   image      String?
   categoryId String?
   category   Category?    @relation(fields: [categoryId], references: [id])
+  articleId  String?      @unique
+  article    Article?     @relation(fields: [articleId], references: [id])
   isActive   Boolean      @default(true)
   order      Int          @default(0)
   createdAt  DateTime     @default(now())
