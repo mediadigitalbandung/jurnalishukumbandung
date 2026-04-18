@@ -4,14 +4,31 @@ import { z } from "zod";
 import { successResponse, errorResponse, requireRole, logAudit } from "@/lib/api-utils";
 import { slugify } from "@/lib/utils";
 
-// GET /api/tags
-export async function GET() {
+// GET /api/tags?page=1&limit=30&q=keyword
+export async function GET(request: NextRequest) {
   try {
-    const tags = await prisma.tag.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { articles: true } } },
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(100, parseInt(searchParams.get("limit") || "30"));
+    const q = searchParams.get("q")?.trim() || "";
+
+    const where = q ? { name: { contains: q, mode: "insensitive" as const } } : {};
+
+    const [tags, total] = await Promise.all([
+      prisma.tag.findMany({
+        where,
+        orderBy: { name: "asc" },
+        include: { _count: { select: { articles: true } } },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.tag.count({ where }),
+    ]);
+
+    return successResponse({
+      tags,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
-    return successResponse(tags);
   } catch (error) {
     return errorResponse(error);
   }

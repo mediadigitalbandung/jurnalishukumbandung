@@ -33,6 +33,7 @@ interface Stats {
 }
 
 const PER_PAGE = 15;
+const TAGS_PER_PAGE = 30;
 
 export default function TagsManagerPage() {
   const { data: session, status: sessionStatus } = useSession();
@@ -59,6 +60,9 @@ export default function TagsManagerPage() {
   const [tags, setTags] = useState<TagRow[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
+  const [tagPage, setTagPage] = useState(1);
+  const [tagTotalPages, setTagTotalPages] = useState(1);
+  const [tagTotal, setTagTotal] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (sessionStatus !== "loading" && session && !["SUPER_ADMIN", "EDITOR"].includes(userRole)) {
@@ -101,21 +105,31 @@ export default function TagsManagerPage() {
   const fetchTags = useCallback(async () => {
     setTagsLoading(true);
     try {
-      const res = await fetch("/api/tags");
+      const params = new URLSearchParams({
+        page: tagPage.toString(),
+        limit: TAGS_PER_PAGE.toString(),
+      });
+      if (tagSearch) params.set("q", tagSearch);
+      const res = await fetch(`/api/tags?${params}`);
       if (res.ok) {
         const json = await res.json();
-        setTags(json.data || []);
+        setTags(json.data.tags || []);
+        setTagTotalPages(json.data.pagination?.totalPages || 1);
+        setTagTotal(json.data.pagination?.total || 0);
       }
     } catch { /* ignore */ } finally {
       setTagsLoading(false);
     }
-  }, []);
+  }, [tagPage, tagSearch]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchArticles(); }, [fetchArticles]);
   useEffect(() => {
     if (activeTab === "tags") fetchTags();
   }, [activeTab, fetchTags]);
+
+  // Reset tagPage ke 1 saat search berubah
+  useEffect(() => { setTagPage(1); }, [tagSearch]);
 
   // ── Generate tags for single article ──
   async function handleGenerate(articleId: string) {
@@ -177,9 +191,6 @@ export default function TagsManagerPage() {
     }
   }
 
-  const filteredTags = tags.filter((t) =>
-    !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase())
-  );
 
   if (sessionStatus === "loading") {
     return (
@@ -407,10 +418,15 @@ export default function TagsManagerPage() {
                 className="input pl-9 w-full text-base"
               />
             </div>
-            <button onClick={fetchTags} className="btn-secondary flex items-center gap-2 px-4 py-2.5 text-sm">
+            <button onClick={() => { setTagPage(1); fetchTags(); }} className="btn-secondary flex items-center gap-2 px-4 py-2.5 text-sm">
               <RefreshCw size={16} /> Refresh
             </button>
           </div>
+          {tagTotal > 0 && (
+            <p className="text-sm text-txt-muted mb-4">
+              {tagTotal.toLocaleString("id-ID")} tag ditemukan · halaman {tagPage} dari {tagTotalPages}
+            </p>
+          )}
 
           {tagsLoading ? (
             <div className="flex justify-center py-16">
@@ -418,7 +434,7 @@ export default function TagsManagerPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredTags.map((tag) => (
+              {tags.map((tag) => (
                 <div
                   key={tag.id}
                   className="rounded-[12px] border border-border bg-surface p-4 shadow-card flex items-center justify-between gap-3"
@@ -442,12 +458,71 @@ export default function TagsManagerPage() {
                   </button>
                 </div>
               ))}
-              {filteredTags.length === 0 && (
+              {tags.length === 0 && (
                 <div className="col-span-full rounded-[12px] border-2 border-dashed border-border py-16 text-center">
                   <Hash size={32} className="mx-auto mb-3 text-txt-muted" />
                   <p className="text-txt-muted">Tidak ada tag ditemukan</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {tagTotalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-sm text-txt-secondary">
+                Halaman {tagPage} dari {tagTotalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTagPage(1)}
+                  disabled={tagPage === 1}
+                  className="btn-secondary px-3 py-2 text-sm disabled:opacity-40"
+                >
+                  «
+                </button>
+                <button
+                  onClick={() => setTagPage((p) => Math.max(1, p - 1))}
+                  disabled={tagPage === 1}
+                  className="btn-secondary flex items-center gap-1 px-3 py-2 text-sm disabled:opacity-40"
+                >
+                  <ChevronLeft size={16} /> Prev
+                </button>
+                {/* Page numbers */}
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, tagTotalPages) }, (_, i) => {
+                    const start = Math.max(1, Math.min(tagPage - 2, tagTotalPages - 4));
+                    const p = start + i;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setTagPage(p)}
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                          p === tagPage
+                            ? "bg-goto-green text-white"
+                            : "btn-secondary"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setTagPage((p) => Math.min(tagTotalPages, p + 1))}
+                  disabled={tagPage === tagTotalPages}
+                  className="btn-primary flex items-center gap-1 px-3 py-2 text-sm disabled:opacity-40"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={() => setTagPage(tagTotalPages)}
+                  disabled={tagPage === tagTotalPages}
+                  className="btn-secondary px-3 py-2 text-sm disabled:opacity-40"
+                >
+                  »
+                </button>
+              </div>
             </div>
           )}
         </div>
