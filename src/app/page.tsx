@@ -1,4 +1,4 @@
-export const revalidate = 5; // ISR: regenerate every 5s (Cloudflare no-store, so Next.js ISR is the only cache)
+export const dynamic = "force-dynamic"; // always query DB — ISR unusable with PM2 cluster (each worker caches independently)
 
 import Link from "next/link";
 import Image from "next/image";
