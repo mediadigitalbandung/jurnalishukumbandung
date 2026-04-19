@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { toJakartaISO } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -61,8 +62,8 @@ export async function GET() {
 ${articles
   .map((article) => {
     const pubDate = article.publishedAt
-      ? new Date(article.publishedAt).toISOString()
-      : new Date().toISOString();
+      ? toJakartaISO(article.publishedAt)
+      : toJakartaISO(new Date());
     const keywords = article.tags.map((t) => t.name).join(", ");
     const imageUrl = article.featuredImage
       ? (article.featuredImage.startsWith("http") ? article.featuredImage : `${siteUrl}${article.featuredImage}`)
@@ -70,7 +71,7 @@ ${articles
 
     return `  <url>
     <loc>${siteUrl}/berita/${escapeXml(article.slug)}</loc>
-    <lastmod>${article.updatedAt.toISOString()}</lastmod>
+    <lastmod>${toJakartaISO(article.updatedAt)}</lastmod>
     <news:news>
       <news:publication>
         <news:name>Jurnalis Hukum Bandung</news:name>

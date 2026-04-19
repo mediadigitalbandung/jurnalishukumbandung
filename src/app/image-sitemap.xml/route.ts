@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { toJakartaISO } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -33,7 +34,7 @@ ${articles
 
     return `  <url>
     <loc>${siteUrl}/berita/${escapeXml(article.slug)}</loc>
-    <lastmod>${article.updatedAt.toISOString()}</lastmod>
+    <lastmod>${toJakartaISO(article.updatedAt)}</lastmod>
     <image:image>
       <image:loc>${escapeXml(imageUrl)}</image:loc>
       <image:title>${escapeXml(article.title)}</image:title>

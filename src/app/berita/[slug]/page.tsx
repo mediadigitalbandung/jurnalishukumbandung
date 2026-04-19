@@ -19,8 +19,8 @@ import BookmarkButton from "@/components/artikel/BookmarkButton";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 // Note: DOMPurify removed — content sanitized at input via API validation
-import { slugify } from "@/lib/utils";
-import { generateInternalLinksHtml } from "@/lib/seo-utils";
+import { slugify, toJakartaISO } from "@/lib/utils";
+import { generateInternalLinksHtml, injectContextualLinks, buildEntitiesFromArticleMeta, detectHowToSchema, detectQAPageSchema } from "@/lib/seo-utils";
 
 async function getArticle(slug: string) {
   const article = await prisma.article.findUnique({
@@ -83,10 +83,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     other: {
       // Google News specific meta tags
       "news_keywords": article.tags?.map((t: { name: string }) => t.name).join(", ") || "",
-      "article:published_time": article.publishedAt?.toISOString() || "",
-      "article:modified_time": article.updatedAt.toISOString(),
+      "article:published_time": toJakartaISO(article.publishedAt),
+      "article:modified_time": toJakartaISO(article.updatedAt),
       "article:author": authorDisplayName,
       "article:section": article.category.name,
+      // Article tags — each tag as separate property (duplicates OK per OG spec)
+      ...(article.tags?.length
+        ? { "article:tag": article.tags.map((t: { name: string }) => t.name).join(",") }
+        : {}),
     },
   };
 }
@@ -160,26 +164,42 @@ function injectInlineAds(html: string): string {
 
 function injectInternalLinks(html: string, related: any[]): string {
   if (!html || related.length === 0) return html;
-  
-  // Pisahkan blok berdasarkan paragraf
+
+  // Split by paragraphs
   const blocks = html.split(/(<\/p>)/gi);
-  if (blocks.length < 5) return html; // Jika terlalu pendek, jangan inject
-  
+  if (blocks.length < 5) return html;
+
   let result = "";
-  let injected = false;
-  
+  let firstInjected = false;
+  let secondInjected = false;
+  const totalParagraphs = blocks.filter((b) => b === "</p>").length;
+  const midPoint = Math.floor(totalParagraphs / 2);
+  let pCount = 0;
+
   for (let i = 0; i < blocks.length; i++) {
     result += blocks[i];
-    
-    // Inject setelah paragraf ke-3
-    if (blocks[i] === "</p>" && !injected && i >= 5) {
-      result += `<div class="my-6 p-5 rounded-lg border-l-4 border-goto-green bg-surface-secondary shadow-sm">
-        ${generateInternalLinksHtml(related)}
-      </div>`;
-      injected = true;
+
+    if (blocks[i] === "</p>") {
+      pCount++;
+
+      // First "Baca Juga" block — after paragraph 3 (early exposure for SEO)
+      if (!firstInjected && pCount >= 3) {
+        result += `<div class="my-6 p-5 rounded-lg border-l-4 border-goto-green bg-surface-secondary shadow-sm">
+          ${generateInternalLinksHtml(related.slice(0, 4), { label: "Baca Juga" })}
+        </div>`;
+        firstInjected = true;
+      }
+
+      // Second "Artikel Terkait" block — at mid/end if article is long enough
+      if (firstInjected && !secondInjected && pCount >= Math.max(8, midPoint) && related.length > 4) {
+        result += `<div class="my-6 p-5 rounded-lg border-l-4 border-goto-green bg-surface-secondary shadow-sm">
+          ${generateInternalLinksHtml(related.slice(4, 8), { label: "Artikel Terkait" })}
+        </div>`;
+        secondInjected = true;
+      }
     }
   }
-  
+
   return result;
 }
 
@@ -328,6 +348,14 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
   const currentPage = Math.min(Math.max(1, parseInt(searchParams.page || "1") || 1), totalPages);
   // Inject ads per page (after pagination) so every page gets an ad in the middle
   let sanitizedContent = injectInlineAds(contentPages[currentPage - 1] || article.content);
+
+  // Inject contextual inline links (auto-link tag/category names → /tag/* or /kategori/*)
+  const linkableEntities = buildEntitiesFromArticleMeta(
+    article.tags?.map((t) => ({ name: t.name, slug: t.slug })) ?? [],
+    article.category ? { name: article.category.name, slug: article.category.slug } : null
+  );
+  sanitizedContent = injectContextualLinks(sanitizedContent, linkableEntities, 6);
+
   sanitizedContent = injectInternalLinks(sanitizedContent, relatedArticles);
 
   // Transform img with alt (caption) and title (source) into figure/figcaption
@@ -397,13 +425,20 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
         height: 675,
       },
     ],
-    datePublished: article.publishedAt?.toISOString(),
-    dateModified: article.updatedAt.toISOString(),
+    datePublished: toJakartaISO(article.publishedAt),
+    dateModified: toJakartaISO(article.updatedAt),
     author: {
       "@type": "Person",
+      "@id": `${appUrl}/penulis/${authorSlug}#person`,
       name: authorDisplayName,
       url: `${appUrl}/penulis/${authorSlug}`,
       ...(article.author.bio && { description: article.author.bio }),
+      jobTitle: article.author.specialization || "Jurnalis Hukum",
+      worksFor: {
+        "@type": "NewsMediaOrganization",
+        "@id": `${appUrl}/#organization`,
+        name: "Jurnalis Hukum Bandung",
+      },
     },
     ...(editorName && {
       editor: {
@@ -456,7 +491,8 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
       "@id": articleUrl,
     },
     articleSection: article.category.name,
-    articleBody: plainContent.slice(0, 500),
+    // Google News prefers substantial articleBody — cap at 5000 chars to keep JSON-LD lean
+    articleBody: plainContent.slice(0, 5000),
     keywords: article.tags?.map((t: { name: string }) => t.name).join(", ") || "",
     wordCount,
     commentCount,

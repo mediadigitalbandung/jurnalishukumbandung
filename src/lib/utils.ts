@@ -19,6 +19,19 @@ export function calculateReadTime(content: string): number {
   return Math.max(1, Math.ceil(words / wordsPerMinute));
 }
 
+/**
+ * Format Date as ISO 8601 with Jakarta timezone offset (+07:00).
+ * Google News requires dates with timezone offset (not UTC "Z").
+ */
+export function toJakartaISO(date: Date | string | null | undefined): string {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+  // Jakarta is UTC+7 (no DST)
+  const jakartaTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+  return jakartaTime.toISOString().replace(/\.\d{3}Z$/, "+07:00");
+}
+
 export function formatDate(date: Date | string): string {
   const d = new Date(date);
   return d.toLocaleDateString("id-ID", {
