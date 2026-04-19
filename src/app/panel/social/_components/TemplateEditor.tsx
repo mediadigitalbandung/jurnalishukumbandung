@@ -29,6 +29,7 @@ export type TextLayer = {
   maxLines?: number;
   lineHeight?: number;
   letterSpacing?: number;
+  fontFamily?: string;
 };
 
 type LayerPreset = {
