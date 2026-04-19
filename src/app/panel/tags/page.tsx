@@ -55,8 +55,9 @@ export default function TagsManagerPage() {
   const userRole = session?.user?.role || "";
   const { success, error: showError } = useToast();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "research" ? "research"
-    : searchParams.get("tab") === "tags" ? "tags"
+  const tabParam = searchParams?.get("tab");
+  const initialTab = tabParam === "research" ? "research"
+    : tabParam === "tags" ? "tags"
     : "articles";
 
   const [activeTab, setActiveTab] = useState<"articles" | "tags" | "research">(initialTab);
