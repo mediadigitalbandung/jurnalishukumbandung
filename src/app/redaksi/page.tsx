@@ -3,10 +3,24 @@ export const dynamic = "force-dynamic";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+
 export const metadata: Metadata = {
-  title: "Susunan Redaksi",
-  description: "Susunan redaksi Jurnalis Hukum Bandung.",
-  alternates: { canonical: "https://jurnalishukumbandung.com/redaksi" },
+  title: "Susunan Redaksi — Jurnalis Hukum Bandung",
+  description:
+    "Susunan tim redaksi Jurnalis Hukum Bandung — editor, jurnalis, dan kontributor yang meliput perkembangan hukum di Bandung dan Jawa Barat.",
+  keywords: "redaksi jurnalis hukum bandung, tim redaksi, editor jhb, jurnalis hukum",
+  alternates: { canonical: `${APP_URL}/redaksi` },
+  openGraph: {
+    title: "Susunan Redaksi — Jurnalis Hukum Bandung",
+    description:
+      "Tim editor dan jurnalis di balik liputan hukum Jurnalis Hukum Bandung.",
+    type: "website",
+    url: `${APP_URL}/redaksi`,
+    siteName: "Jurnalis Hukum Bandung",
+    locale: "id_ID",
+  },
+  robots: { index: true, follow: true },
 };
 
 export default async function RedaksiPage() {

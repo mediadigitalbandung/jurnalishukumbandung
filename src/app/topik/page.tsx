@@ -5,13 +5,26 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { Hash, FileText } from "lucide-react";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
+
 export const metadata: Metadata = {
   title: "Topik Hukum Bandung — Kumpulan Liputan & Analisis",
   description:
     "Jelajahi topik-topik hukum Bandung terpopuler. Kumpulan liputan lengkap, analisis, dan berita terkait kasus hukum di Bandung dan Jawa Barat.",
+  keywords: "topik hukum bandung, tag hukum, indeks berita hukum, kasus hukum bandung, jurnalis hukum bandung",
   alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/topik`,
+    canonical: `${APP_URL}/topik`,
   },
+  openGraph: {
+    title: "Semua Topik Hukum — Jurnalis Hukum Bandung",
+    description:
+      "Jelajahi seluruh tag dan topik berita hukum di Jurnalis Hukum Bandung. Kumpulan liputan, analisis, dan kasus hukum di Bandung dan Jawa Barat.",
+    type: "website",
+    url: `${APP_URL}/topik`,
+    siteName: "Jurnalis Hukum Bandung",
+    locale: "id_ID",
+  },
+  robots: { index: true, follow: true },
 };
 
 export default async function TopikIndexPage() {

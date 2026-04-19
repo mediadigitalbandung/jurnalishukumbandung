@@ -47,6 +47,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     alternates: {
       canonical: `${appUrl}/penulis/${params.slug}`,
     },
+    robots: { index: true, follow: true },
   };
 }
 
