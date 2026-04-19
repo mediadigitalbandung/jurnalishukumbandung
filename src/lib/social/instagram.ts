@@ -8,6 +8,7 @@ import type {
   SocialPublisher,
 } from "./types";
 import { findTemplateForPlatform, renderAndStoreTemplate } from "./template-helper";
+import { generateSocialCaption } from "./caption-generator";
 
 /**
  * Instagram Publisher — uses Instagram Graph API.
@@ -25,8 +26,17 @@ export class InstagramPublisher implements SocialPublisher {
 
   /** Prepare rendered image + caption — no actual posting. */
   async prepareDraft(article: ArticleForPublish): Promise<PreparedPost> {
-    const igSettings = await prisma.instagramSettings.findFirst();
-    const caption = await this.generateCaption(article, igSettings);
+    const [igSettings, globalSettings] = await Promise.all([
+      prisma.instagramSettings.findFirst(),
+      prisma.socialMediaSettings.findFirst(),
+    ]);
+    const caption = await generateSocialCaption(article, {
+      platform: "instagram",
+      hashtagCount: igSettings?.hashtagCountTarget || 15,
+      fixedHashtagsBrand: globalSettings?.fixedHashtagsBrand || [],
+      fixedHashtagsPlatform: igSettings?.fixedHashtagsIg || [],
+      includeLink: true,
+    });
 
     // Try to render with a template, fall back to raw featured image
     let imageUrl = article.featuredImage;
@@ -159,25 +169,22 @@ export class InstagramPublisher implements SocialPublisher {
   }
 
   async preview(article: ArticleForPublish): Promise<PreviewPayload> {
-    const igSettings = await prisma.instagramSettings.findFirst();
-    const caption = await this.generateCaption(article, igSettings);
+    const [igSettings, globalSettings] = await Promise.all([
+      prisma.instagramSettings.findFirst(),
+      prisma.socialMediaSettings.findFirst(),
+    ]);
+    const caption = await generateSocialCaption(article, {
+      platform: "instagram",
+      hashtagCount: igSettings?.hashtagCountTarget || 15,
+      fixedHashtagsBrand: globalSettings?.fixedHashtagsBrand || [],
+      fixedHashtagsPlatform: igSettings?.fixedHashtagsIg || [],
+      includeLink: true,
+    });
     return {
       platform: this.platform,
       caption,
       images: article.featuredImage ? [article.featuredImage] : [],
       postFormat: "photo",
     };
-  }
-
-  private async generateCaption(article: ArticleForPublish, igSettings: { fixedHashtagsIg?: string[]; hashtagCountTarget?: number } | null): Promise<string> {
-    const title = article.seoTitle || article.title;
-    const teaser = article.excerpt || article.content.replace(/<[^>]+>/g, "").slice(0, 800);
-    const hashtags = (igSettings?.fixedHashtagsIg || [])
-      .slice(0, igSettings?.hashtagCountTarget || 12)
-      .map((h) => h.startsWith("#") ? h : `#${h}`)
-      .join(" ");
-    const cta = "Baca selengkapnya di link bio → @jurnalis.hukumbandung";
-
-    return `${title}\n\n${teaser}\n\n${cta}\n\n${hashtags}`.trim();
   }
 }

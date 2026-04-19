@@ -9,6 +9,7 @@ import type {
   FacebookPostFormat,
 } from "./types";
 import { findTemplateForPlatform, renderAndStoreTemplate } from "./template-helper";
+import { generateSocialCaption } from "./caption-generator";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
@@ -28,13 +29,22 @@ export class FacebookPublisher implements SocialPublisher {
   }
 
   async prepareDraft(article: ArticleForPublish): Promise<PreparedPost> {
-    const fbSettings = await prisma.facebookSettings.findFirst();
+    const [fbSettings, globalSettings] = await Promise.all([
+      prisma.facebookSettings.findFirst(),
+      prisma.socialMediaSettings.findFirst(),
+    ]);
     const categoryOverride = (fbSettings?.categoryFormatOverride as Record<string, string> | null) || {};
     const postFormat = (categoryOverride[article.category.slug] as FacebookPostFormat)
       || (fbSettings?.defaultPostFormat as FacebookPostFormat)
       || "link_share";
 
-    const caption = await this.generateCaption(article, fbSettings);
+    const caption = await generateSocialCaption(article, {
+      platform: "facebook",
+      hashtagCount: fbSettings?.hashtagCountTarget || 5,
+      fixedHashtagsBrand: globalSettings?.fixedHashtagsBrand || [],
+      fixedHashtagsPlatform: fbSettings?.fixedHashtagsFb || [],
+      includeLink: true,
+    });
 
     let renderedImageUrl: string | null = null;
     if (postFormat === "photo" && article.featuredImage) {
@@ -120,8 +130,17 @@ export class FacebookPublisher implements SocialPublisher {
   }
 
   async preview(article: ArticleForPublish): Promise<PreviewPayload> {
-    const fbSettings = await prisma.facebookSettings.findFirst();
-    const caption = await this.generateCaption(article, fbSettings);
+    const [fbSettings, globalSettings] = await Promise.all([
+      prisma.facebookSettings.findFirst(),
+      prisma.socialMediaSettings.findFirst(),
+    ]);
+    const caption = await generateSocialCaption(article, {
+      platform: "facebook",
+      hashtagCount: fbSettings?.hashtagCountTarget || 5,
+      fixedHashtagsBrand: globalSettings?.fixedHashtagsBrand || [],
+      fixedHashtagsPlatform: fbSettings?.fixedHashtagsFb || [],
+      includeLink: true,
+    });
     const articleUrl = buildArticleUrl(article.slug, fbSettings?.utmParams as Record<string, string> | null);
 
     return {
@@ -194,13 +213,6 @@ export class FacebookPublisher implements SocialPublisher {
     };
   }
 
-  private async generateCaption(article: ArticleForPublish, fbSettings: { fixedHashtagsFb?: string[]; hashtagCountTarget?: number } | null): Promise<string> {
-    const title = article.seoTitle || article.title;
-    const teaser = article.excerpt || article.content.replace(/<[^>]+>/g, "").slice(0, 300);
-    const hashtags = (fbSettings?.fixedHashtagsFb || []).slice(0, fbSettings?.hashtagCountTarget || 4).map((h) => h.startsWith("#") ? h : `#${h}`).join(" ");
-
-    return `${title}\n\n${teaser}\n\n${hashtags}`.trim();
-  }
 }
 
 function buildArticleUrl(slug: string, utm?: Record<string, string> | null): string {
