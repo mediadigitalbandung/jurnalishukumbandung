@@ -21,6 +21,8 @@ import {
   Download,
   Archive,
   ArrowDownCircle,
+  Share2,
+  Loader2,
 } from "lucide-react";
 import { exportToCsv } from "@/lib/csv-utils";
 
@@ -145,6 +147,7 @@ export default function ArtikelPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [posting, setPosting] = useState<string | null>(null);
   // Editors default to IN_REVIEW, creators default to ALL
   const [filterStatus, setFilterStatus] = useState(isEditor ? "IN_REVIEW" : "ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -338,6 +341,31 @@ export default function ArtikelPage() {
       fetchArticles();
     } catch {
       showError("Gagal melakukan takedown artikel.");
+    }
+  }
+
+  async function handlePostToSocial(id: string, title: string) {
+    const ok = await confirm({
+      message: `Post artikel "${title}" ke Instagram & Facebook sekarang?\n\nKalau Draft Mode aktif di Panel Social Media, ini akan membuat draft. Kalau tidak, langsung publish.`,
+      variant: "default",
+      title: "Post ke Sosmed",
+    });
+    if (!ok) return;
+    setPosting(id);
+    try {
+      const res = await fetch("/api/social/test-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Post gagal");
+      const summary = (data.data?.summary || []).join(" · ");
+      success(`Post dikirim: ${summary || "OK"}`);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal post ke sosmed");
+    } finally {
+      setPosting(null);
     }
   }
 
@@ -644,6 +672,17 @@ export default function ArtikelPage() {
                                 title="Publikasikan artikel"
                               >
                                 <ArrowDownCircle size={18} className="rotate-180" />
+                              </button>
+                            )}
+                            {/* Post ke Sosmed — for PUBLISHED articles, editor/admin only */}
+                            {isEditor && article.status === "PUBLISHED" && (
+                              <button
+                                onClick={() => handlePostToSocial(article.id, article.title)}
+                                disabled={posting === article.id}
+                                className="rounded-lg p-2 text-pink-600 hover:bg-pink-50 disabled:opacity-50 transition-colors"
+                                title="Post ke Instagram & Facebook"
+                              >
+                                {posting === article.id ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
                               </button>
                             )}
                             {/* Takedown — for PUBLISHED articles, editor/admin only */}
