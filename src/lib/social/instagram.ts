@@ -4,17 +4,13 @@ import type {
   Platform,
   PublishResult,
   PreviewPayload,
+  PreparedPost,
   SocialPublisher,
 } from "./types";
 import { findTemplateForPlatform, renderAndStoreTemplate } from "./template-helper";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
-
 /**
  * Instagram Publisher — uses Instagram Graph API.
- * Primary format: Carousel (image + CTA slide).
- * NOTE: Full image processing (sharp, watermark, CTA) deferred to Milestone C.
- *       MVP publishes single-image post with caption.
  */
 export class InstagramPublisher implements SocialPublisher {
   platform: Platform = "instagram";
@@ -27,26 +23,9 @@ export class InstagramPublisher implements SocialPublisher {
     return !!(global?.metaAccessToken && global?.igUserId && ig?.enabled);
   }
 
-  async publish(article: ArticleForPublish): Promise<PublishResult> {
-    const global = await prisma.socialMediaSettings.findFirst();
+  /** Prepare rendered image + caption — no actual posting. */
+  async prepareDraft(article: ArticleForPublish): Promise<PreparedPost> {
     const igSettings = await prisma.instagramSettings.findFirst();
-
-    if (!global?.metaAccessToken || !global?.igUserId) {
-      return {
-        platform: this.platform,
-        status: "failed",
-        errorMessage: "Meta credentials not configured",
-      };
-    }
-
-    if (!article.featuredImage) {
-      return {
-        platform: this.platform,
-        status: "failed",
-        errorMessage: "Instagram requires featured image",
-      };
-    }
-
     const caption = await this.generateCaption(article, igSettings);
 
     // Try to render with a template, fall back to raw featured image
@@ -57,10 +36,49 @@ export class InstagramPublisher implements SocialPublisher {
         imageUrl = await renderAndStoreTemplate(template, article, {
           jpegQuality: igSettings?.jpegQuality,
         });
-        console.log(`[IG] Using template, rendered image: ${imageUrl}`);
       }
     } catch (err) {
       console.error("[IG] Template rendering failed, using raw image:", err);
+    }
+
+    return {
+      platform: this.platform,
+      caption,
+      renderedImageUrl: imageUrl,
+      postFormat: "photo",
+      articleSlug: article.slug,
+      articleId: article.id,
+    };
+  }
+
+  async publish(article: ArticleForPublish): Promise<PublishResult> {
+    if (!article.featuredImage) {
+      return {
+        platform: this.platform,
+        status: "failed",
+        errorMessage: "Instagram requires featured image",
+      };
+    }
+    const prepared = await this.prepareDraft(article);
+    return this.postPrepared(prepared);
+  }
+
+  /** Post a pre-prepared draft to Instagram. */
+  async postPrepared(prepared: PreparedPost): Promise<PublishResult> {
+    const global = await prisma.socialMediaSettings.findFirst();
+    if (!global?.metaAccessToken || !global?.igUserId) {
+      return {
+        platform: this.platform,
+        status: "failed",
+        errorMessage: "Meta credentials not configured",
+      };
+    }
+    if (!prepared.renderedImageUrl) {
+      return {
+        platform: this.platform,
+        status: "failed",
+        errorMessage: "No image URL in prepared draft",
+      };
     }
 
     try {
@@ -70,8 +88,8 @@ export class InstagramPublisher implements SocialPublisher {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image_url: imageUrl,
-          caption,
+          image_url: prepared.renderedImageUrl,
+          caption: prepared.caption,
           access_token: global.metaAccessToken,
         }),
       });
@@ -103,18 +121,49 @@ export class InstagramPublisher implements SocialPublisher {
         };
       }
 
+      // Fetch the permalink for the published post
+      let externalUrl = `https://www.instagram.com/p/${publishData.id}`;
+      try {
+        const permalinkRes = await fetch(
+          `https://graph.facebook.com/v21.0/${publishData.id}?fields=permalink&access_token=${global.metaAccessToken}`
+        );
+        const permalinkData = await permalinkRes.json();
+        if (permalinkData.permalink) externalUrl = permalinkData.permalink;
+      } catch { /* ignore */ }
+
       return {
         platform: this.platform,
         status: "success",
         externalPostId: publishData.id,
-        externalUrl: `https://www.instagram.com/p/${publishData.id}`,
-        postFormat: "photo",
-        captionFinal: caption,
+        externalUrl,
+        postFormat: prepared.postFormat,
+        captionFinal: prepared.caption,
         slidesCount: 1,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown";
       return { platform: this.platform, status: "failed", errorMessage: msg };
+    }
+  }
+
+  /** Delete a published Instagram post via Graph API. */
+  async deletePost(externalPostId: string): Promise<{ success: boolean; error?: string }> {
+    const global = await prisma.socialMediaSettings.findFirst();
+    if (!global?.metaAccessToken) {
+      return { success: false, error: "Meta access token not configured" };
+    }
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v21.0/${externalPostId}?access_token=${global.metaAccessToken}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        return { success: false, error: data.error?.message || `HTTP ${res.status}` };
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : "Unknown" };
     }
   }
 
@@ -125,11 +174,10 @@ export class InstagramPublisher implements SocialPublisher {
       platform: this.platform,
       caption,
       images: article.featuredImage ? [article.featuredImage] : [],
-      postFormat: "carousel",
+      postFormat: "photo",
     };
   }
 
-  /** Generate caption — placeholder, AI integration later. */
   private async generateCaption(article: ArticleForPublish, igSettings: { fixedHashtagsIg?: string[]; hashtagCountTarget?: number } | null): Promise<string> {
     const title = article.seoTitle || article.title;
     const teaser = article.excerpt || article.content.replace(/<[^>]+>/g, "").slice(0, 800);
@@ -137,7 +185,7 @@ export class InstagramPublisher implements SocialPublisher {
       .slice(0, igSettings?.hashtagCountTarget || 12)
       .map((h) => h.startsWith("#") ? h : `#${h}`)
       .join(" ");
-    const cta = "Baca selengkapnya di link bio → @jurnalishukumbdg";
+    const cta = "Baca selengkapnya di link bio → @jurnalis.hukumbandung";
 
     return `${title}\n\n${teaser}\n\n${cta}\n\n${hashtags}`.trim();
   }

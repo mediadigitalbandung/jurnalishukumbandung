@@ -4,6 +4,7 @@ import type {
   Platform,
   PublishResult,
   PreviewPayload,
+  PreparedPost,
   SocialPublisher,
   FacebookPostFormat,
 } from "./types";
@@ -13,7 +14,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandun
 
 /**
  * Facebook Publisher — uses Meta Graph API.
- * Primary format: link_share (auto-generates preview card from OG tags).
+ * Supports: link_share (default), photo (with template).
  */
 export class FacebookPublisher implements SocialPublisher {
   platform: Platform = "facebook";
@@ -26,10 +27,50 @@ export class FacebookPublisher implements SocialPublisher {
     return !!(global?.metaAccessToken && global?.fbPageId && fb?.enabled);
   }
 
+  async prepareDraft(article: ArticleForPublish): Promise<PreparedPost> {
+    const fbSettings = await prisma.facebookSettings.findFirst();
+    const categoryOverride = (fbSettings?.categoryFormatOverride as Record<string, string> | null) || {};
+    const postFormat = (categoryOverride[article.category.slug] as FacebookPostFormat)
+      || (fbSettings?.defaultPostFormat as FacebookPostFormat)
+      || "link_share";
+
+    const caption = await this.generateCaption(article, fbSettings);
+
+    let renderedImageUrl: string | null = null;
+    if (postFormat === "photo" && article.featuredImage) {
+      try {
+        const template = await findTemplateForPlatform("facebook", fbSettings?.aspectRatio);
+        if (template) {
+          renderedImageUrl = await renderAndStoreTemplate(template, article, {
+            jpegQuality: fbSettings?.jpegQuality,
+          });
+        } else {
+          renderedImageUrl = article.featuredImage;
+        }
+      } catch (err) {
+        console.error("[FB] Template rendering failed, using raw image:", err);
+        renderedImageUrl = article.featuredImage;
+      }
+    }
+
+    return {
+      platform: this.platform,
+      caption,
+      renderedImageUrl,
+      postFormat,
+      articleSlug: article.slug,
+      articleId: article.id,
+    };
+  }
+
   async publish(article: ArticleForPublish): Promise<PublishResult> {
+    const prepared = await this.prepareDraft(article);
+    return this.postPrepared(prepared);
+  }
+
+  async postPrepared(prepared: PreparedPost): Promise<PublishResult> {
     const global = await prisma.socialMediaSettings.findFirst();
     const fbSettings = await prisma.facebookSettings.findFirst();
-
     if (!global?.metaAccessToken || !global?.fbPageId) {
       return {
         platform: this.platform,
@@ -38,39 +79,43 @@ export class FacebookPublisher implements SocialPublisher {
       };
     }
 
-    // Determine post format (per-category override or default)
-    const categoryOverride = (fbSettings?.categoryFormatOverride as Record<string, string> | null) || {};
-    const postFormat = (categoryOverride[article.category.slug] as FacebookPostFormat) || (fbSettings?.defaultPostFormat as FacebookPostFormat) || "link_share";
-
-    // Generate caption (placeholder — will be replaced by AI in Milestone B)
-    const caption = await this.generateCaption(article, fbSettings);
-    const articleUrl = buildArticleUrl(article.slug, fbSettings?.utmParams as Record<string, string> | null);
+    const articleUrl = buildArticleUrl(prepared.articleSlug, fbSettings?.utmParams as Record<string, string> | null);
 
     try {
-      if (postFormat === "link_share") {
-        return await this.publishLinkShare(global.fbPageId, global.metaAccessToken, caption, articleUrl);
+      if (prepared.postFormat === "link_share") {
+        return await this.publishLinkShare(global.fbPageId, global.metaAccessToken, prepared.caption, articleUrl);
       }
-      if (postFormat === "photo") {
-        // Try template rendering for photo format
-        let imageUrl = article.featuredImage || "";
-        try {
-          const template = await findTemplateForPlatform("facebook", fbSettings?.aspectRatio);
-          if (template && article.featuredImage) {
-            imageUrl = await renderAndStoreTemplate(template, article, {
-              jpegQuality: fbSettings?.jpegQuality,
-            });
-            console.log(`[FB] Using template, rendered image: ${imageUrl}`);
-          }
-        } catch (err) {
-          console.error("[FB] Template rendering failed, using raw image:", err);
+      if (prepared.postFormat === "photo") {
+        const imageUrl = prepared.renderedImageUrl;
+        if (!imageUrl) {
+          return this.publishLinkShare(global.fbPageId, global.metaAccessToken, prepared.caption, articleUrl);
         }
-        return await this.publishPhoto(global.fbPageId, global.metaAccessToken, caption, imageUrl, articleUrl);
+        return await this.publishPhoto(global.fbPageId, global.metaAccessToken, prepared.caption, imageUrl, articleUrl);
       }
-      // multi_photo — not implemented in MVP
       return { platform: this.platform, status: "failed", errorMessage: "multi_photo not yet implemented" };
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown";
       return { platform: this.platform, status: "failed", errorMessage: msg };
+    }
+  }
+
+  async deletePost(externalPostId: string): Promise<{ success: boolean; error?: string }> {
+    const global = await prisma.socialMediaSettings.findFirst();
+    if (!global?.metaAccessToken) {
+      return { success: false, error: "Meta access token not configured" };
+    }
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v21.0/${externalPostId}?access_token=${global.metaAccessToken}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        return { success: false, error: data.error?.message || `HTTP ${res.status}` };
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : "Unknown" };
     }
   }
 
@@ -93,7 +138,6 @@ export class FacebookPublisher implements SocialPublisher {
     };
   }
 
-  /** Link-share post — FB auto-generates preview from OG tags. */
   private async publishLinkShare(pageId: string, token: string, message: string, url: string): Promise<PublishResult> {
     const endpoint = `https://graph.facebook.com/v21.0/${pageId}/feed`;
     const res = await fetch(endpoint, {
@@ -120,12 +164,7 @@ export class FacebookPublisher implements SocialPublisher {
     };
   }
 
-  /** Photo post — single image + message (link included in message). */
   private async publishPhoto(pageId: string, token: string, message: string, imageUrl: string, articleUrl: string): Promise<PublishResult> {
-    if (!imageUrl) {
-      // Fallback to link-share
-      return this.publishLinkShare(pageId, token, message, articleUrl);
-    }
     const endpoint = `https://graph.facebook.com/v21.0/${pageId}/photos`;
     const res = await fetch(endpoint, {
       method: "POST",
@@ -149,12 +188,12 @@ export class FacebookPublisher implements SocialPublisher {
       platform: this.platform,
       status: "success",
       externalPostId: data.post_id || data.id,
+      externalUrl: data.post_id ? `https://facebook.com/${data.post_id}` : undefined,
       postFormat: "photo",
       captionFinal: message,
     };
   }
 
-  /** Generate caption — placeholder template for now, AI integration later. */
   private async generateCaption(article: ArticleForPublish, fbSettings: { fixedHashtagsFb?: string[]; hashtagCountTarget?: number } | null): Promise<string> {
     const title = article.seoTitle || article.title;
     const teaser = article.excerpt || article.content.replace(/<[^>]+>/g, "").slice(0, 300);

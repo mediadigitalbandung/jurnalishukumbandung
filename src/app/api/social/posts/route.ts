@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     if (platform) where.platform = platform;
     if (status) where.status = status;
 
-    const [posts, total, igSuccess, fbSuccess, igFailed, fbFailed] = await Promise.all([
+    const [posts, total, igSuccess, fbSuccess, igFailed, fbFailed, igDraft, fbDraft] = await Promise.all([
       prisma.socialPost.findMany({
         where,
         include: {
@@ -34,13 +34,15 @@ export async function GET(req: NextRequest) {
       prisma.socialPost.count({ where: { platform: "facebook", status: "success" } }),
       prisma.socialPost.count({ where: { platform: "instagram", status: "failed" } }),
       prisma.socialPost.count({ where: { platform: "facebook", status: "failed" } }),
+      prisma.socialPost.count({ where: { platform: "instagram", status: "draft" } }),
+      prisma.socialPost.count({ where: { platform: "facebook", status: "draft" } }),
     ]);
 
     return successResponse({
       posts,
       stats: {
-        instagram: { success: igSuccess, failed: igFailed },
-        facebook: { success: fbSuccess, failed: fbFailed },
+        instagram: { success: igSuccess, failed: igFailed, draft: igDraft },
+        facebook: { success: fbSuccess, failed: fbFailed, draft: fbDraft },
       },
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });

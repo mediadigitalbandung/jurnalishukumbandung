@@ -5,12 +5,13 @@ import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import {
   Share2, Instagram, Facebook, Settings, CheckCircle, XCircle, Clock,
-  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X, Send, Layout, Edit3, Trash2, Star,
+  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X, Send, Layout, Edit3, Trash2, Star, Eye,
 } from "lucide-react";
 import TemplateEditor, { type TemplateData } from "./_components/TemplateEditor";
 
 type GlobalSettings = {
   autoPublishEnabled: boolean;
+  draftModeEnabled: boolean;
   metaAccessToken: string | null;
   fbPageId: string | null;
   fbPageName: string | null;
@@ -54,6 +55,8 @@ type SocialPost = {
   externalPostId: string | null;
   externalUrl: string | null;
   postFormat: string | null;
+  captionFinal: string | null;
+  renderedImageUrl: string | null;
   publishedAt: string | null;
   errorMessage: string | null;
   createdAt: string;
@@ -61,8 +64,8 @@ type SocialPost = {
 };
 
 type Stats = {
-  instagram: { success: number; failed: number };
-  facebook: { success: number; failed: number };
+  instagram: { success: number; failed: number; draft: number };
+  facebook: { success: number; failed: number; draft: number };
 };
 
 export default function SocialMediaPanel() {
@@ -141,7 +144,7 @@ export default function SocialMediaPanel() {
 
   // Logs state
   const [posts, setPosts] = useState<SocialPost[]>([]);
-  const [stats, setStats] = useState<Stats>({ instagram: { success: 0, failed: 0 }, facebook: { success: 0, failed: 0 } });
+  const [stats, setStats] = useState<Stats>({ instagram: { success: 0, failed: 0, draft: 0 }, facebook: { success: 0, failed: 0, draft: 0 } });
   const [logsLoading, setLogsLoading] = useState(false);
   const [logFilter, setLogFilter] = useState<"all" | "instagram" | "facebook">("all");
 
@@ -452,6 +455,27 @@ function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSett
         </div>
       </div>
 
+      {/* Draft Mode Toggle */}
+      <div className={`rounded-[12px] border p-5 shadow-card ${form.draftModeEnabled ? "border-yellow-300 bg-yellow-50/40" : "border-border bg-surface"}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex-1 pr-4">
+            <p className="text-sm font-semibold text-txt-primary flex items-center gap-2">
+              📝 Draft Mode (Review dulu sebelum publish)
+            </p>
+            <p className="text-xs text-txt-muted mt-0.5">
+              Aktifkan: Saat artikel publish, sistem hanya render gambar + caption, lalu masuk ke &quot;Log Post&quot; sebagai <b>Draft</b>.<br />
+              Anda harus approve manual untuk posting ke FB/IG. Matikan = langsung publish otomatis.
+            </p>
+          </div>
+          <button
+            onClick={() => setForm({ ...form, draftModeEnabled: !form.draftModeEnabled })}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${form.draftModeEnabled ? "bg-yellow-500" : "bg-surface-tertiary"}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.draftModeEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Meta Credentials */}
       <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
         <h3 className="mb-3 text-sm font-semibold text-txt-primary">Meta API Credentials</h3>
@@ -656,6 +680,56 @@ function PlatformSettingsForm({ settings, platform, onSave, saving }: { settings
 
 /* ───── Logs View ───── */
 function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { posts: SocialPost[]; stats: Stats; loading: boolean; filter: string; setFilter: (f: "all" | "instagram" | "facebook") => void; onRefresh: () => void }) {
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [previewPost, setPreviewPost] = useState<SocialPost | null>(null);
+
+  const approveDraft = async (id: string) => {
+    if (!confirm("Approve & publish draft ini ke platform?")) return;
+    setActioningId(id);
+    try {
+      const res = await fetch(`/api/social/posts/${id}/approve`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Approve failed");
+      alert(`Draft berhasil dipublish. Status: ${data.data.result.status}`);
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Approve failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const rejectDraft = async (id: string) => {
+    if (!confirm("Tolak draft ini? File gambar akan dihapus.")) return;
+    setActioningId(id);
+    try {
+      const res = await fetch(`/api/social/posts/${id}/reject`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Reject failed");
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Reject failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const takedown = async (id: string) => {
+    if (!confirm("Takedown post ini dari platform?\nAksi ini tidak bisa dibatalkan.")) return;
+    setActioningId(id);
+    try {
+      const res = await fetch(`/api/social/posts/${id}/takedown`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Takedown failed");
+      alert("Post berhasil di-takedown");
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Takedown failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Stats */}
@@ -665,7 +739,10 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-50"><Instagram size={20} className="text-pink-600" /></div>
             <div>
               <p className="text-sm font-semibold text-txt-primary">Instagram</p>
-              <p className="text-xs text-txt-muted">{stats.instagram.success} sukses · {stats.instagram.failed} gagal</p>
+              <p className="text-xs text-txt-muted">
+                {stats.instagram.success} sukses · {stats.instagram.failed} gagal
+                {stats.instagram.draft > 0 && <span className="text-yellow-600"> · {stats.instagram.draft} draft</span>}
+              </p>
             </div>
           </div>
         </div>
@@ -674,7 +751,10 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50"><Facebook size={20} className="text-blue-600" /></div>
             <div>
               <p className="text-sm font-semibold text-txt-primary">Facebook</p>
-              <p className="text-xs text-txt-muted">{stats.facebook.success} sukses · {stats.facebook.failed} gagal</p>
+              <p className="text-xs text-txt-muted">
+                {stats.facebook.success} sukses · {stats.facebook.failed} gagal
+                {stats.facebook.draft > 0 && <span className="text-yellow-600"> · {stats.facebook.draft} draft</span>}
+              </p>
             </div>
           </div>
         </div>
@@ -731,6 +811,10 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
                       <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600"><CheckCircle size={10} /> Sukses</span>
                     ) : p.status === "failed" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600" title={p.errorMessage || ""}><XCircle size={10} /> Gagal</span>
+                    ) : p.status === "draft" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-700">📝 Draft</span>
+                    ) : p.status === "deleted" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">🗑️ Deleted</span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-600"><Clock size={10} /> Pending</span>
                     )}
@@ -738,11 +822,49 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
                   <td className="px-4 py-3 text-xs text-txt-secondary">{p.postFormat || "-"}</td>
                   <td className="px-4 py-3 text-xs text-txt-muted">{new Date(p.createdAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</td>
                   <td className="px-4 py-3 text-center">
-                    {p.externalUrl && (
-                      <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-goto-green hover:underline">
-                        <ExternalLink size={10} /> Lihat
-                      </a>
-                    )}
+                    <div className="inline-flex items-center gap-2">
+                      {p.renderedImageUrl && (
+                        <button
+                          onClick={() => setPreviewPost(p)}
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        >
+                          <Eye size={11} /> Preview
+                        </button>
+                      )}
+                      {p.status === "draft" && (
+                        <>
+                          <button
+                            onClick={() => approveDraft(p.id)}
+                            disabled={actioningId === p.id}
+                            className="inline-flex items-center gap-1 text-xs text-green-600 font-semibold hover:underline disabled:opacity-50"
+                          >
+                            {actioningId === p.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                            Publish
+                          </button>
+                          <button
+                            onClick={() => rejectDraft(p.id)}
+                            disabled={actioningId === p.id}
+                            className="inline-flex items-center gap-1 text-xs text-red-500 hover:underline disabled:opacity-50"
+                          >
+                            <X size={11} /> Tolak
+                          </button>
+                        </>
+                      )}
+                      {p.externalUrl && p.status === "success" && (
+                        <>
+                          <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-goto-green hover:underline">
+                            <ExternalLink size={11} /> Lihat
+                          </a>
+                          <button
+                            onClick={() => takedown(p.id)}
+                            disabled={actioningId === p.id}
+                            className="inline-flex items-center gap-1 text-xs text-red-500 hover:underline disabled:opacity-50"
+                          >
+                            <Trash2 size={11} /> Takedown
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -750,6 +872,45 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
           </tbody>
         </table>
       </div>
+
+      {/* Preview modal */}
+      {previewPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewPost(null)}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[12px] bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-5 py-3">
+              <div>
+                <h3 className="text-base font-bold text-txt-primary">Preview Post</h3>
+                <p className="text-xs text-txt-secondary">{previewPost.platform} · {previewPost.article.title}</p>
+              </div>
+              <button onClick={() => setPreviewPost(null)} className="rounded-full p-1.5 text-txt-secondary hover:bg-surface-secondary">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {previewPost.renderedImageUrl && (
+                <div className="rounded-lg overflow-hidden border border-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={previewPost.renderedImageUrl} alt="preview" className="w-full" />
+                </div>
+              )}
+              {previewPost.captionFinal && (
+                <div>
+                  <p className="text-xs font-semibold text-txt-secondary mb-1">Caption:</p>
+                  <pre className="whitespace-pre-wrap text-sm text-txt-primary bg-surface-secondary p-3 rounded-lg font-sans">
+                    {previewPost.captionFinal}
+                  </pre>
+                </div>
+              )}
+              {previewPost.errorMessage && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+                  <p className="text-xs font-semibold text-red-700">Error:</p>
+                  <p className="text-xs text-red-600 mt-1">{previewPost.errorMessage}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -796,6 +957,7 @@ function TagsInput({ tags, onChange, placeholder }: { tags: string[]; onChange: 
 function defaultGlobal(): GlobalSettings {
   return {
     autoPublishEnabled: false,
+    draftModeEnabled: false,
     metaAccessToken: null, fbPageId: null, fbPageName: null,
     igUserId: null, igAccountName: null, metaTokenExpiresAt: null,
     captionPromptTemplate: null, captionSafetyRules: null,

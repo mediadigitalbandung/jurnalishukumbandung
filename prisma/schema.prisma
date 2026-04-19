@@ -165,6 +165,8 @@ model SocialMediaSettings {
   fixedHashtagsBrand       String[]  @default([])
   // Master switch
   autoPublishEnabled       Boolean   @default(false)
+  // Draft mode — if true, publish creates drafts for review instead of posting directly
+  draftModeEnabled         Boolean   @default(false)
   // Notifications
   notificationEmail        String?
   notificationWebhookUrl   String?
@@ -257,9 +259,10 @@ model SocialPost {
   platform      String    // "instagram" | "facebook"
   externalPostId String?                               // ID dari Meta
   externalUrl    String?
-  status         String    @default("pending")         // "pending" | "success" | "failed"
+  status         String    @default("pending")         // "draft" | "pending" | "success" | "failed" | "deleted"
   postFormat     String?                                // "carousel" | "link_share" | "photo" | "multi_photo"
   captionFinal   String?   @db.Text
+  renderedImageUrl String?                              // URL of rendered image (for draft preview)
   slidesCount    Int?
   publishedAt    DateTime?
   scheduledFor   DateTime?

@@ -7,7 +7,16 @@ export type Platform = "instagram" | "facebook" | "threads" | "x";
 
 export type FacebookPostFormat = "link_share" | "photo" | "multi_photo";
 
-export type PublishStatus = "pending" | "success" | "failed";
+export type PublishStatus = "draft" | "pending" | "success" | "failed" | "deleted";
+
+export interface PreparedPost {
+  platform: Platform;
+  caption: string;
+  renderedImageUrl: string | null;  // URL of rendered image
+  postFormat: string;                 // "photo" | "link_share" | "multi_photo"
+  articleSlug: string;
+  articleId: string;
+}
 
 export interface ArticleForPublish {
   id: string;
@@ -60,8 +69,17 @@ export interface SocialPublisher {
   /** Check if publisher is configured and ready (credentials + settings). */
   isReady(): Promise<boolean>;
 
-  /** Publish article immediately. */
+  /** Publish article immediately (prepare + post). */
   publish(article: ArticleForPublish): Promise<PublishResult>;
+
+  /** Prepare post content (render image + caption) — does NOT post. */
+  prepareDraft?(article: ArticleForPublish): Promise<PreparedPost>;
+
+  /** Post a pre-built prepared draft. */
+  postPrepared?(prepared: PreparedPost): Promise<PublishResult>;
+
+  /** Delete a published post via platform API. */
+  deletePost?(externalPostId: string): Promise<{ success: boolean; error?: string }>;
 
   /** Preview what would be published (without actually posting). */
   preview(article: ArticleForPublish): Promise<PreviewPayload>;
