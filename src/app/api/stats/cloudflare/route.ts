@@ -48,14 +48,6 @@ export async function GET(req: NextRequest) {
             }
             uniq { uniques }
           }
-          firewallEventsAdaptiveGroups(
-            limit: 100
-            filter: { date_geq: "${sinceStr}", date_leq: "${untilStr}" }
-            orderBy: [date_ASC]
-          ) {
-            dimensions { date }
-            count
-          }
         }
       }
     }`;
