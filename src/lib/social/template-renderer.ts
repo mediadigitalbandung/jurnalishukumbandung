@@ -9,7 +9,10 @@ export type TextLayer = {
   align: "left" | "center" | "right";
   fontWeight: "normal" | "bold" | "600" | "700";
   maxWidth?: number;   // 0-1 (percentage of canvas width)
+  maxLines?: number;   // if exceeded, truncate with ellipsis
+  lineHeight?: number; // multiplier, default 1.2
   fontFamily?: string;
+  letterSpacing?: number;
 };
 
 export type TemplateConfig = {
@@ -28,6 +31,9 @@ export type ArticleData = {
   author?: { name: string } | null;
   publishedAt?: Date | string | null;
   featuredImage?: string | null;
+  // AI-generated — if provided, replaces {{paraphrased_title}} and {{short_summary}}
+  paraphrasedTitle?: string;
+  shortSummary?: string;
 };
 
 const ASPECT_DIMENSIONS = {
@@ -45,7 +51,9 @@ function replacePlaceholders(text: string, article: ArticleData): string {
   });
   return text
     .replace(/\{\{title\}\}/g, article.title || "")
-    .replace(/\{\{category\}\}/g, article.category?.name || "")
+    .replace(/\{\{paraphrased_title\}\}/g, article.paraphrasedTitle || article.title || "")
+    .replace(/\{\{short_summary\}\}/g, article.shortSummary || "")
+    .replace(/\{\{category\}\}/g, (article.category?.name || "").toUpperCase())
     .replace(/\{\{date\}\}/g, dateStr)
     .replace(/\{\{author\}\}/g, article.author?.name || "");
 }
@@ -59,7 +67,7 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function wrapTextLines(text: string, maxCharsPerLine: number): string[] {
+function wrapTextLines(text: string, maxCharsPerLine: number, maxLines?: number): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let current = "";
@@ -73,6 +81,19 @@ function wrapTextLines(text: string, maxCharsPerLine: number): string[] {
     }
   }
   if (current) lines.push(current);
+
+  // Apply maxLines with ellipsis
+  if (maxLines && lines.length > maxLines) {
+    const truncated = lines.slice(0, maxLines);
+    const lastLine = truncated[maxLines - 1];
+    // Trim lastLine a bit and add ellipsis
+    const maxLast = Math.max(10, maxCharsPerLine - 1);
+    truncated[maxLines - 1] =
+      lastLine.length > maxLast
+        ? lastLine.slice(0, maxLast - 1).replace(/\s+\S*$/, "") + "…"
+        : lastLine.replace(/[.,;:]?\s*$/, "") + "…";
+    return truncated;
+  }
   return lines;
 }
 
@@ -89,25 +110,28 @@ function buildTextSvg(
     if (!text.trim()) continue;
 
     const maxWidthPx = layer.maxWidth ? canvasW * layer.maxWidth : canvasW * 0.9;
-    // Rough heuristic: 0.55 char width ratio for most fonts
-    const charPxWidth = layer.fontSize * 0.55;
+    // Rough heuristic: bold chars wider
+    const charPxWidth = layer.fontSize * (Number(layer.fontWeight) >= 600 ? 0.56 : 0.52);
     const maxChars = Math.max(8, Math.floor(maxWidthPx / charPxWidth));
-    const lines = wrapTextLines(text, maxChars);
+    const lines = wrapTextLines(text, maxChars, layer.maxLines);
 
     const xPx = canvasW * layer.x;
     const yPx = canvasH * layer.y;
-    const lineHeight = layer.fontSize * 1.2;
+    const lineHeight = layer.fontSize * (layer.lineHeight || 1.2);
 
     const anchor =
       layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
 
     for (let i = 0; i < lines.length; i++) {
+      const letterSpacingAttr = layer.letterSpacing
+        ? ` letter-spacing="${layer.letterSpacing}"`
+        : "";
       elements.push(
         `<text x="${xPx.toFixed(1)}" y="${(yPx + i * lineHeight + layer.fontSize).toFixed(1)}" ` +
-          `font-family="${layer.fontFamily || "Source Sans 3, Arial, sans-serif"}" ` +
+          `font-family="${layer.fontFamily || "Arial, Helvetica, sans-serif"}" ` +
           `font-size="${layer.fontSize}" ` +
           `font-weight="${layer.fontWeight}" ` +
-          `fill="${layer.color}" ` +
+          `fill="${layer.color}"${letterSpacingAttr} ` +
           `text-anchor="${anchor}">${escapeXml(lines[i])}</text>`
       );
     }

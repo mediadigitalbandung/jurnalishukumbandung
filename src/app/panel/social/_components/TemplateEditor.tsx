@@ -12,7 +12,76 @@ export type TextLayer = {
   align: "left" | "center" | "right";
   fontWeight: "normal" | "bold" | "600" | "700";
   maxWidth?: number;
+  maxLines?: number;
+  lineHeight?: number;
+  letterSpacing?: number;
 };
+
+type LayerPreset = {
+  name: string;
+  layer: TextLayer;
+};
+
+const LAYER_PRESETS: LayerPreset[] = [
+  {
+    name: "Kategori (badge)",
+    layer: {
+      text: "{{category}}",
+      x: 0.08,
+      y: 0.5,
+      fontSize: 42,
+      color: "#FFFFFF",
+      align: "left",
+      fontWeight: "700",
+      maxWidth: 0.6,
+      maxLines: 1,
+      letterSpacing: 2,
+    },
+  },
+  {
+    name: "Judul (AI paraphrase, 2 baris)",
+    layer: {
+      text: "{{paraphrased_title}}",
+      x: 0.08,
+      y: 0.6,
+      fontSize: 54,
+      color: "#1C1C1E",
+      align: "left",
+      fontWeight: "700",
+      maxWidth: 0.84,
+      maxLines: 2,
+      lineHeight: 1.15,
+    },
+  },
+  {
+    name: "Ringkasan (AI, 1-2 kalimat)",
+    layer: {
+      text: "{{short_summary}}",
+      x: 0.08,
+      y: 0.76,
+      fontSize: 28,
+      color: "#4B5563",
+      align: "left",
+      fontWeight: "normal",
+      maxWidth: 0.84,
+      maxLines: 3,
+      lineHeight: 1.3,
+    },
+  },
+  {
+    name: "Tanggal",
+    layer: {
+      text: "{{date}}",
+      x: 0.08,
+      y: 0.92,
+      fontSize: 22,
+      color: "#6B7280",
+      align: "left",
+      fontWeight: "600",
+      maxLines: 1,
+    },
+  },
+];
 
 export type TemplateData = {
   id?: string;
@@ -66,6 +135,7 @@ export default function TemplateEditor({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [draggingSlot, setDraggingSlot] = useState<null | "move" | "resize-br">(null);
+  const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const aspectCfg = ASPECT_CONFIGS[data.aspectRatio];
@@ -166,23 +236,20 @@ export default function TemplateEditor({
   }, [draggingSlot]);
 
   // Text layer ops
-  const addTextLayer = () => {
-    setData((d) => ({
-      ...d,
-      textLayers: [
-        ...d.textLayers,
-        {
-          text: "{{title}}",
-          x: 0.5,
-          y: 0.75,
-          fontSize: 60,
-          color: "#FFFFFF",
-          align: "center",
-          fontWeight: "700",
-          maxWidth: 0.9,
-        },
-      ],
-    }));
+  const addTextLayer = (preset?: LayerPreset) => {
+    const layer: TextLayer = preset?.layer || {
+      text: "{{title}}",
+      x: 0.5,
+      y: 0.75,
+      fontSize: 60,
+      color: "#FFFFFF",
+      align: "center",
+      fontWeight: "700",
+      maxWidth: 0.9,
+      maxLines: 2,
+    };
+    setData((d) => ({ ...d, textLayers: [...d.textLayers, { ...layer }] }));
+    setPresetMenuOpen(false);
   };
 
   const updateTextLayer = (i: number, patch: Partial<TextLayer>) => {
@@ -219,7 +286,10 @@ export default function TemplateEditor({
               {data.id ? "Edit Template" : "Template Baru"}
             </h2>
             <p className="text-xs text-txt-secondary">
-              Drag foto slot untuk mengatur posisi foto artikel
+              Placeholder: <code className="text-goto-green">{`{{paraphrased_title}}`}</code>{" "}
+              <code className="text-goto-green">{`{{short_summary}}`}</code>{" "}
+              <code className="text-goto-green">{`{{category}}`}</code>{" "}
+              <code className="text-goto-green">{`{{date}}`}</code> <span className="text-txt-muted">· AI auto-fill</span>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -368,13 +438,42 @@ export default function TemplateEditor({
                 <label className="text-xs font-semibold text-txt-secondary">
                   Text Layers ({data.textLayers.length})
                 </label>
-                <button
-                  onClick={addTextLayer}
-                  className="flex items-center gap-1 rounded-full bg-goto-green-light px-3 py-1 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white"
-                >
-                  <Plus size={12} />
-                  Tambah Teks
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setPresetMenuOpen((o) => !o)}
+                    className="flex items-center gap-1 rounded-full bg-goto-green-light px-3 py-1 text-xs font-medium text-goto-green hover:bg-goto-green hover:text-white"
+                  >
+                    <Plus size={12} />
+                    Tambah Teks
+                  </button>
+                  {presetMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setPresetMenuOpen(false)} />
+                      <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-lg border border-border bg-surface shadow-lg py-1">
+                        <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-txt-muted border-b border-border">
+                          Preset (AI auto-fill)
+                        </div>
+                        {LAYER_PRESETS.map((p) => (
+                          <button
+                            key={p.name}
+                            onClick={() => addTextLayer(p)}
+                            className="block w-full text-left px-3 py-2 text-xs hover:bg-surface-secondary"
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                        <div className="border-t border-border">
+                          <button
+                            onClick={() => addTextLayer()}
+                            className="block w-full text-left px-3 py-2 text-xs hover:bg-surface-secondary"
+                          >
+                            Teks kosong (custom)
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="space-y-3">
                 {data.textLayers.map((layer, i) => (
@@ -436,11 +535,12 @@ export default function TemplateEditor({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                    <div className="grid grid-cols-4 gap-2 mt-2 text-xs">
                       <select
                         value={layer.align}
                         onChange={(e) => updateTextLayer(i, { align: e.target.value as TextLayer["align"] })}
                         className="rounded border border-border px-1 py-0.5"
+                        title="Alignment"
                       >
                         <option value="left">Kiri</option>
                         <option value="center">Tengah</option>
@@ -452,26 +552,40 @@ export default function TemplateEditor({
                           updateTextLayer(i, { fontWeight: e.target.value as TextLayer["fontWeight"] })
                         }
                         className="rounded border border-border px-1 py-0.5"
+                        title="Font weight"
                       >
                         <option value="normal">Normal</option>
                         <option value="600">Semibold</option>
                         <option value="700">Bold</option>
                       </select>
-                      <div>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          placeholder="Max W %"
-                          value={layer.maxWidth ? Math.round(layer.maxWidth * 100) : ""}
-                          onChange={(e) =>
-                            updateTextLayer(i, {
-                              maxWidth: e.target.value ? parseInt(e.target.value) / 100 : undefined,
-                            })
-                          }
-                          className="w-full rounded border border-border px-1 py-0.5"
-                        />
-                      </div>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder="Max W %"
+                        title="Max width %"
+                        value={layer.maxWidth ? Math.round(layer.maxWidth * 100) : ""}
+                        onChange={(e) =>
+                          updateTextLayer(i, {
+                            maxWidth: e.target.value ? parseInt(e.target.value) / 100 : undefined,
+                          })
+                        }
+                        className="w-full rounded border border-border px-1 py-0.5"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        placeholder="Max baris"
+                        title="Maks jumlah baris (truncate ellipsis)"
+                        value={layer.maxLines || ""}
+                        onChange={(e) =>
+                          updateTextLayer(i, {
+                            maxLines: e.target.value ? parseInt(e.target.value) : undefined,
+                          })
+                        }
+                        className="w-full rounded border border-border px-1 py-0.5"
+                      />
                     </div>
                   </div>
                 ))}

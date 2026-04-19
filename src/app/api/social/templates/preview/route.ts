@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/api-utils";
 import { renderTemplate, type TemplateConfig, type ArticleData } from "@/lib/social/template-renderer";
+import { enrichArticleForTemplate } from "@/lib/social/template-helper";
 
 export const dynamic = "force-dynamic";
 
@@ -27,29 +28,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const select = {
+      title: true,
+      excerpt: true,
+      content: true,
+      featuredImage: true,
+      publishedAt: true,
+      category: { select: { name: true } },
+      author: { select: { name: true } },
+    };
+
     let article;
     if (articleId) {
-      article = await prisma.article.findUnique({
-        where: { id: articleId },
-        select: {
-          title: true,
-          featuredImage: true,
-          publishedAt: true,
-          category: { select: { name: true } },
-          author: { select: { name: true } },
-        },
-      });
+      article = await prisma.article.findUnique({ where: { id: articleId }, select });
     } else {
       article = await prisma.article.findFirst({
         where: { status: "PUBLISHED", featuredImage: { not: null } },
         orderBy: { publishedAt: "desc" },
-        select: {
-          title: true,
-          featuredImage: true,
-          publishedAt: true,
-          category: { select: { name: true } },
-          author: { select: { name: true } },
-        },
+        select,
       });
     }
 
@@ -60,7 +56,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const buffer = await renderTemplate(template, article as ArticleData);
+    const enriched = await enrichArticleForTemplate(template, article as ArticleData & { content: string; excerpt: string | null });
+    const buffer = await renderTemplate(template, enriched);
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
