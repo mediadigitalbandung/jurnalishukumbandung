@@ -135,6 +135,8 @@ export default function TemplateEditor({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [draggingSlot, setDraggingSlot] = useState<null | "move" | "resize-br">(null);
+  const [draggingText, setDraggingText] = useState<null | { index: number; kind: "move" | "resize" }>(null);
+  const [selectedLayer, setSelectedLayer] = useState<number | null>(null);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -234,6 +236,44 @@ export default function TemplateEditor({
       window.removeEventListener("mouseup", onUp);
     };
   }, [draggingSlot]);
+
+  // Text layer drag handlers
+  useEffect(() => {
+    if (!draggingText) return;
+    const onMove = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const xRel = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const yRel = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+      setData((d) => {
+        const next = [...d.textLayers];
+        const layer = next[draggingText.index];
+        if (!layer) return d;
+
+        if (draggingText.kind === "move") {
+          next[draggingText.index] = {
+            ...layer,
+            x: Math.max(0, Math.min(1, xRel)),
+            y: Math.max(0, Math.min(1, yRel)),
+          };
+        } else {
+          // resize — drag right edge to set maxWidth relative to x
+          const newMax = Math.max(0.1, Math.min(1, xRel - layer.x));
+          next[draggingText.index] = { ...layer, maxWidth: newMax };
+        }
+        return { ...d, textLayers: next };
+      });
+    };
+    const onUp = () => setDraggingText(null);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [draggingText]);
 
   // Text layer ops
   const addTextLayer = (preset?: LayerPreset) => {
@@ -415,7 +455,7 @@ export default function TemplateEditor({
                     onMouseDown={(e) => onCanvasMouseDown(e, "move")}
                     className="absolute border-2 border-goto-green bg-goto-green/20 cursor-move flex items-center justify-center"
                   >
-                    <span className="text-xs font-bold text-goto-green bg-white/80 px-2 py-0.5 rounded">
+                    <span className="text-xs font-bold text-goto-green bg-white/80 px-2 py-0.5 rounded pointer-events-none">
                       AREA FOTO
                     </span>
                     {/* Resize handle */}
@@ -424,6 +464,69 @@ export default function TemplateEditor({
                       className="absolute -right-1.5 -bottom-1.5 h-3 w-3 rounded-sm bg-goto-green cursor-se-resize"
                     />
                   </div>
+
+                  {/* Text layer boxes */}
+                  {data.textLayers.map((layer, i) => {
+                    const isSelected = selectedLayer === i;
+                    const leftPct = layer.x * 100;
+                    const topPct = layer.y * 100;
+                    const widthPct = (layer.maxWidth || 0.9) * 100;
+                    // Estimate box height based on font size + lines
+                    const estLines = Math.min(layer.maxLines || 3, 3);
+                    // Simple estimate: fontSize / canvasHeight (1350 for 4:5) × 100 × lines × 1.2
+                    const canvasH = ASPECT_CONFIGS[data.aspectRatio].h;
+                    const heightPct = ((layer.fontSize * (layer.lineHeight || 1.2) * estLines) / canvasH) * 100;
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          left: `${leftPct}%`,
+                          top: `${topPct}%`,
+                          width: `${widthPct}%`,
+                          height: `${Math.max(heightPct, 3)}%`,
+                          transform:
+                            layer.align === "center"
+                              ? "translateX(-50%)"
+                              : layer.align === "right"
+                              ? "translateX(-100%)"
+                              : undefined,
+                        }}
+                        onClick={(e) => { e.stopPropagation(); setSelectedLayer(i); }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedLayer(i);
+                          setDraggingText({ index: i, kind: "move" });
+                        }}
+                        className={`absolute flex items-center px-1 cursor-move transition-colors ${
+                          isSelected
+                            ? "border-2 border-blue-500 bg-blue-500/10"
+                            : "border border-dashed border-blue-400/60 bg-blue-500/5 hover:border-blue-500"
+                        }`}
+                      >
+                        <span
+                          className={`truncate text-[10px] font-semibold ${
+                            isSelected ? "text-blue-700" : "text-blue-600"
+                          } bg-white/80 px-1 rounded pointer-events-none`}
+                          style={{
+                            textAlign: layer.align,
+                            width: "100%",
+                          }}
+                        >
+                          T{i + 1}: {layer.text.replace(/\{\{(\w+)\}\}/g, "$1")}
+                        </span>
+                        {/* Resize handle (right edge) */}
+                        <div
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDraggingText({ index: i, kind: "resize" });
+                          }}
+                          className="absolute -right-1 top-1/2 -translate-y-1/2 h-3 w-3 rounded-sm bg-blue-500 cursor-ew-resize"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
                 <p className="mt-2 text-[11px] text-txt-muted">
                   Posisi: {Math.round(data.photoSlotX * 100)}%, {Math.round(data.photoSlotY * 100)}% · Ukuran:{" "}
@@ -477,10 +580,23 @@ export default function TemplateEditor({
               </div>
               <div className="space-y-3">
                 {data.textLayers.map((layer, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-surface-secondary p-3">
+                  <div
+                    key={i}
+                    onClick={() => setSelectedLayer(i)}
+                    className={`rounded-lg border p-3 cursor-pointer transition-colors ${
+                      selectedLayer === i
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-border bg-surface-secondary hover:border-blue-300"
+                    }`}
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-txt-primary">Layer #{i + 1}</span>
-                      <button onClick={() => removeTextLayer(i)} className="text-red-500 hover:text-red-700">
+                      <span className="text-xs font-semibold text-txt-primary">
+                        Layer #{i + 1} {selectedLayer === i && <span className="text-blue-600">• dipilih</span>}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeTextLayer(i); }}
+                        className="text-red-500 hover:text-red-700"
+                      >
                         <X size={14} />
                       </button>
                     </div>
