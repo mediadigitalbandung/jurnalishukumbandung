@@ -537,12 +537,30 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     ],
   };
 
+  // Auto-detect HowTo & QAPage schema for featured snippets
+  const howToLd = detectHowToSchema(article.title, article.content || "", articleUrl, imageUrl);
+  const qaPageLd = detectQAPageSchema(article.title, article.excerpt || "", article.content || "", articleUrl);
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, breadcrumbLd]) }}
       />
+      {/* HowTo schema — for "Cara/Langkah/Panduan" articles → featured snippet */}
+      {howToLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(howToLd) }}
+        />
+      )}
+      {/* QAPage schema — for question-style articles → "People Also Ask" */}
+      {qaPageLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(qaPageLd) }}
+        />
+      )}
       {/* FAQPage schema — appears in Google "People Also Ask" */}
       {faqItems.length > 0 && (
         <script

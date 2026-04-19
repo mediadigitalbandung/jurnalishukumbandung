@@ -173,10 +173,14 @@ export default function RootLayout({
       <head>
         {/* Resource hints — faster font & API loading = better Core Web Vitals */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Preload critical brand asset for instant header render */}
+        <link rel="preload" as="image" href="/logo-jhb.webp" type="image/webp" fetchPriority="high" />
       </head>
       <body className="flex min-h-screen flex-col font-sans bg-surface text-txt-primary">
         <script

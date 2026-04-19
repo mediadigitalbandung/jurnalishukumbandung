@@ -77,7 +77,37 @@ export default async function PenulisPage({ params }: { params: { slug: string }
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
   const authorUrl = `${appUrl}/penulis/${params.slug}`;
 
-  // E-E-A-T: Person structured data for author expertise signals
+  // Parse mediaSosial (could be JSON or comma-separated URLs)
+  const sameAsList: string[] = [];
+  if (author.portofolio) sameAsList.push(author.portofolio);
+  if (author.mediaSosial) {
+    try {
+      const parsed = JSON.parse(author.mediaSosial);
+      if (Array.isArray(parsed)) sameAsList.push(...parsed.filter((u) => typeof u === "string"));
+      else if (typeof parsed === "object") {
+        for (const v of Object.values(parsed)) if (typeof v === "string" && v.startsWith("http")) sameAsList.push(v);
+      }
+    } catch {
+      // Plain string or comma-separated URLs
+      const urls = author.mediaSosial.split(/[,\n]/).map((s) => s.trim()).filter((s) => s.startsWith("http"));
+      sameAsList.push(...urls);
+    }
+  }
+
+  // Parse pendidikan (could be "Universitas Padjadjaran, S.H." format)
+  const alumniOf = author.pendidikan
+    ? author.pendidikan.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean).map((edu) => ({
+        "@type": "EducationalOrganization",
+        name: edu,
+      }))
+    : undefined;
+
+  // Parse keahlian (comma-separated skills)
+  const expertiseList = author.keahlian
+    ? author.keahlian.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  // E-E-A-T: Person structured data for author expertise signals (enhanced)
   const personLd = {
     "@context": "https://schema.org",
     "@type": "Person",
@@ -86,6 +116,8 @@ export default async function PenulisPage({ params }: { params: { slug: string }
     url: authorUrl,
     ...(author.bio && { description: author.bio }),
     ...(author.avatar && { image: author.avatar.startsWith("http") ? author.avatar : `${appUrl}${author.avatar}` }),
+    ...(author.email && { email: author.email }),
+    ...(author.phone && { telephone: author.phone }),
     jobTitle: author.specialization || "Jurnalis Hukum",
     worksFor: {
       "@type": "NewsMediaOrganization",
@@ -93,11 +125,28 @@ export default async function PenulisPage({ params }: { params: { slug: string }
       name: "Jurnalis Hukum Bandung",
       url: appUrl,
     },
-    knowsAbout: [
+    ...(alumniOf && alumniOf.length > 0 && { alumniOf }),
+    ...(author.organisasiPers && {
+      memberOf: {
+        "@type": "Organization",
+        name: author.organisasiPers,
+      },
+    }),
+    ...(author.nomorKartuPers && {
+      hasCredential: {
+        "@type": "EducationalOccupationalCredential",
+        credentialCategory: "Press Card",
+        name: "Kartu Pers Indonesia",
+        identifier: author.nomorKartuPers,
+      },
+    }),
+    knowsAbout: Array.from(new Set([
       "Hukum Pidana", "Hukum Perdata", "Hukum Tata Negara",
       "HAM", "Peradilan", "Hukum Indonesia",
       ...(author.specialization ? [author.specialization] : []),
-    ],
+      ...expertiseList,
+    ])),
+    ...(sameAsList.length > 0 && { sameAs: sameAsList }),
     mainEntityOfPage: { "@type": "ProfilePage", "@id": authorUrl },
   };
 

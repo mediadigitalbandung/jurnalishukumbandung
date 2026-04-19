@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 
 interface Ad {
   id: string;
@@ -61,11 +62,15 @@ function AdContent({ ad }: { ad: Ad }) {
     ad.type === "HTML" && ad.htmlCode ? (
       <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} />
     ) : ad.imageUrl ? (
-      <img
+      <Image
         src={ad.imageUrl}
         alt="Iklan"
+        width={1200}
+        height={300}
         className="w-full h-auto block"
         loading="lazy"
+        sizes="(max-width: 768px) 100vw, 1200px"
+        unoptimized
       />
     ) : null;
 
@@ -116,11 +121,15 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
     ad.type === "HTML" && ad.htmlCode ? (
       <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} className="w-full h-full" />
     ) : ad.imageUrl ? (
-      <img
+      <Image
         src={ad.imageUrl}
         alt="Iklan"
+        width={300}
+        height={600}
         className="w-full h-full object-contain object-top block rounded-lg"
         loading="lazy"
+        sizes="300px"
+        unoptimized
       />
     ) : null;
 

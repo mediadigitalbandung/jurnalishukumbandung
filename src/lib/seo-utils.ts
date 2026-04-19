@@ -429,14 +429,208 @@ export async function getRelatedArticleSuggestions(
 /* ── 5. Generate internal link suggestions as HTML ──────────────── */
 
 export function generateInternalLinksHtml(
-  relatedArticles: { title: string; slug: string }[]
+  relatedArticles: { title: string; slug: string }[],
+  options: { limit?: number; label?: string } = {}
 ): string {
+  const { limit = 5, label = "Baca Juga" } = options;
   if (relatedArticles.length === 0) return "";
 
-  return `<div class="related-links"><p><strong>Baca Juga:</strong></p><ul>${relatedArticles
-    .slice(0, 3)
+  return `<div class="related-links"><p><strong>${label}:</strong></p><ul>${relatedArticles
+    .slice(0, limit)
     .map((a) => `<li><a href="/berita/${a.slug}">${a.title}</a></li>`)
     .join("")}</ul></div>`;
+}
+
+/* ── 5b. Inject contextual inline links (entity-based) ──────────────── */
+
+interface LinkableEntity {
+  /** Lowercase phrase to find in content (case-insensitive) */
+  match: string;
+  /** Full URL or path to link to */
+  href: string;
+  /** Optional title attribute */
+  title?: string;
+}
+
+/**
+ * Inject contextual inline links into HTML content based on entity matching.
+ * - Only first occurrence of each entity is linked (avoid spam)
+ * - Skips text inside existing links, headings, code, blockquotes
+ * - Limits total injected links to avoid over-linking
+ */
+export function injectContextualLinks(
+  html: string,
+  entities: LinkableEntity[],
+  maxLinks = 8
+): string {
+  if (!html || entities.length === 0) return html;
+
+  let result = html;
+  let injected = 0;
+
+  // Sort entities by match length DESC to match longest phrases first
+  const sortedEntities = [...entities].sort((a, b) => b.match.length - a.match.length);
+
+  for (const entity of sortedEntities) {
+    if (injected >= maxLinks) break;
+    if (!entity.match || entity.match.length < 3) continue;
+
+    // Build regex: match phrase as whole word, case-insensitive, NOT inside <a>/<h>/<code>/<blockquote> tags
+    // Use negative lookbehind to skip if inside an open tag
+    const escapedMatch = entity.match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(
+      `(?<!<[^>]*?)\\b(${escapedMatch})\\b(?![^<]*?>)`,
+      "i"
+    );
+
+    let replaced = false;
+    result = result.replace(regex, (match, p1, offset) => {
+      if (replaced) return match;
+
+      // Check we're not inside an existing <a>, <h2-6>, <code>, <blockquote>
+      const before = result.slice(0, offset);
+      const lastOpenA = before.lastIndexOf("<a ");
+      const lastCloseA = before.lastIndexOf("</a>");
+      if (lastOpenA > lastCloseA) return match; // inside <a>
+
+      const lastOpenH = before.search(/<h[2-6][\s>]/gi);
+      const lastCloseH = before.search(/<\/h[2-6]>/gi);
+      if (lastOpenH > lastCloseH && lastOpenH !== -1) return match;
+
+      replaced = true;
+      injected++;
+      const titleAttr = entity.title ? ` title="${entity.title.replace(/"/g, "&quot;")}"` : "";
+      return `<a href="${entity.href}" class="internal-link"${titleAttr}>${p1}</a>`;
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Build linkable entities from article tags + category for contextual linking
+ */
+export function buildEntitiesFromArticleMeta(
+  tags: { name: string; slug: string }[],
+  category: { name: string; slug: string } | null
+): LinkableEntity[] {
+  const entities: LinkableEntity[] = [];
+
+  for (const tag of tags) {
+    if (tag.name && tag.slug) {
+      entities.push({
+        match: tag.name,
+        href: `/tag/${tag.slug}`,
+        title: `Lihat semua berita tentang ${tag.name}`,
+      });
+    }
+  }
+
+  if (category && category.name && category.slug) {
+    entities.push({
+      match: category.name,
+      href: `/kategori/${category.slug}`,
+      title: `Lihat kategori ${category.name}`,
+    });
+  }
+
+  return entities;
+}
+
+/* ── 5c. Auto-detect HowTo schema from article ────────────────── */
+
+/**
+ * Detect if article qualifies as HowTo schema and extract steps.
+ * Returns null if not a HowTo article.
+ *
+ * Triggers on: title contains "cara", "langkah", "panduan", "bagaimana", "tutorial", "tips"
+ * Steps extracted from: <ol><li>, <h2>/<h3> with numeric prefix
+ */
+export function detectHowToSchema(
+  title: string,
+  contentHtml: string,
+  url: string,
+  imageUrl?: string
+): Record<string, unknown> | null {
+  const lowerTitle = title.toLowerCase();
+  const isHowTo = /\b(cara|langkah|panduan|bagaimana|tutorial|tips|prosedur|step)\b/i.test(lowerTitle);
+  if (!isHowTo) return null;
+
+  // Try to extract from <ol><li>...</li></ol> first
+  const olMatch = contentHtml.match(/<ol[^>]*>([\s\S]*?)<\/ol>/i);
+  let stepTexts: string[] = [];
+  if (olMatch) {
+    const liMatches = olMatch[1].match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
+    stepTexts = liMatches
+      .map((li) => stripHtml(li).trim())
+      .filter((s) => s.length > 10 && s.length < 500);
+  }
+
+  // Fallback: extract from <h2>/<h3> with numeric prefix or "Langkah N"
+  if (stepTexts.length < 2) {
+    const headingMatches = contentHtml.match(/<h[2-3][^>]*>([\s\S]*?)<\/h[2-3]>/gi) || [];
+    stepTexts = headingMatches
+      .map((h) => stripHtml(h).trim())
+      .filter((s) => /^(\d+\.|langkah\s+\d+|step\s+\d+)/i.test(s) && s.length < 200);
+  }
+
+  if (stepTexts.length < 2) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: title,
+    description: stepTexts.slice(0, 1).join(" "),
+    url,
+    ...(imageUrl && { image: { "@type": "ImageObject", url: imageUrl } }),
+    inLanguage: "id-ID",
+    step: stepTexts.slice(0, 12).map((text, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: text.split(/[.:]/, 1)[0]?.slice(0, 80) || `Langkah ${i + 1}`,
+      text: text.slice(0, 500),
+    })),
+  };
+}
+
+/* ── 5d. QAPage schema for Q&A-style articles ────────────────── */
+
+/**
+ * Detect if article is Q&A-style (single primary question + answer).
+ * Triggers on: title is a question (ends with "?", or starts with "apa", "siapa", "kenapa", "bagaimana", "kapan", "dimana")
+ */
+export function detectQAPageSchema(
+  title: string,
+  excerpt: string,
+  contentHtml: string,
+  url: string
+): Record<string, unknown> | null {
+  const trimmedTitle = title.trim();
+  const isQuestion =
+    trimmedTitle.endsWith("?") ||
+    /^(apa|siapa|kenapa|mengapa|bagaimana|kapan|di\s?mana|berapa)\b/i.test(trimmedTitle);
+  if (!isQuestion) return null;
+
+  // Use excerpt or first paragraph as answer
+  const firstP = contentHtml.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  const answer = excerpt || (firstP ? stripHtml(firstP[1]).trim() : "");
+  if (!answer || answer.length < 20) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "QAPage",
+    mainEntity: {
+      "@type": "Question",
+      name: trimmedTitle.endsWith("?") ? trimmedTitle : `${trimmedTitle}?`,
+      text: trimmedTitle,
+      answerCount: 1,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: answer.slice(0, 600),
+        url,
+      },
+    },
+  };
 }
 
 /* ── 6. Auto-generate FAQ from article content ────────────────── */
