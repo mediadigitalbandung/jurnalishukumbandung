@@ -6,7 +6,7 @@ import { callAI, hasAIKey } from "@/lib/ai-client";
 
 export const dynamic = "force-dynamic";
 
-const TARGET_KEYWORDS = [
+const FALLBACK_KEYWORDS = [
   "hukum bandung",
   "berita hukum bandung",
   "pengadilan bandung",
@@ -23,6 +23,19 @@ const TARGET_KEYWORDS = [
   "tipikor bandung",
   "kejaksaan bandung",
 ];
+
+async function getTargetKeywords(): Promise<string[]> {
+  try {
+    const active = await prisma.targetKeyword.findMany({
+      where: { isActive: true },
+      select: { keyword: true },
+    });
+    const list = active.map((k) => k.keyword);
+    return list.length > 0 ? list : FALLBACK_KEYWORDS;
+  } catch {
+    return FALLBACK_KEYWORDS;
+  }
+}
 
 const AUTO_ARTICLE_SYSTEM = "Kamu adalah jurnalis senior media berita hukum 'Jurnalis Hukum Bandung'. Tulis artikel berita dalam Bahasa Indonesia yang profesional, informatif, dan berdasarkan fakta. Gunakan gaya penulisan jurnalistik berita (5W+1H). Jangan gunakan markdown formatting seperti ** atau ##, tulis dalam format HTML dengan tag <h2>, <h3>, <p>, <ul>, <li>, <blockquote>.";
 
@@ -45,9 +58,10 @@ async function callAIWithRetry(prompt: string, maxTokens = 2000, retries = 2): P
 }
 
 async function generateArticle(tagName?: string, tagId?: string) {
-  // 1. Pick keyword — use tag name if provided, else random from list
-  const keyword = tagName || TARGET_KEYWORDS[Math.floor(Math.random() * TARGET_KEYWORDS.length)];
-  const relatedKeywords = TARGET_KEYWORDS.filter((k) => k !== keyword).sort(() => Math.random() - 0.5).slice(0, 3);
+  // 1. Pick keyword — use tag name if provided, else random from DB-backed list
+  const keywords = await getTargetKeywords();
+  const keyword = tagName || keywords[Math.floor(Math.random() * keywords.length)];
+  const relatedKeywords = keywords.filter((k) => k !== keyword).sort(() => Math.random() - 0.5).slice(0, 3);
 
   // 2. Pick 1 RANDOM published article (NOT auto-generated), filtered by tag if provided
   const sourceWhere = tagId

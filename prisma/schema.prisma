@@ -562,3 +562,15 @@ model ContactMessage {
 
   @@map("contact_messages")
 }
+
+model TargetKeyword {
+  id        String   @id @default(cuid())
+  keyword   String   @unique
+  source    String   @default("manual") // "manual" | "ai_research"
+  notes     String?  @db.Text  // optional reasoning from AI (kenapa keyword ini relevan)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+  @@map("target_keywords")
+}

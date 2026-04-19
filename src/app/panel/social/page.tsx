@@ -730,6 +730,21 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
     }
   };
 
+  const markDeleted = async (id: string) => {
+    if (!confirm("Tandai post ini sebagai dihapus?\nHanya mengubah status di log, post di platform tetap ada (hapus manual dulu di Instagram).")) return;
+    setActioningId(id);
+    try {
+      const res = await fetch(`/api/social/posts/${id}/mark-deleted`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Update failed");
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Stats */}
@@ -855,13 +870,27 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
                           <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-goto-green hover:underline">
                             <ExternalLink size={11} /> Lihat
                           </a>
-                          <button
-                            onClick={() => takedown(p.id)}
-                            disabled={actioningId === p.id}
-                            className="inline-flex items-center gap-1 text-xs text-red-500 hover:underline disabled:opacity-50"
-                          >
-                            <Trash2 size={11} /> Takedown
-                          </button>
+                          {p.platform === "facebook" ? (
+                            <button
+                              onClick={() => takedown(p.id)}
+                              disabled={actioningId === p.id}
+                              className="inline-flex items-center gap-1 text-xs text-red-500 hover:underline disabled:opacity-50"
+                              title="Hapus post dari Facebook via API"
+                            >
+                              {actioningId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                              Takedown
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => markDeleted(p.id)}
+                              disabled={actioningId === p.id}
+                              className="inline-flex items-center gap-1 text-xs text-orange-600 hover:underline disabled:opacity-50"
+                              title="Instagram tidak support delete via API. Hapus manual dulu di app IG, lalu tandai di sini."
+                            >
+                              {actioningId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                              Tandai Dihapus
+                            </button>
+                          )}
                         </>
                       )}
                     </div>

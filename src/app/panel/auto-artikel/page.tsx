@@ -24,7 +24,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-const TARGET_KEYWORDS = [
+const FALLBACK_KEYWORDS = [
   "hukum bandung", "berita hukum bandung", "pengadilan bandung",
   "sidang bandung", "hukum pidana bandung", "hukum perdata bandung",
   "korupsi jawa barat", "kasus hukum bandung", "berita hukum jawa barat",
@@ -77,6 +77,9 @@ export default function AutoArtikelPage() {
   // Last run info
   const [lastRun, setLastRun] = useState<string | null>(null);
 
+  // Target keywords (fetched from DB)
+  const [targetKeywords, setTargetKeywords] = useState<string[]>([]);
+
   // Load settings
   useEffect(() => {
     setLoading(true);
@@ -94,6 +97,25 @@ export default function AutoArtikelPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Load target keywords from DB (active only)
+  const loadTargetKeywords = useCallback(async () => {
+    try {
+      const res = await fetch("/api/target-keywords");
+      if (res.ok) {
+        const json = await res.json();
+        const active = (json.data?.keywords || [])
+          .filter((k: { isActive: boolean }) => k.isActive)
+          .map((k: { keyword: string }) => k.keyword);
+        setTargetKeywords(active.length > 0 ? active : FALLBACK_KEYWORDS);
+      } else {
+        setTargetKeywords(FALLBACK_KEYWORDS);
+      }
+    } catch {
+      setTargetKeywords(FALLBACK_KEYWORDS);
+    }
+  }, []);
+  useEffect(() => { loadTargetKeywords(); }, [loadTargetKeywords]);
 
   // Load AI-generated drafts
   const loadDrafts = useCallback(async () => {
@@ -434,16 +456,32 @@ export default function AutoArtikelPage() {
 
           {/* Target Keywords */}
           <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
-            <h2 className="text-lg font-bold text-txt-primary mb-3 flex items-center gap-2">
-              <Hash size={18} /> Keyword Target
-            </h2>
-            <p className="text-xs text-txt-muted mb-3">Topik yang digunakan AI untuk generate artikel:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {TARGET_KEYWORDS.map((kw) => (
-                <span key={kw} className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">
-                  {kw}
-                </span>
-              ))}
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <h2 className="text-lg font-bold text-txt-primary flex items-center gap-2">
+                <Hash size={18} /> Keyword Target
+                <span className="text-xs font-normal text-txt-muted">({targetKeywords.length})</span>
+              </h2>
+              <Link
+                href="/panel/tags?tab=research"
+                className="text-xs text-goto-green font-medium hover:underline whitespace-nowrap flex items-center gap-1"
+                title="Kelola keyword di Tags Manager"
+              >
+                <TrendingUp size={12} /> Riset AI
+              </Link>
+            </div>
+            <p className="text-xs text-txt-muted mb-3">
+              Topik yang digunakan AI untuk generate artikel (dari Tags Manager → Riset Keyword):
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+              {targetKeywords.length === 0 ? (
+                <p className="text-xs italic text-txt-muted">Loading...</p>
+              ) : (
+                targetKeywords.map((kw) => (
+                  <span key={kw} className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700">
+                    {kw}
+                  </span>
+                ))
+              )}
             </div>
           </div>
         </div>

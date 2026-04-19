@@ -146,25 +146,16 @@ export class InstagramPublisher implements SocialPublisher {
     }
   }
 
-  /** Delete a published Instagram post via Graph API. */
-  async deletePost(externalPostId: string): Promise<{ success: boolean; error?: string }> {
-    const global = await prisma.socialMediaSettings.findFirst();
-    if (!global?.metaAccessToken) {
-      return { success: false, error: "Meta access token not configured" };
-    }
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/v21.0/${externalPostId}?access_token=${global.metaAccessToken}`,
-        { method: "DELETE" }
-      );
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        return { success: false, error: data.error?.message || `HTTP ${res.status}` };
-      }
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Unknown" };
-    }
+  /**
+   * Instagram Graph API does NOT support deleting published media via API.
+   * Meta limitation — posts must be deleted manually from the Instagram app/website.
+   * This method always returns a descriptive error so UI can handle it gracefully.
+   */
+  async deletePost(_externalPostId: string): Promise<{ success: boolean; error?: string }> {
+    return {
+      success: false,
+      error: "Instagram tidak mendukung delete post via API. Hapus manual di app/web Instagram, lalu gunakan 'Tandai Dihapus' untuk update status.",
+    };
   }
 
   async preview(article: ArticleForPublish): Promise<PreviewPayload> {

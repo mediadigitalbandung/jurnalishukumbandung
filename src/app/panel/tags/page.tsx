@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
-import { Hash, Sparkles, Search, Loader2, CheckCircle, Tag, Trash2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { redirect, useSearchParams } from "next/navigation";
+import { Hash, Sparkles, Search, Loader2, CheckCircle, Tag, Trash2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, MapPin, Plus, Power } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
 interface ArticleRow {
@@ -32,6 +32,21 @@ interface Stats {
   totalArticles: number;
 }
 
+interface TargetKeyword {
+  id: string;
+  keyword: string;
+  source: string;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface ResearchedKeyword {
+  keyword: string;
+  notes: string;
+  _selected?: boolean;
+}
+
 const PER_PAGE = 15;
 const TAGS_PER_PAGE = 30;
 
@@ -39,8 +54,23 @@ export default function TagsManagerPage() {
   const { data: session, status: sessionStatus } = useSession();
   const userRole = session?.user?.role || "";
   const { success, error: showError } = useToast();
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "research" ? "research"
+    : searchParams.get("tab") === "tags" ? "tags"
+    : "articles";
 
-  const [activeTab, setActiveTab] = useState<"articles" | "tags">("articles");
+  const [activeTab, setActiveTab] = useState<"articles" | "tags" | "research">(initialTab);
+
+  // Riset Keyword tab
+  const [researchCount, setResearchCount] = useState(15);
+  const [researchContext, setResearchContext] = useState("");
+  const [researching, setResearching] = useState(false);
+  const [researchResults, setResearchResults] = useState<ResearchedKeyword[]>([]);
+  const [savingKeywords, setSavingKeywords] = useState(false);
+  const [savedKeywords, setSavedKeywords] = useState<TargetKeyword[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [manualKeyword, setManualKeyword] = useState("");
+  const [addingManual, setAddingManual] = useState(false);
 
   // Stats
   const [stats, setStats] = useState<Stats | null>(null);
@@ -217,6 +247,146 @@ export default function TagsManagerPage() {
   }
 
 
+  // ── Fetch saved target keywords ──
+  const fetchSavedKeywords = useCallback(async () => {
+    setLoadingSaved(true);
+    try {
+      const res = await fetch("/api/target-keywords");
+      if (res.ok) {
+        const json = await res.json();
+        setSavedKeywords(json.data?.keywords || []);
+      }
+    } catch { /* ignore */ } finally {
+      setLoadingSaved(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "research") fetchSavedKeywords();
+  }, [activeTab, fetchSavedKeywords]);
+
+  // ── Run AI research ──
+  async function handleResearch() {
+    setResearching(true);
+    setResearchResults([]);
+    try {
+      const res = await fetch("/api/tags/research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: researchCount, context: researchContext.trim() || undefined }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gagal riset keyword");
+      const keywords: ResearchedKeyword[] = (json.data?.keywords || []).map((k: ResearchedKeyword) => ({ ...k, _selected: true }));
+      if (keywords.length === 0) {
+        showError("AI tidak menemukan keyword baru (mungkin semua sudah ada di DB)");
+      } else {
+        success(`${keywords.length} keyword kandidat dihasilkan`);
+      }
+      setResearchResults(keywords);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal riset keyword");
+    } finally {
+      setResearching(false);
+    }
+  }
+
+  // ── Save selected keywords ──
+  async function handleSaveSelected() {
+    const selected = researchResults.filter((k) => k._selected);
+    if (selected.length === 0) {
+      showError("Pilih minimal 1 keyword");
+      return;
+    }
+    setSavingKeywords(true);
+    try {
+      const res = await fetch("/api/target-keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keywords: selected.map((k) => ({ keyword: k.keyword, notes: k.notes })),
+          source: "ai_research",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gagal simpan keyword");
+      success(`${json.data?.added || 0} keyword tersimpan (${json.data?.skipped?.length || 0} duplikat)`);
+      setResearchResults([]);
+      fetchSavedKeywords();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal simpan keyword");
+    } finally {
+      setSavingKeywords(false);
+    }
+  }
+
+  // ── Add manual keyword ──
+  async function handleAddManual() {
+    const kw = manualKeyword.trim().toLowerCase();
+    if (kw.length < 3) {
+      showError("Keyword minimal 3 karakter");
+      return;
+    }
+    setAddingManual(true);
+    try {
+      const res = await fetch("/api/target-keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keywords: [{ keyword: kw }],
+          source: "manual",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gagal tambah keyword");
+      if (json.data?.added === 0) {
+        showError("Keyword sudah ada di database");
+      } else {
+        success(`Keyword "${kw}" ditambahkan`);
+        setManualKeyword("");
+        fetchSavedKeywords();
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal tambah keyword");
+    } finally {
+      setAddingManual(false);
+    }
+  }
+
+  // ── Toggle keyword active ──
+  async function handleToggleKeyword(id: string, isActive: boolean) {
+    try {
+      const res = await fetch("/api/target-keywords", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isActive: !isActive }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Gagal update");
+      }
+      fetchSavedKeywords();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal update keyword");
+    }
+  }
+
+  // ── Delete saved keyword ──
+  async function handleDeleteSavedKeyword(id: string, keyword: string) {
+    if (!confirm(`Hapus keyword "${keyword}"?`)) return;
+    try {
+      const res = await fetch(`/api/target-keywords?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Gagal hapus");
+      }
+      success("Keyword dihapus");
+      fetchSavedKeywords();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Gagal hapus keyword");
+    }
+  }
+
   if (sessionStatus === "loading") {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -262,18 +432,18 @@ export default function TagsManagerPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border">
-        {(["articles", "tags"] as const).map((tab) => (
+      <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto">
+        {(["articles", "tags", "research"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab
                 ? "border-goto-green text-goto-green"
                 : "border-transparent text-txt-secondary hover:text-txt-primary"
             }`}
           >
-            {tab === "articles" ? "Artikel" : "Semua Tags"}
+            {tab === "articles" ? "Artikel" : tab === "tags" ? "Semua Tags" : "Riset Keyword"}
           </button>
         ))}
       </div>
@@ -560,6 +730,220 @@ export default function TagsManagerPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── RISET KEYWORD TAB ── */}
+      {activeTab === "research" && (
+        <div className="space-y-6">
+          {/* Intro card */}
+          <div className="rounded-[12px] border border-goto-green/30 bg-goto-light/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-goto-green/20">
+                <MapPin size={20} className="text-goto-green" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-txt-primary flex items-center gap-2">
+                  Riset Keyword Trending — Fokus Bandung & Jawa Barat
+                </h3>
+                <p className="text-sm text-txt-secondary mt-1">
+                  AI akan usulkan keyword SEO relevan untuk media hukum lokal berdasarkan konteks artikel di website & isu hukum aktual Jawa Barat.
+                  Keyword yang disimpan akan otomatis dipakai di halaman <strong>Auto-Artikel</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Generator Panel */}
+          <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+            <h2 className="text-lg font-bold text-txt-primary mb-4 flex items-center gap-2">
+              <Sparkles size={20} className="text-goto-green" />
+              Generator AI
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-txt-primary mb-1.5">Jumlah Keyword</label>
+                <select
+                  value={researchCount}
+                  onChange={(e) => setResearchCount(Number(e.target.value))}
+                  className="input w-full text-base"
+                >
+                  <option value={10}>10 keyword</option>
+                  <option value={15}>15 keyword</option>
+                  <option value={20}>20 keyword</option>
+                  <option value={25}>25 keyword</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-txt-primary mb-1.5">Konteks Tambahan (opsional)</label>
+                <input
+                  type="text"
+                  value={researchContext}
+                  onChange={(e) => setResearchContext(e.target.value)}
+                  placeholder="contoh: fokus kasus korupsi dana bansos, narkoba"
+                  className="input w-full text-base"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleResearch}
+              disabled={researching}
+              className="btn-primary flex items-center gap-2 px-6 py-3 text-sm"
+            >
+              {researching ? (
+                <><Loader2 size={16} className="animate-spin" /> AI sedang riset (15-30 detik)…</>
+              ) : (
+                <><TrendingUp size={16} /> Generate Keyword Kandidat</>
+              )}
+            </button>
+          </div>
+
+          {/* Research Results */}
+          {researchResults.length > 0 && (
+            <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-txt-primary">Hasil Riset AI</h3>
+                  <p className="text-sm text-txt-secondary mt-0.5">
+                    {researchResults.filter((k) => k._selected).length} dari {researchResults.length} dipilih
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setResearchResults((prev) => prev.map((k) => ({ ...k, _selected: !prev.every((x) => x._selected) })))}
+                    className="btn-secondary px-4 py-2 text-sm"
+                  >
+                    {researchResults.every((k) => k._selected) ? "Uncheck Semua" : "Pilih Semua"}
+                  </button>
+                  <button
+                    onClick={handleSaveSelected}
+                    disabled={savingKeywords}
+                    className="btn-primary flex items-center gap-2 px-4 py-2 text-sm"
+                  >
+                    {savingKeywords ? <><Loader2 size={14} className="animate-spin" /> Menyimpan…</> : <><CheckCircle size={14} /> Simpan Terpilih</>}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {researchResults.map((k, idx) => (
+                  <label
+                    key={idx}
+                    className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                      k._selected
+                        ? "border-goto-green bg-goto-light/30"
+                        : "border-border bg-surface hover:bg-surface-secondary"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={k._selected || false}
+                      onChange={(e) =>
+                        setResearchResults((prev) =>
+                          prev.map((x, i) => (i === idx ? { ...x, _selected: e.target.checked } : x))
+                        )
+                      }
+                      className="mt-1 h-4 w-4 rounded border-border accent-goto-green"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-semibold text-txt-primary flex items-center gap-1.5">
+                        <Hash size={14} className="text-goto-green shrink-0" />
+                        {k.keyword}
+                      </p>
+                      {k.notes && <p className="text-sm text-txt-muted mt-0.5">{k.notes}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Saved Keywords */}
+          <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-txt-primary flex items-center gap-2">
+                <Tag size={18} className="text-goto-green" />
+                Keyword Tersimpan ({savedKeywords.length})
+              </h3>
+              <button onClick={fetchSavedKeywords} className="btn-secondary flex items-center gap-2 px-3 py-1.5 text-sm">
+                <RefreshCw size={14} /> Refresh
+              </button>
+            </div>
+
+            {/* Manual add */}
+            <div className="flex gap-2 mb-4 pb-4 border-b border-border">
+              <input
+                type="text"
+                value={manualKeyword}
+                onChange={(e) => setManualKeyword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddManual(); }}
+                placeholder="Tambah keyword manual (contoh: sidang tipikor bandung)"
+                className="input flex-1 text-base"
+              />
+              <button
+                onClick={handleAddManual}
+                disabled={addingManual}
+                className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm whitespace-nowrap"
+              >
+                {addingManual ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                Tambah
+              </button>
+            </div>
+
+            {loadingSaved ? (
+              <div className="flex justify-center py-10">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-goto-green border-t-transparent" />
+              </div>
+            ) : savedKeywords.length === 0 ? (
+              <div className="rounded-lg border-2 border-dashed border-border py-10 text-center">
+                <Hash size={28} className="mx-auto mb-2 text-txt-muted" />
+                <p className="text-sm text-txt-muted">Belum ada keyword tersimpan</p>
+                <p className="text-xs text-txt-muted mt-1">Generate dari AI atau tambah manual di atas</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {savedKeywords.map((k) => (
+                  <div
+                    key={k.id}
+                    className={`flex items-center justify-between gap-2 rounded-lg border p-3 transition-colors ${
+                      k.isActive ? "border-border bg-surface" : "border-border bg-surface-secondary opacity-60"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-txt-primary flex items-center gap-1.5">
+                        <Hash size={12} className={k.isActive ? "text-goto-green" : "text-txt-muted"} />
+                        {k.keyword}
+                        {k.source === "ai_research" && (
+                          <span className="text-[10px] font-medium bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full">AI</span>
+                        )}
+                      </p>
+                      {k.notes && <p className="text-xs text-txt-muted mt-0.5 truncate">{k.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleToggleKeyword(k.id, k.isActive)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          k.isActive ? "text-goto-green hover:bg-goto-light" : "text-txt-muted hover:bg-surface-secondary"
+                        }`}
+                        title={k.isActive ? "Nonaktifkan" : "Aktifkan"}
+                      >
+                        <Power size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSavedKeyword(k.id, k.keyword)}
+                        className="p-1.5 rounded-lg text-txt-muted hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Hapus"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
