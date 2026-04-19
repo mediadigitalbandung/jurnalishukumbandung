@@ -7,6 +7,7 @@ import type {
   SocialPublisher,
   FacebookPostFormat,
 } from "./types";
+import { findTemplateForPlatform, renderAndStoreTemplate } from "./template-helper";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
@@ -50,7 +51,20 @@ export class FacebookPublisher implements SocialPublisher {
         return await this.publishLinkShare(global.fbPageId, global.metaAccessToken, caption, articleUrl);
       }
       if (postFormat === "photo") {
-        return await this.publishPhoto(global.fbPageId, global.metaAccessToken, caption, article.featuredImage || "", articleUrl);
+        // Try template rendering for photo format
+        let imageUrl = article.featuredImage || "";
+        try {
+          const template = await findTemplateForPlatform("facebook", fbSettings?.aspectRatio);
+          if (template && article.featuredImage) {
+            imageUrl = await renderAndStoreTemplate(template, article, {
+              jpegQuality: fbSettings?.jpegQuality,
+            });
+            console.log(`[FB] Using template, rendered image: ${imageUrl}`);
+          }
+        } catch (err) {
+          console.error("[FB] Template rendering failed, using raw image:", err);
+        }
+        return await this.publishPhoto(global.fbPageId, global.metaAccessToken, caption, imageUrl, articleUrl);
       }
       // multi_photo — not implemented in MVP
       return { platform: this.platform, status: "failed", errorMessage: "multi_photo not yet implemented" };

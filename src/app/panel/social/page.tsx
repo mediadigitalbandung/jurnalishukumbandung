@@ -5,8 +5,9 @@ import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import {
   Share2, Instagram, Facebook, Settings, CheckCircle, XCircle, Clock,
-  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X, Send,
+  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X, Send, Layout, Edit3, Trash2, Star,
 } from "lucide-react";
+import TemplateEditor, { type TemplateData } from "./_components/TemplateEditor";
 
 type GlobalSettings = {
   autoPublishEnabled: boolean;
@@ -66,7 +67,7 @@ type Stats = {
 
 export default function SocialMediaPanel() {
   const { success, error: showError } = useToast();
-  const [activeTab, setActiveTab] = useState<"global" | "instagram" | "facebook" | "logs">("global");
+  const [activeTab, setActiveTab] = useState<"global" | "instagram" | "facebook" | "templates" | "logs">("global");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -94,6 +95,48 @@ export default function SocialMediaPanel() {
     } finally {
       setTesting(false);
     }
+  };
+
+  // Templates state
+  const [templates, setTemplates] = useState<TemplateData[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<TemplateData | null>(null);
+
+  const loadTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const res = await fetch("/api/social/templates");
+      const data = await res.json();
+      if (data.success) setTemplates(data.data.templates || []);
+    } catch { /* ignore */ }
+    setTemplatesLoading(false);
+  }, []);
+
+  const saveTemplate = async (tpl: TemplateData) => {
+    const method = tpl.id ? "PUT" : "POST";
+    const url = tpl.id ? `/api/social/templates/${tpl.id}` : "/api/social/templates";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tpl),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || "Save failed");
+    success(tpl.id ? "Template diperbarui" : "Template dibuat");
+    setEditorOpen(false);
+    setEditingTemplate(null);
+    await loadTemplates();
+  };
+
+  const deleteTemplate = async (id: string) => {
+    const res = await fetch(`/api/social/templates/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || "Delete failed");
+    success("Template dihapus");
+    setEditorOpen(false);
+    setEditingTemplate(null);
+    await loadTemplates();
   };
 
   // Logs state
@@ -132,6 +175,7 @@ export default function SocialMediaPanel() {
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
   useEffect(() => { if (activeTab === "logs") loadPosts(); }, [activeTab, loadPosts]);
+  useEffect(() => { if (activeTab === "templates") loadTemplates(); }, [activeTab, loadTemplates]);
 
   const saveSection = async (scope: "global" | "instagram" | "facebook", data: unknown) => {
     setSaving(true);
@@ -203,6 +247,7 @@ export default function SocialMediaPanel() {
           { key: "global", label: "Global", icon: Settings },
           { key: "instagram", label: "Instagram", icon: Instagram },
           { key: "facebook", label: "Facebook", icon: Facebook },
+          { key: "templates", label: "Template", icon: Layout },
           { key: "logs", label: "Log Post", icon: RefreshCw },
         ] as const).map((tab) => (
           <button
@@ -241,10 +286,145 @@ export default function SocialMediaPanel() {
               saving={saving}
             />
           )}
+          {activeTab === "templates" && (
+            <TemplatesView
+              templates={templates}
+              loading={templatesLoading}
+              onCreate={() => { setEditingTemplate(null); setEditorOpen(true); }}
+              onEdit={(t) => { setEditingTemplate(t); setEditorOpen(true); }}
+              onRefresh={loadTemplates}
+            />
+          )}
           {activeTab === "logs" && (
             <LogsView posts={posts} stats={stats} loading={logsLoading} filter={logFilter} setFilter={setLogFilter} onRefresh={loadPosts} />
           )}
         </>
+      )}
+
+      {editorOpen && (
+        <TemplateEditor
+          template={editingTemplate}
+          onSave={saveTemplate}
+          onCancel={() => { setEditorOpen(false); setEditingTemplate(null); }}
+          onDelete={editingTemplate?.id ? () => deleteTemplate(editingTemplate.id!) : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ───── Templates View ───── */
+function TemplatesView({
+  templates,
+  loading,
+  onCreate,
+  onEdit,
+  onRefresh,
+}: {
+  templates: TemplateData[];
+  loading: boolean;
+  onCreate: () => void;
+  onEdit: (t: TemplateData) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-txt-primary">Template Post Sosmed</h2>
+          <p className="text-xs text-txt-secondary">
+            Desain template untuk membuat gambar artikel lebih menarik saat di-post ke Instagram & Facebook
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="rounded-full border border-border p-2 text-txt-secondary hover:bg-surface-secondary"
+            title="Refresh"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={onCreate}
+            className="flex items-center gap-2 rounded-full bg-goto-green px-4 py-2 text-sm font-semibold text-white hover:bg-goto-green-dark"
+          >
+            <Plus size={14} />
+            Template Baru
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center">
+          <Loader2 size={24} className="mx-auto animate-spin text-goto-green" />
+        </div>
+      ) : templates.length === 0 ? (
+        <div className="rounded-[12px] border-2 border-dashed border-border p-10 text-center">
+          <Layout size={32} className="mx-auto mb-3 text-txt-muted" />
+          <p className="text-sm font-semibold text-txt-primary">Belum ada template</p>
+          <p className="mt-1 text-xs text-txt-secondary">
+            Buat template pertama untuk mempercantik post sosmed otomatis
+          </p>
+          <button
+            onClick={onCreate}
+            className="mt-4 rounded-full bg-goto-green px-5 py-2 text-sm font-semibold text-white hover:bg-goto-green-dark"
+          >
+            <Plus size={14} className="inline mr-1" />
+            Buat Template
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {templates.map((tpl) => {
+            const aspectClass =
+              tpl.aspectRatio === "4:5" ? "aspect-[4/5]" :
+              tpl.aspectRatio === "1:1" ? "aspect-square" : "aspect-[1.91/1]";
+            return (
+              <button
+                key={tpl.id}
+                onClick={() => onEdit(tpl)}
+                className="group rounded-[12px] border border-border bg-surface p-3 text-left transition-all hover:border-goto-green hover:shadow-card-hover"
+              >
+                <div className={`${aspectClass} w-full rounded-lg bg-surface-tertiary overflow-hidden mb-3`}>
+                  {tpl.templateImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={tpl.templateImageUrl}
+                      alt={tpl.name}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-txt-muted">
+                      <Layout size={24} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-txt-primary truncate">{tpl.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] rounded-full bg-surface-secondary px-2 py-0.5 text-txt-secondary">
+                        {tpl.platform === "both" ? "IG + FB" : tpl.platform === "instagram" ? "Instagram" : "Facebook"}
+                      </span>
+                      <span className="text-[10px] rounded-full bg-surface-secondary px-2 py-0.5 text-txt-secondary">
+                        {tpl.aspectRatio}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {tpl.isDefault && (
+                      <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                    )}
+                    {!tpl.isActive && (
+                      <span className="text-[10px] text-red-500">off</span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

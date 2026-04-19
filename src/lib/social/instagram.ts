@@ -6,6 +6,7 @@ import type {
   PreviewPayload,
   SocialPublisher,
 } from "./types";
+import { findTemplateForPlatform, renderAndStoreTemplate } from "./template-helper";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
@@ -48,6 +49,20 @@ export class InstagramPublisher implements SocialPublisher {
 
     const caption = await this.generateCaption(article, igSettings);
 
+    // Try to render with a template, fall back to raw featured image
+    let imageUrl = article.featuredImage;
+    try {
+      const template = await findTemplateForPlatform("instagram", igSettings?.aspectRatio);
+      if (template) {
+        imageUrl = await renderAndStoreTemplate(template, article, {
+          jpegQuality: igSettings?.jpegQuality,
+        });
+        console.log(`[IG] Using template, rendered image: ${imageUrl}`);
+      }
+    } catch (err) {
+      console.error("[IG] Template rendering failed, using raw image:", err);
+    }
+
     try {
       // Step 1: Create media container
       const containerEndpoint = `https://graph.facebook.com/v21.0/${global.igUserId}/media`;
@@ -55,7 +70,7 @@ export class InstagramPublisher implements SocialPublisher {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image_url: article.featuredImage,
+          image_url: imageUrl,
           caption,
           access_token: global.metaAccessToken,
         }),
