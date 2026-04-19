@@ -3,6 +3,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Upload, Eye, Save, Trash2, Plus, X, Type, Image as ImageIcon } from "lucide-react";
 
+// Inject Google Fonts stylesheet once — for live preview in dropdown/canvas
+const GOOGLE_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Source+Sans+3:wght@400;700&family=Poppins:wght@400;600;700&family=Montserrat:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;700&family=DM+Sans:wght@400;700&family=Space+Grotesk:wght@400;700&family=Bebas+Neue&family=Oswald:wght@400;700&family=Anton&family=Archivo+Black&family=Lora:wght@400;700&family=Playfair+Display:wght@400;700;900&family=Merriweather:wght@400;700&family=PT+Serif:wght@400;700&display=swap";
+
+function ensureGoogleFontsLoaded() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("jhb-social-fonts")) return;
+  const link = document.createElement("link");
+  link.id = "jhb-social-fonts";
+  link.rel = "stylesheet";
+  link.href = GOOGLE_FONTS_HREF;
+  document.head.appendChild(link);
+}
+
 export type TextLayer = {
   text: string;
   x: number;
@@ -21,6 +35,37 @@ type LayerPreset = {
   name: string;
   layer: TextLayer;
 };
+
+// Curated font list — nama CSS + label display. Harus ada di VPS (terpasang via fc-cache).
+export const FONT_OPTIONS: { value: string; label: string; category: string }[] = [
+  // System (safe fallback)
+  { value: "Arial, Helvetica, sans-serif", label: "Arial (default)", category: "System" },
+  { value: "Georgia, serif", label: "Georgia", category: "System" },
+  { value: "'Times New Roman', serif", label: "Times New Roman", category: "System" },
+  { value: "Verdana, sans-serif", label: "Verdana", category: "System" },
+  // Sans-serif modern
+  { value: "'Inter', sans-serif", label: "Inter", category: "Sans Modern" },
+  { value: "'Roboto', sans-serif", label: "Roboto", category: "Sans Modern" },
+  { value: "'Open Sans', sans-serif", label: "Open Sans", category: "Sans Modern" },
+  { value: "'Lato', sans-serif", label: "Lato", category: "Sans Modern" },
+  { value: "'Source Sans 3', sans-serif", label: "Source Sans 3", category: "Sans Modern" },
+  // Display/Headline
+  { value: "'Poppins', sans-serif", label: "Poppins", category: "Display" },
+  { value: "'Montserrat', sans-serif", label: "Montserrat", category: "Display" },
+  { value: "'Plus Jakarta Sans', sans-serif", label: "Plus Jakarta Sans", category: "Display" },
+  { value: "'DM Sans', sans-serif", label: "DM Sans", category: "Display" },
+  { value: "'Space Grotesk', sans-serif", label: "Space Grotesk", category: "Display" },
+  // Bold/Condensed
+  { value: "'Bebas Neue', sans-serif", label: "Bebas Neue", category: "Bold Condensed" },
+  { value: "'Oswald', sans-serif", label: "Oswald", category: "Bold Condensed" },
+  { value: "'Anton', sans-serif", label: "Anton", category: "Bold Condensed" },
+  { value: "'Archivo Black', sans-serif", label: "Archivo Black", category: "Bold Condensed" },
+  // Serif
+  { value: "'Lora', serif", label: "Lora (brand JHB)", category: "Serif" },
+  { value: "'Playfair Display', serif", label: "Playfair Display", category: "Serif" },
+  { value: "'Merriweather', serif", label: "Merriweather", category: "Serif" },
+  { value: "'PT Serif', serif", label: "PT Serif", category: "Serif" },
+];
 
 const LAYER_PRESETS: LayerPreset[] = [
   {
@@ -139,6 +184,9 @@ export default function TemplateEditor({
   const [selectedLayer, setSelectedLayer] = useState<number | null>(null);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Load Google Fonts once per session
+  useEffect(() => { ensureGoogleFontsLoaded(); }, []);
 
   const aspectCfg = ASPECT_CONFIGS[data.aspectRatio];
   const aspectVal = aspectCfg.w / aspectCfg.h;
@@ -650,6 +698,26 @@ export default function TemplateEditor({
                           className="w-full h-[26px] rounded border border-border"
                         />
                       </div>
+                    </div>
+                    {/* Font family selector */}
+                    <div className="mt-2">
+                      <label className="text-[10px] text-txt-muted">Font</label>
+                      <select
+                        value={layer.fontFamily || "Arial, Helvetica, sans-serif"}
+                        onChange={(e) => updateTextLayer(i, { fontFamily: e.target.value })}
+                        className="w-full rounded border border-border px-2 py-1 text-xs"
+                        style={{ fontFamily: layer.fontFamily || "inherit" }}
+                      >
+                        {["System", "Sans Modern", "Display", "Bold Condensed", "Serif"].map((cat) => (
+                          <optgroup key={cat} label={cat}>
+                            {FONT_OPTIONS.filter((f) => f.category === cat).map((f) => (
+                              <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
                     </div>
                     <div className="grid grid-cols-4 gap-2 mt-2 text-xs">
                       <select
