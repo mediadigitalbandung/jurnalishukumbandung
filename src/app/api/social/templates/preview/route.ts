@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const buffer = await renderTemplate(template, article as ArticleData);
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "image/jpeg",
