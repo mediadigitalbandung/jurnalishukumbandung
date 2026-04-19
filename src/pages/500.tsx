@@ -1,3 +1,3 @@
 export default function Custom500() {
-  return null;
+  return <div>500 - Server Error</div>;
 }
