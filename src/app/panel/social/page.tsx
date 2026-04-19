@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
 import {
   Share2, Instagram, Facebook, Settings, CheckCircle, XCircle, Clock,
-  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X,
+  Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X, Send,
 } from "lucide-react";
 
 type GlobalSettings = {
@@ -73,6 +73,28 @@ export default function SocialMediaPanel() {
   const [global, setGlobal] = useState<GlobalSettings | null>(null);
   const [ig, setIg] = useState<IgSettings | null>(null);
   const [fb, setFb] = useState<FbSettings | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  const testPublish = async () => {
+    if (!confirm("Trigger test publish ke FB + IG dengan artikel terbaru? Post akan muncul di FB Page dan Instagram.")) return;
+    setTesting(true);
+    try {
+      const res = await fetch("/api/social/test-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Test failed");
+      const summary = (data.data?.summary || []).join("\n");
+      success(`Test complete:\n${summary}`);
+      setActiveTab("logs");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Test failed");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   // Logs state
   const [posts, setPosts] = useState<SocialPost[]>([]);
@@ -162,6 +184,16 @@ export default function SocialMediaPanel() {
               </p>
             )}
           </div>
+          {isMetaConnected && (
+            <button
+              onClick={testPublish}
+              disabled={testing}
+              className="shrink-0 flex items-center gap-2 rounded-full bg-goto-green px-4 py-2 text-sm font-semibold text-white hover:bg-goto-green-dark disabled:opacity-60"
+            >
+              {testing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {testing ? "Posting..." : "Test Publish"}
+            </button>
+          )}
         </div>
       </div>
 
