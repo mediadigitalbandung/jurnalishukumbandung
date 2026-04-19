@@ -225,6 +225,31 @@ model CtaTemplate {
   @@map("cta_templates")
 }
 
+// Social Media Post Templates — used to composite article images with branded frames/text
+model SocialTemplate {
+  id                String   @id @default(cuid())
+  name              String
+  platform          String   // "instagram" | "facebook" | "both"
+  aspectRatio       String   // "4:5" | "1:1" | "1.91:1"
+  // Background overlay PNG — sits on TOP of the article photo (with transparent area for photo)
+  templateImageUrl  String
+  // Photo slot position/size as percentage (0-1) of final canvas
+  photoSlotX        Float    @default(0)
+  photoSlotY        Float    @default(0)
+  photoSlotWidth    Float    @default(1)
+  photoSlotHeight  Float    @default(1)
+  // Text layers: array of { text, x, y, fontSize, color, align, fontWeight, maxWidth }
+  // text can contain placeholders: {{title}}, {{category}}, {{date}}, {{author}}
+  textLayers        Json?
+  isActive          Boolean  @default(true)
+  isDefault         Boolean  @default(false)  // default per platform
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([platform, isActive])
+  @@map("social_templates")
+}
+
 model SocialPost {
   id            String    @id @default(cuid())
   article       Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
