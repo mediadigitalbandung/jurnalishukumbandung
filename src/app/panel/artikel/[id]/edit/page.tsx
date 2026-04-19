@@ -149,6 +149,8 @@ export default function EditArticlePage() {
 
   // Auto-save state
   const [autoSaveIndicator, setAutoSaveIndicator] = useState("");
+  const [showAutosaveBanner, setShowAutosaveBanner] = useState(false);
+  const [autosaveTimestamp, setAutosaveTimestamp] = useState<number | null>(null);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const AUTOSAVE_KEY = `autosave_draft_${articleId}`;
 
@@ -200,32 +202,68 @@ export default function EditArticlePage() {
     }
   };
 
-  // Auto-save every 30 seconds (only when status is DRAFT)
+  // Auto-save every 15 seconds (all statuses — protect against VPS restarts/crashes)
   useEffect(() => {
     if (loading) return;
-    if (currentStatus !== "DRAFT" && currentStatus !== "REJECTED") return;
 
-    autosaveTimerRef.current = setInterval(() => {
+    const saveDraft = () => {
       if (title.trim() || content.trim()) {
         try {
-          const draft = { title, content, categoryId, excerpt, tags, sources };
+          const draft = {
+            title, content, categoryId, excerpt, tags, sources,
+            seoTitle, seoDescription, featuredImage,
+            savedAt: Date.now(),
+          };
           localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
-          setAutoSaveIndicator("Draft tersimpan otomatis");
-          setTimeout(() => setAutoSaveIndicator(""), 3000);
+          const time = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          setAutoSaveIndicator(`Tersimpan otomatis ${time}`);
         } catch {
           // localStorage not available
         }
       }
-    }, 30000);
+    };
+
+    autosaveTimerRef.current = setInterval(saveDraft, 15000);
+
+    // Save before page unload (refresh, close, navigate away)
+    const onBeforeUnload = () => saveDraft();
+    window.addEventListener("beforeunload", onBeforeUnload);
 
     return () => {
       if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
+      window.removeEventListener("beforeunload", onBeforeUnload);
     };
-  }, [loading, currentStatus, title, content, categoryId, excerpt, tags, sources, AUTOSAVE_KEY]);
+  }, [loading, title, content, categoryId, excerpt, tags, sources, seoTitle, seoDescription, featuredImage, AUTOSAVE_KEY]);
 
   // Clear auto-save helper
   const clearAutosave = useCallback(() => {
     try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
+    setAutoSaveIndicator("");
+  }, [AUTOSAVE_KEY]);
+
+  // Restore from autosave
+  const loadAutosaveDraft = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      if (draft.title !== undefined) setTitle(draft.title);
+      if (draft.content !== undefined) setContent(draft.content);
+      if (draft.categoryId !== undefined) setCategoryId(draft.categoryId);
+      if (draft.excerpt !== undefined) setExcerpt(draft.excerpt);
+      if (draft.tags !== undefined) setTags(draft.tags);
+      if (draft.sources !== undefined) setSources(draft.sources);
+      if (draft.seoTitle !== undefined) setSeoTitle(draft.seoTitle);
+      if (draft.seoDescription !== undefined) setSeoDescription(draft.seoDescription);
+      if (draft.featuredImage !== undefined) setFeaturedImage(draft.featuredImage);
+    } catch { /* ignore */ }
+    setShowAutosaveBanner(false);
+  }, [AUTOSAVE_KEY]);
+
+  const discardAutosaveDraft = useCallback(() => {
+    try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ }
+    setShowAutosaveBanner(false);
+    setAutosaveTimestamp(null);
   }, [AUTOSAVE_KEY]);
 
   // Load research notes from localStorage
@@ -410,6 +448,30 @@ export default function EditArticlePage() {
     fetchCategories();
     fetchArticle();
   }, [fetchCategories, fetchArticle]);
+
+  // Check for unsaved autosave after article loads
+  useEffect(() => {
+    if (loading || !articleId) return;
+    try {
+      const saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      // Only show banner if draft content actually differs from server article
+      const draftHasContent = (draft.title || "").trim() || (draft.content || "").trim();
+      if (!draftHasContent) {
+        localStorage.removeItem(AUTOSAVE_KEY);
+        return;
+      }
+      const isDifferent = draft.title !== title || draft.content !== content;
+      if (isDifferent) {
+        setAutosaveTimestamp(draft.savedAt || null);
+        setShowAutosaveBanner(true);
+      } else {
+        localStorage.removeItem(AUTOSAVE_KEY);
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, articleId]);
 
   // Fetch users for author/editor dropdowns
   useEffect(() => {
@@ -1832,6 +1894,35 @@ export default function EditArticlePage() {
           </div>
         )}
       </div>
+
+      {/* Auto-save recovery banner — appears if there's unsaved local draft from previous session */}
+      {showAutosaveBanner && (
+        <div className="mb-4 flex flex-col gap-2 rounded-[12px] border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 sm:flex-row sm:items-center">
+          <AlertCircle size={18} className="flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Draf belum tersimpan ditemukan</p>
+            <p className="text-xs text-yellow-700">
+              Editan terakhir kamu otomatis tersimpan di browser
+              {autosaveTimestamp && ` pada ${new Date(autosaveTimestamp).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}`}
+              . Pulihkan editan?
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={loadAutosaveDraft}
+              className="rounded-full bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-yellow-600"
+            >
+              Pulihkan
+            </button>
+            <button
+              onClick={discardAutosaveDraft}
+              className="rounded-full border border-yellow-400 px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100"
+            >
+              Abaikan
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Export buttons */}
       {title && content && (

@@ -101,21 +101,25 @@ export default function NewArticlePage() {
     }
   }, []);
 
-  // Auto-save every 30 seconds (only for drafts)
+  // Auto-save every 15 seconds + on beforeunload (protect against VPS restarts/crashes)
   useEffect(() => {
-    autosaveTimerRef.current = setInterval(() => {
+    const saveDraft = () => {
       if (title.trim() || content.trim()) {
         try {
-          const draft = { title, content, categoryId, excerpt, tags, sources };
+          const draft = { title, content, categoryId, excerpt, tags, sources, savedAt: Date.now() };
           localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
         } catch {
           // localStorage not available
         }
       }
-    }, 30000);
+    };
+
+    autosaveTimerRef.current = setInterval(saveDraft, 15000);
+    window.addEventListener("beforeunload", saveDraft);
 
     return () => {
       if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
+      window.removeEventListener("beforeunload", saveDraft);
     };
   }, [title, content, categoryId, excerpt, tags, sources]);
 
