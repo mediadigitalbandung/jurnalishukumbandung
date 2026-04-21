@@ -21,6 +21,10 @@ import {
   Lock,
   Server,
   Key,
+  Code,
+  Package,
+  Component,
+  Globe,
 } from "lucide-react";
 
 type TabKey =
@@ -28,6 +32,10 @@ type TabKey =
   | "workflow"
   | "fitur"
   | "integrasi"
+  | "api"
+  | "components"
+  | "deps"
+  | "publik"
   | "cron"
   | "database"
   | "techstack"
@@ -65,8 +73,12 @@ export default function DokumentasiPage() {
     { key: "workflow", label: "Workflow Artikel", icon: Workflow },
     { key: "fitur", label: "Fitur Sistem", icon: Zap },
     { key: "integrasi", label: "Integrasi Eksternal", icon: Plug },
+    { key: "api", label: "API Reference", icon: Code },
+    { key: "components", label: "Components", icon: Component },
+    { key: "deps", label: "Dependencies", icon: Package },
+    { key: "publik", label: "Halaman Publik", icon: Globe },
     { key: "cron", label: "Cron Jobs", icon: Clock },
-    { key: "database", label: "Database & Halaman", icon: Database },
+    { key: "database", label: "Database & Panel", icon: Database },
     { key: "techstack", label: "Tech Stack", icon: Layers },
     { key: "keamanan", label: "Keamanan", icon: Lock },
     { key: "deploy", label: "Deploy & Backup", icon: Server },
@@ -80,6 +92,10 @@ export default function DokumentasiPage() {
       case "workflow": return <WorkflowTab />;
       case "fitur": return <FiturTab settings={settings} has={has} loading={loading} />;
       case "integrasi": return <IntegrasiTab settings={settings} has={has} loading={loading} />;
+      case "api": return <ApiReferenceTab />;
+      case "components": return <ComponentsTab />;
+      case "deps": return <DepsTab />;
+      case "publik": return <PublikTab />;
       case "cron": return <CronTab />;
       case "database": return <DatabaseTab />;
       case "techstack": return <TechStackTab />;
@@ -822,23 +838,327 @@ crontab -e
 // ════════════════════════════════════════════════════════════════
 
 function DatabaseTab() {
-  const models = [
-    { name: "Article", desc: "Artikel berita — konten utama" },
-    { name: "Category", desc: "Kategori artikel (Pidana, Perdata, Tata Negara, dll)" },
-    { name: "Tag", desc: "Tag untuk pengelompokan + SEO keyword" },
-    { name: "User", desc: "Akun user (SUPER_ADMIN, EDITOR, JOURNALIST, CONTRIBUTOR)" },
-    { name: "Comment", desc: "Komentar publik dengan moderasi" },
-    { name: "Poll + PollOption + PollVote", desc: "Sistem polling per artikel" },
-    { name: "Sorotan", desc: "Halaman substantif SEO (3 per artikel, beda angle)" },
-    { name: "Ad + AdImpression", desc: "Sistem iklan + tracking view/click" },
-    { name: "SocialPost", desc: "Record post ke IG/FB — status, externalUrl, image" },
-    { name: "SocialTemplate", desc: "Template gambar untuk render sosmed" },
-    { name: "Notification", desc: "In-panel notification untuk user" },
-    { name: "AuditLog", desc: "Record semua aksi sensitif (publish, delete, approve)" },
-    { name: "AIUsageLog", desc: "Track pemakaian token AI per fitur" },
-    { name: "SystemSetting", desc: "Key-value store untuk settings (API keys, toggles)" },
-    { name: "TargetKeyword", desc: "Keyword SEO yang di-target untuk auto-artikel" },
-    { name: "CourtSchedule", desc: "Jadwal sidang pengadilan (kalau fitur aktif)" },
+  const detailedModels = [
+    {
+      name: "User",
+      desc: "Akun user dengan role-based access",
+      fields: [
+        ["id", "String @id (cuid)"],
+        ["email", "String @unique — email login"],
+        ["password", "String — bcrypt hash 12 rounds"],
+        ["name", "String — nama tampilan"],
+        ["avatar", "String? — URL foto profil"],
+        ["bio", "String? — bio singkat"],
+        ["role", "String — SUPER_ADMIN | EDITOR | JOURNALIST | CONTRIBUTOR"],
+        ["specialization", "String? — spesialisasi (pidana, perdata, dll)"],
+        ["phone", "String? — nomor kontak"],
+        ["organisasiPers", "String? — organisasi pers (PWI, AJI, dll)"],
+        ["twoFactorEnabled", "Boolean — 2FA toggle (future)"],
+        ["lastLoginAt", "DateTime? — waktu login terakhir"],
+        ["articles", "Article[] — artikel ditulis user"],
+        ["auditLogs", "AuditLog[] — aksi audit"],
+      ],
+    },
+    {
+      name: "Article",
+      desc: "Konten artikel berita — entity utama sistem",
+      fields: [
+        ["id, title, slug, content, excerpt", "Identifier + konten body"],
+        ["featuredImage", "URL gambar utama"],
+        ["status", "DRAFT | IN_REVIEW | APPROVED | PUBLISHED | REJECTED | ARCHIVED"],
+        ["verificationLabel", "VERIFIED | UNVERIFIED — badge kredibilitas"],
+        ["readTime, viewCount", "Int — baca dalam menit + total views"],
+        ["publishedAt, scheduledAt", "DateTime? — publish aktual + jadwal"],
+        ["seoTitle, seoDescription", "String? — override SEO meta"],
+        ["author, authorId", "Relation User — penulis utama"],
+        ["coAuthors", "String? — co-author nama-nama"],
+        ["category, categoryId", "Relation Category"],
+        ["tags", "Tag[] many-to-many"],
+        ["sources", "Source[] — narasumber"],
+        ["corrections", "Correction[] — ralat setelah publish"],
+        ["revisions", "Revision[] — riwayat edit"],
+        ["comments", "Comment[] — diskusi pembaca"],
+        ["reports", "Report[] — laporan pembaca"],
+        ["reviewNote, reviewedBy, reviewedAt", "Editor workflow"],
+        ["assignedEditorId", "Editor yang ditugaskan"],
+        ["isAutoGenerated, sourceArticleId", "Flag + artikel sumber AI"],
+        ["publishToInstagram, publishToFacebook", "Bool? — override per-artikel"],
+        ["socialCaptions", "Json? — caption sosmed custom"],
+        ["faqData", "String? — JSON-LD FAQ"],
+        ["indexStatus, lastIndexedAt", "Google indexing tracking"],
+        ["sorotan", "Sorotan[] — 3 halaman SEO substantif"],
+        ["socialPosts", "SocialPost[] — record post sosmed"],
+      ],
+    },
+    {
+      name: "Category",
+      desc: "Kategori artikel",
+      fields: [
+        ["id, name, slug", "Identifier"],
+        ["description", "String? — deskripsi"],
+        ["icon", "String? — nama lucide icon"],
+        ["order", "Int — urutan tampilan"],
+        ["articles", "Article[]"],
+        ["polls", "Poll[]"],
+      ],
+    },
+    {
+      name: "Tag",
+      desc: "Tag untuk pengelompokan + SEO keyword",
+      fields: [
+        ["id, name, slug", "Identifier"],
+        ["articles", "Article[] many-to-many"],
+      ],
+    },
+    {
+      name: "Source",
+      desc: "Narasumber artikel",
+      fields: [
+        ["id", "String @id"],
+        ["name, title, institution", "Identitas narasumber"],
+        ["url", "String? — link referensi"],
+        ["article, articleId", "Relation Article"],
+      ],
+    },
+    {
+      name: "Correction",
+      desc: "Ralat/update untuk artikel published",
+      fields: [
+        ["id, description", "Isi ralat"],
+        ["article, articleId", "Relation"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "Revision",
+      desc: "Riwayat versi artikel (audit edit)",
+      fields: [
+        ["id, content, title", "Snapshot konten + judul"],
+        ["changedBy", "String — siapa yang edit"],
+        ["article, articleId", "Relation"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "Comment",
+      desc: "Komentar publik (threaded)",
+      fields: [
+        ["id, content", "Isi komentar"],
+        ["authorName, authorEmail", "Identitas komentator"],
+        ["isApproved", "Boolean — moderation flag"],
+        ["parentId", "String? — untuk reply (self-relation)"],
+        ["article, articleId", "Relation"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "Ad",
+      desc: "Iklan banner/native",
+      fields: [
+        ["id, name", "Identifier"],
+        ["type", "IMAGE | GIF | HTML"],
+        ["imageUrl, htmlCode, targetUrl", "Konten + destinasi"],
+        ["slot", "HEADER | SIDEBAR | IN_ARTICLE | FOOTER | BETWEEN_SECTIONS | POPUP | FLOATING_BOTTOM"],
+        ["startDate, endDate", "Periode tayang"],
+        ["isActive, priority", "Toggle + prioritas rotation"],
+        ["impressions, clicks", "Int — tracking"],
+        ["targetPages", "String[] — halaman spesifik"],
+      ],
+    },
+    {
+      name: "Poll + PollOption + PollVote",
+      desc: "Sistem polling per artikel (1 artikel = 1 poll)",
+      fields: [
+        ["Poll: id, question, image, category, article (1:1 optional)", "Master polling"],
+        ["Poll: isActive, order, options[]", "Status + daftar opsi"],
+        ["PollOption: id, label, votes, poll, pollVotes[]", "Opsi jawaban + counter"],
+        ["PollVote: id, optionId, ip, fingerprint", "Dedup vote per IP+fingerprint"],
+      ],
+    },
+    {
+      name: "Sorotan",
+      desc: "3 halaman substantif SEO per artikel (angle berbeda)",
+      fields: [
+        ["id, slug", "Identifier"],
+        ["title, content", "300-500 kata per angle"],
+        ["angle", "kronologi | analisis | dampak"],
+        ["article, articleId", "Relation parent"],
+        ["indexStatus, lastIndexedAt", "Google indexing tracking"],
+      ],
+    },
+    {
+      name: "SocialPost",
+      desc: "Record post ke IG/FB",
+      fields: [
+        ["id, article, articleId", "Identifier + relation"],
+        ["platform", "instagram | facebook"],
+        ["externalPostId, externalUrl", "ID & URL di Meta"],
+        ["status", "draft | pending | success | failed | deleted"],
+        ["postFormat", "photo | link_share | multi_photo | carousel"],
+        ["captionFinal", "Text — caption yang dipost"],
+        ["renderedImageUrl", "URL gambar hasil render template"],
+        ["slidesCount", "Int? — untuk carousel"],
+        ["publishedAt, scheduledFor", "DateTime? — timestamp"],
+        ["errorMessage, retryCount", "Error tracking"],
+      ],
+    },
+    {
+      name: "SocialTemplate",
+      desc: "Template gambar untuk render sosmed",
+      fields: [
+        ["id, name", "Identifier"],
+        ["platform", "instagram | facebook | both"],
+        ["aspectRatio", "4:5 | 1:1 | 1.91:1"],
+        ["templateImageUrl", "PNG base template"],
+        ["photoSlotX, Y, Width, Height", "Koordinat slot foto artikel"],
+        ["textLayers", "Json — array {text, x, y, font, color, maxWidth}"],
+        ["isActive, isDefault", "Flag aktif + default"],
+      ],
+    },
+    {
+      name: "SocialMediaSettings",
+      desc: "Settings global sosmed",
+      fields: [
+        ["metaAccessToken, metaRefreshToken", "Token Meta Graph API"],
+        ["fbPageId, fbPageName", "Target Facebook Page"],
+        ["igUserId, igAccountName", "Target Instagram Business"],
+        ["captionPromptTemplate, captionSafetyRules", "AI caption config"],
+        ["fixedHashtagsBrand[]", "Hashtag brand yang selalu dipakai"],
+        ["autoPublishEnabled, draftModeEnabled", "Master switch"],
+        ["notificationEmail, notificationWebhookUrl", "Alert destination"],
+      ],
+    },
+    {
+      name: "InstagramSettings",
+      desc: "Config khusus IG",
+      fields: [
+        ["enabled", "Toggle IG auto-post"],
+        ["aspectRatio, resizeStrategy, jpegQuality", "Image spec"],
+        ["watermarkPngUrl, watermarkConfig", "Watermark optional"],
+        ["hashtagCountTarget, fixedHashtagsIg[]", "Target jumlah + hashtag fix"],
+        ["captionToneOverride", "Tone AI (serius/santai)"],
+        ["publishDelaySec", "Delay publish dari approve"],
+      ],
+    },
+    {
+      name: "FacebookSettings",
+      desc: "Config khusus FB",
+      fields: [
+        ["enabled, defaultPostFormat", "Toggle + format default"],
+        ["aspectRatio, resizeStrategy, jpegQuality", "Image spec"],
+        ["hashtagCountTarget, fixedHashtagsFb[]", "Hashtag config"],
+        ["linkPosition, utmParams", "Link placement + tracking"],
+        ["categoryFormatOverride", "Json — format per kategori"],
+      ],
+    },
+    {
+      name: "Media",
+      desc: "Library media upload",
+      fields: [
+        ["id, filename, url", "Identifier"],
+        ["type, size", "MIME + byte size"],
+        ["caption, source", "Deskripsi + atribusi"],
+        ["uploadedBy, uploaderName", "Siapa upload"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "CourtSchedule",
+      desc: "Jadwal sidang pengadilan",
+      fields: [
+        ["id, title", "Judul sidang"],
+        ["court, courtType", "Nama + tipe pengadilan"],
+        ["caseNumber, defendant, judge, agenda", "Detail kasus"],
+        ["date, time, location", "Jadwal"],
+        ["status", "scheduled | live | done | postponed"],
+        ["isHighlight, articleSlug", "Flag + link artikel terkait"],
+      ],
+    },
+    {
+      name: "Report",
+      desc: "Laporan pembaca untuk artikel",
+      fields: [
+        ["id, reason", "HOAX | INACCURATE | SARA | DEFAMATION | OTHER"],
+        ["detail, email", "Penjelasan + kontak pelapor"],
+        ["status", "PENDING | REVIEWED | RESOLVED | DISMISSED"],
+        ["article, articleId", "Relation"],
+      ],
+    },
+    {
+      name: "AuditLog",
+      desc: "Audit trail semua aksi sensitif",
+      fields: [
+        ["id, action", "create_article, update_user, delete_ad, dll"],
+        ["entity, entityId", "Article, User, Ad, dll + ID"],
+        ["detail", "Json? — payload sebelum/sesudah"],
+        ["user, userId, ip", "Aktor + IP address"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "AIUsageLog",
+      desc: "Tracking pemakaian AI per request",
+      fields: [
+        ["id, userId, userName", "Siapa pakai"],
+        ["feature", "title-generate, caption-ig, sorotan, dll"],
+        ["inputTokens, outputTokens, totalTokens", "Token usage"],
+        ["articleTitle", "Konteks artikel"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "Notification",
+      desc: "Notifikasi in-app untuk user",
+      fields: [
+        ["id, userId", "Target user"],
+        ["type", "article_approved | article_rejected | article_published | article_in_review"],
+        ["title, message, link", "Konten + action link"],
+        ["isRead", "Boolean"],
+        ["createdAt", "DateTime"],
+      ],
+    },
+    {
+      name: "SystemSetting",
+      desc: "Key-value store untuk config global",
+      fields: [
+        ["id, key, value", "Simpel key-value"],
+        ["Contoh key", "anthropic_api_key, cloudflare_zone_id, site_name, dll"],
+      ],
+    },
+    {
+      name: "TargetKeyword",
+      desc: "Keyword SEO untuk auto-artikel",
+      fields: [
+        ["id, keyword", "Target keyword"],
+        ["source", "manual | ai_research"],
+        ["notes, isActive", "Catatan + toggle"],
+      ],
+    },
+    {
+      name: "RedaksiMember",
+      desc: "Anggota tim redaksi (halaman publik)",
+      fields: [
+        ["id, position, name, desc", "Identitas + jabatan + bio"],
+        ["photo", "URL foto"],
+        ["order, isActive", "Urutan + toggle"],
+      ],
+    },
+    {
+      name: "ContactMessage",
+      desc: "Pesan kontak dari publik",
+      fields: [
+        ["id, name, email, subject, message", "Konten pesan"],
+        ["isRead", "Boolean"],
+      ],
+    },
+    {
+      name: "CtaTemplate",
+      desc: "Template CTA overlay (iklan + konten)",
+      fields: [
+        ["id, name, imageUrl", "Identifier"],
+        ["isActive, rotationWeight", "Toggle + bobot rotation"],
+      ],
+    },
   ];
 
   const panelPages = [
@@ -868,19 +1188,41 @@ function DatabaseTab() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          <strong>{detailedModels.length} model</strong> di <code>prisma/schema.prisma</code> (PostgreSQL via Prisma ORM).
+          Setiap model punya field detail — klik untuk expand. Untuk migrasi: <code>npx prisma db push</code>.
+        </p>
+      </div>
+
       <div className="rounded-[12px] border border-border bg-surface shadow-card">
         <div className="border-b border-border px-6 py-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">Model Database Utama</h3>
-          <p className="mt-1 text-xs text-txt-secondary">
-            Lihat definisi lengkap di <code className="rounded bg-surface-secondary px-1.5 py-0.5 text-xs">prisma/schema.prisma</code>
-          </p>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">Model Database (field-level detail)</h3>
         </div>
-        <div className="grid gap-0 md:grid-cols-2">
-          {models.map((m) => (
-            <div key={m.name} className="border-b border-border px-6 py-2.5 md:border-r last:md:border-r-0">
-              <p className="text-sm font-semibold text-txt-primary">{m.name}</p>
-              <p className="text-xs text-txt-secondary">{m.desc}</p>
-            </div>
+        <div className="divide-y divide-border">
+          {detailedModels.map((m, i) => (
+            <details key={m.name} className="group" open={i < 2}>
+              <summary className="flex cursor-pointer items-center justify-between px-6 py-3 hover:bg-surface-secondary/30">
+                <div className="flex-1">
+                  <p className="font-semibold text-txt-primary">{m.name}</p>
+                  <p className="text-xs text-txt-secondary">{m.desc}</p>
+                </div>
+                <span className="text-xs text-txt-muted group-open:hidden">▾ {m.fields.length} field</span>
+                <span className="hidden text-xs text-txt-muted group-open:inline">▴</span>
+              </summary>
+              <div className="border-t border-border bg-surface-secondary/20 px-6 py-3">
+                <table className="w-full text-xs">
+                  <tbody className="divide-y divide-border/50">
+                    {m.fields.map(([field, desc]) => (
+                      <tr key={field}>
+                        <td className="py-1 pr-3 font-mono font-semibold text-txt-primary w-1/3 min-w-[160px]">{field}</td>
+                        <td className="py-1 text-txt-secondary">{desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           ))}
         </div>
       </div>
@@ -1600,6 +1942,675 @@ function TroubleTab() {
           </summary>
           <div className="mt-3 pl-8 text-sm text-txt-secondary">{i.solution}</div>
         </details>
+      ))}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 12. API REFERENCE (semua 75+ endpoint)
+// ════════════════════════════════════════════════════════════════
+
+function ApiReferenceTab() {
+  const methodColor = (m: string) =>
+    m === "GET" ? "bg-blue-100 text-blue-700"
+    : m === "POST" ? "bg-green-100 text-green-700"
+    : m === "PUT" ? "bg-yellow-100 text-yellow-700"
+    : m === "PATCH" ? "bg-purple-100 text-purple-700"
+    : m === "DELETE" ? "bg-red-100 text-red-700"
+    : "bg-gray-100 text-gray-700";
+
+  const authColor = (a: string) =>
+    a === "public" ? "text-gray-500"
+    : a === "auth" ? "text-blue-600"
+    : a.includes("SUPER") ? "text-purple-600"
+    : a.includes("EDITOR") ? "text-blue-600"
+    : a.includes("JOURNALIST") ? "text-green-600"
+    : a.includes("CRON") ? "text-orange-600"
+    : "text-gray-600";
+
+  const groups: { name: string; endpoints: [string, string, string, string][] }[] = [
+    {
+      name: "Articles",
+      endpoints: [
+        ["GET", "/api/articles", "public", "List artikel published dengan filter kategori/author/status"],
+        ["POST", "/api/articles", "JOURNALIST+", "Buat artikel baru"],
+        ["GET", "/api/articles/:id", "public", "Detail artikel + increment viewCount"],
+        ["PUT", "/api/articles/:id", "JOURNALIST+", "Update/approve/publish/reject artikel"],
+        ["PATCH", "/api/articles/:id", "EDITOR+", "Assign editor ke artikel"],
+        ["DELETE", "/api/articles/:id", "owner/ADMIN", "Hapus artikel (cascade Source, Tag, Revision)"],
+        ["POST", "/api/articles/bulk", "EDITOR+", "Buat banyak artikel sekaligus"],
+        ["POST", "/api/articles/by-slugs", "public", "Ambil artikel dari array slug (untuk embed)"],
+        ["POST", "/api/articles/toggle-visibility", "JOURNALIST+", "Hide/unhide artikel published (ARCHIVED)"],
+        ["GET", "/api/articles/:id/revisions", "JOURNALIST+", "Riwayat revisi per artikel"],
+        ["GET", "/api/articles/:id/comments", "public", "List komentar artikel"],
+        ["POST", "/api/articles/:id/comments", "public", "Tambah komentar di artikel"],
+      ],
+    },
+    {
+      name: "AI",
+      endpoints: [
+        ["POST", "/api/ai/generate", "JOURNALIST+", "Generate teks via Claude (feature: title/meta/caption)"],
+        ["POST", "/api/ai/bulk-tags", "EDITOR+", "Auto-generate tags batch untuk artikel"],
+        ["GET", "/api/ai/usage", "SUPER_ADMIN", "Statistik pemakaian token AI"],
+      ],
+    },
+    {
+      name: "Categories & Tags",
+      endpoints: [
+        ["GET", "/api/categories", "public", "List semua kategori"],
+        ["POST", "/api/categories", "EDITOR+", "Buat kategori baru"],
+        ["PUT", "/api/categories/:id", "EDITOR+", "Edit kategori"],
+        ["DELETE", "/api/categories/:id", "EDITOR+", "Hapus kategori"],
+        ["GET", "/api/tags", "public", "List semua tag"],
+        ["POST", "/api/tags", "JOURNALIST+", "Buat tag baru"],
+        ["DELETE", "/api/tags", "SUPER_ADMIN", "Bulk delete tags"],
+        ["GET", "/api/tags/articles", "public", "Artikel berdasarkan tag"],
+        ["GET", "/api/tags/stats", "public", "Statistik pemakaian tag"],
+        ["POST", "/api/tags/research", "EDITOR+", "AI riset keyword untuk tag"],
+      ],
+    },
+    {
+      name: "SEO & Indexing",
+      endpoints: [
+        ["POST", "/api/seo/submit", "EDITOR+", "Submit artikel ke Google Search Console"],
+        ["POST", "/api/seo/ping", "CRON", "Ping search engines"],
+        ["GET", "/api/seo/status", "EDITOR+", "Status indexing artikel"],
+        ["GET", "/api/seo/sorotan-status", "EDITOR+", "Status indexing sorotan pages"],
+        ["POST", "/api/seo/sorotan-status", "EDITOR+", "Update status indexing sorotan"],
+        ["POST", "/api/seo/batch-index", "EDITOR+", "Batch submit artikel ke Google"],
+        ["POST", "/api/seo/bulk-reindex", "SUPER_ADMIN", "Reindex semua artikel"],
+        ["POST", "/api/seo/generate-sorotan", "EDITOR+", "Generate sorotan batch"],
+        ["POST", "/api/seo/generate-sorotan-single", "EDITOR+", "Generate 1 sorotan (retry-able)"],
+        ["POST", "/api/seo/test-credentials", "SUPER_ADMIN", "Test kredensial Google"],
+      ],
+    },
+    {
+      name: "Social Media",
+      endpoints: [
+        ["GET", "/api/social/posts", "EDITOR+", "List post sosmed + stats"],
+        ["POST", "/api/social/posts/:id/approve", "EDITOR+", "Approve draft → publish ke Meta"],
+        ["POST", "/api/social/posts/:id/reject", "EDITOR+", "Tolak draft (delete DB + image)"],
+        ["POST", "/api/social/posts/:id/mark-deleted", "EDITOR+", "Tandai post dihapus manual di IG/FB"],
+        ["POST", "/api/social/posts/:id/takedown", "EDITOR+", "Hapus post di platform via API (FB only)"],
+        ["GET", "/api/social/settings", "SUPER_ADMIN", "Get settings global/IG/FB"],
+        ["PUT", "/api/social/settings", "SUPER_ADMIN", "Update settings (scope: global/instagram/facebook)"],
+        ["GET", "/api/social/templates", "EDITOR+", "List template gambar"],
+        ["POST", "/api/social/templates", "EDITOR+", "Buat template baru"],
+        ["GET", "/api/social/templates/:id", "EDITOR+", "Get template detail"],
+        ["PUT", "/api/social/templates/:id", "EDITOR+", "Update template"],
+        ["DELETE", "/api/social/templates/:id", "EDITOR+", "Hapus template"],
+        ["POST", "/api/social/templates/preview", "EDITOR+", "Preview render template + artikel"],
+        ["POST", "/api/social/preview", "EDITOR+", "Preview caption + image (no post)"],
+        ["POST", "/api/social/test-publish", "SUPER_ADMIN", "Test publish artikel terbaru ke IG+FB"],
+      ],
+    },
+    {
+      name: "Ads, Polls, Comments",
+      endpoints: [
+        ["GET", "/api/ads", "public", "Iklan aktif (filter slot, targetPages)"],
+        ["POST", "/api/ads", "SUPER_ADMIN", "Buat iklan baru"],
+        ["PUT", "/api/ads/:id", "SUPER_ADMIN", "Update iklan"],
+        ["DELETE", "/api/ads/:id", "SUPER_ADMIN", "Hapus iklan"],
+        ["POST", "/api/ads/:id/track", "public", "Track click/impression"],
+        ["GET", "/api/polls", "public", "List polling aktif"],
+        ["POST", "/api/polls", "EDITOR+", "Buat polling baru"],
+        ["PUT", "/api/polls/:id", "EDITOR+", "Update polling"],
+        ["DELETE", "/api/polls/:id", "EDITOR+", "Hapus polling"],
+        ["POST", "/api/polls/:id/vote", "public", "Vote (dedup IP+fingerprint)"],
+        ["GET", "/api/polls/:id/vote", "public", "Hasil polling real-time"],
+        ["GET", "/api/polls/from-article", "public", "Polling dari artikel tertentu"],
+        ["POST", "/api/polls/from-article", "EDITOR+", "Generate polling dari artikel via AI"],
+        ["GET", "/api/comments", "public", "List komentar (all/filter)"],
+        ["POST", "/api/comments", "public", "Submit komentar (auto-moderate)"],
+        ["PUT", "/api/comments/:id", "EDITOR+", "Approve/reject komentar"],
+        ["DELETE", "/api/comments/:id", "EDITOR+", "Hapus komentar"],
+      ],
+    },
+    {
+      name: "Users & Auth",
+      endpoints: [
+        ["GET", "/api/users", "SUPER_ADMIN", "List semua user"],
+        ["POST", "/api/users", "SUPER_ADMIN", "Buat user baru"],
+        ["PUT", "/api/users/:id", "self/ADMIN", "Update profile user"],
+        ["DELETE", "/api/users/:id", "SUPER_ADMIN", "Hapus user"],
+        ["GET", "/api/users/me", "auth", "Profile user yang login"],
+        ["PUT", "/api/users/me", "auth", "Update profile sendiri"],
+        ["POST", "/api/auth/[...nextauth]", "public", "NextAuth handler (signin/signout/session)"],
+        ["POST", "/api/auth/logout", "auth", "Sign out + invalidate session"],
+      ],
+    },
+    {
+      name: "Statistics & Analytics",
+      endpoints: [
+        ["GET", "/api/stats/internal", "EDITOR+", "Stats internal DB (artikel, views, users)"],
+        ["GET", "/api/stats/cloudflare", "EDITOR+", "Analytics Cloudflare (bandwidth, cache hit)"],
+        ["GET", "/api/stats/google-analytics", "EDITOR+", "Data GA4 (pageviews, top pages)"],
+        ["GET", "/api/stats/google-search", "EDITOR+", "Data GSC (impression, klik, CTR, position)"],
+      ],
+    },
+    {
+      name: "Media & Upload",
+      endpoints: [
+        ["GET", "/api/media", "JOURNALIST+", "List media library"],
+        ["POST", "/api/media", "JOURNALIST+", "Upload media (with metadata)"],
+        ["PUT", "/api/media/:id", "uploader", "Update caption/source media"],
+        ["DELETE", "/api/media", "JOURNALIST+", "Bulk delete media"],
+        ["POST", "/api/upload", "JOURNALIST+", "Upload file langsung (raw)"],
+      ],
+    },
+    {
+      name: "Court, Reports, Redaksi",
+      endpoints: [
+        ["GET", "/api/court-schedule", "public", "List jadwal sidang"],
+        ["POST", "/api/court-schedule", "JOURNALIST+", "Tambah jadwal"],
+        ["PUT", "/api/court-schedule/:id", "JOURNALIST+", "Update jadwal"],
+        ["DELETE", "/api/court-schedule/:id", "JOURNALIST+", "Hapus jadwal"],
+        ["GET", "/api/reports", "EDITOR+", "List laporan pembaca"],
+        ["POST", "/api/reports", "public", "Kirim laporan artikel"],
+        ["PATCH", "/api/reports/:id", "EDITOR+", "Update status laporan"],
+        ["GET", "/api/redaksi", "public", "List anggota redaksi"],
+        ["POST", "/api/redaksi", "SUPER_ADMIN", "Tambah anggota"],
+        ["PUT", "/api/redaksi/:id", "SUPER_ADMIN", "Update anggota"],
+        ["DELETE", "/api/redaksi/:id", "SUPER_ADMIN", "Hapus anggota"],
+      ],
+    },
+    {
+      name: "System & Settings",
+      endpoints: [
+        ["GET", "/api/settings", "SUPER_ADMIN", "Semua system settings key-value"],
+        ["PUT", "/api/settings", "SUPER_ADMIN", "Update 1 setting (key, value)"],
+        ["GET", "/api/audit-logs", "SUPER_ADMIN", "Audit log (filter user, action, entity)"],
+        ["GET", "/api/notifications", "auth", "Notifikasi user"],
+        ["PATCH", "/api/notifications", "auth", "Mark read (single/all)"],
+        ["GET", "/api/target-keywords", "EDITOR+", "List keyword target SEO"],
+        ["POST", "/api/target-keywords", "EDITOR+", "Tambah keyword"],
+        ["PATCH", "/api/target-keywords", "EDITOR+", "Update isActive keyword"],
+        ["DELETE", "/api/target-keywords", "SUPER_ADMIN", "Hapus keyword"],
+        ["POST", "/api/contact", "public", "Submit kontak form"],
+        ["GET", "/api/search", "public", "Global search artikel"],
+        ["GET", "/api/search/suggest", "public", "Autocomplete search"],
+        ["GET", "/api/trending", "public", "Trending artikel (viewCount)"],
+        ["GET", "/api/setup", "public", "Cek status setup (first-time install)"],
+      ],
+    },
+    {
+      name: "Cron (wajib Bearer CRON_SECRET)",
+      endpoints: [
+        ["GET/POST", "/api/cron/publish", "CRON", "Publish artikel scheduled + trigger auto-actions"],
+        ["GET/POST", "/api/cron/auto-article", "CRON", "Generate artikel dari keyword target (AI)"],
+        ["GET", "/api/cron/seo-ping", "CRON", "Ping GSC + IndexNow untuk artikel yang belum ter-index"],
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          <strong>75+ REST API endpoints</strong> diorganisir dalam 12 grup.
+          Semua endpoint kecuali yang public butuh session NextAuth (cookie <code>next-auth.session-token</code>).
+          Cron endpoint butuh header <code>Authorization: Bearer &lt;CRON_SECRET&gt;</code>.
+          Format response: <code>{"{ success: boolean, data?, error? }"}</code>
+        </p>
+      </div>
+
+      {groups.map((g) => (
+        <details key={g.name} className="rounded-[12px] border border-border bg-surface shadow-card" open>
+          <summary className="cursor-pointer border-b border-border px-5 py-3 hover:bg-surface-secondary/50">
+            <span className="text-sm font-bold uppercase tracking-wider text-txt-muted">
+              {g.name} <span className="ml-2 rounded-full bg-surface-secondary px-2 py-0.5 text-xs font-normal">{g.endpoints.length}</span>
+            </span>
+          </summary>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-surface-secondary/30 text-left font-semibold uppercase tracking-wider text-txt-muted">
+                  <th className="py-2 px-3">Method</th>
+                  <th className="py-2 px-3">Path</th>
+                  <th className="py-2 px-3">Auth</th>
+                  <th className="py-2 px-3">Fungsi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {g.endpoints.map(([method, path, auth, desc], i) => (
+                  <tr key={i} className="hover:bg-surface-secondary/20">
+                    <td className="py-1.5 px-3">
+                      <span className={`inline-block rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ${methodColor(method)}`}>
+                        {method}
+                      </span>
+                    </td>
+                    <td className="py-1.5 px-3 font-mono text-txt-primary">{path}</td>
+                    <td className={`py-1.5 px-3 font-semibold ${authColor(auth)}`}>{auth}</td>
+                    <td className="py-1.5 px-3 text-txt-secondary">{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 13. COMPONENTS LIBRARY
+// ════════════════════════════════════════════════════════════════
+
+function ComponentsTab() {
+  const groups = [
+    {
+      name: "Layout",
+      path: "src/components/layout/",
+      items: [
+        ["Header.tsx", "Navigation header utama (public + panel common)"],
+        ["PublicNav.tsx", "Top navbar halaman publik (kategori, search, login)"],
+        ["Sidebar.tsx", "Sidebar panel admin dengan menu items"],
+        ["Footer.tsx", "Footer panel admin"],
+        ["PublicFooter.tsx", "Footer halaman publik (kontak, sosmed, link)"],
+        ["TopLoader.tsx", "Progress bar loading di top saat navigate"],
+        ["NewsTicker.tsx", "Breaking news ticker running di header"],
+        ["TrendingTags.tsx", "Widget tags trending (homepage + sidebar)"],
+        ["HorizontalScroll.tsx", "Container scroll horizontal (carousel basic)"],
+        ["ScrollableContainer.tsx", "Wrapper scrollable dengan arrow button"],
+        ["ZoomCompensator.tsx", "Fix mobile pinch-zoom issue"],
+      ],
+    },
+    {
+      name: "Artikel",
+      path: "src/components/artikel/",
+      items: [
+        ["ArticleCard.tsx", "Card artikel preview (judul, gambar, meta) — reusable"],
+        ["SearchableArticleList.tsx", "List artikel dengan search + filter client-side"],
+        ["PaginatedArticles.tsx", "List artikel dengan pagination (load more / pages)"],
+        ["CommentSection.tsx", "Section komentar artikel (form + list + threaded replies)"],
+        ["ShareBar.tsx", "Tombol share WhatsApp, Facebook, Twitter, copy link"],
+        ["BookmarkButton.tsx", "Toggle bookmark artikel (localStorage)"],
+        ["PrintButton.tsx", "Trigger window.print() dengan print CSS"],
+        ["ReadingProgress.tsx", "Progress bar baca artikel (scroll-based)"],
+        ["CopyProtection.tsx", "Disable right-click + selectstart pada body artikel"],
+      ],
+    },
+    {
+      name: "Editor",
+      path: "src/components/editor/",
+      items: [
+        ["RichTextEditor.tsx", "TipTap editor lengkap: bold, italic, heading, list, link, image, table, embed, AI tools"],
+        ["ImageUploader.tsx", "Modal upload/pilih gambar dari library dengan crop"],
+        ["ImageCropModal.tsx", "Modal crop gambar sebelum upload (aspect ratio lock)"],
+      ],
+    },
+    {
+      name: "Slider / Carousel",
+      path: "src/components/slider/",
+      items: [
+        ["HeadlineSlider.tsx", "Hero slider full-width di homepage (auto-rotate)"],
+        ["SubHeadlineSlider.tsx", "Sub-headline slider bawah hero (2nd tier)"],
+        ["BreakingSlider.tsx", "Breaking news slider untuk artikel urgent"],
+        ["PopularCarousel.tsx", "Carousel artikel populer (viewCount desc)"],
+        ["PollingCarousel.tsx", "Carousel polling aktif"],
+        ["VideoStory.tsx", "Carousel video story (Instagram-style)"],
+      ],
+    },
+    {
+      name: "UI & Feedback",
+      path: "src/components/ui/",
+      items: [
+        ["Toast.tsx", "Toast notification (success, error, info) dengan Provider hook useToast"],
+        ["ConfirmDialog.tsx", "Modal konfirmasi dengan variant (danger/warning/info) + hook useConfirm"],
+      ],
+    },
+    {
+      name: "Ads",
+      path: "src/components/ads/",
+      items: [
+        ["BannerAd.tsx", "Komponen render banner iklan (impression tracking + slot-based)"],
+      ],
+    },
+    {
+      name: "Root",
+      path: "src/components/",
+      items: [
+        ["Providers.tsx", "Bundle provider: SessionProvider, ToastProvider, ConfirmProvider"],
+        ["ServiceWorkerRegistration.tsx", "Register PWA service worker (offline support)"],
+        ["GoogleAnalytics.tsx", "Load GA4 tag di halaman publik"],
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          <strong>35+ komponen React</strong> terorganisir per feature. Semua pakai TypeScript + Tailwind.
+          Komponen editor & carousel di-load lewat <code>dynamic()</code> untuk code-splitting.
+        </p>
+      </div>
+
+      {groups.map((g) => (
+        <div key={g.name} className="rounded-[12px] border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">
+              {g.name}
+            </h3>
+            <code className="text-xs text-txt-muted">{g.path}</code>
+          </div>
+          <div className="divide-y divide-border">
+            {g.items.map(([file, desc]) => (
+              <div key={file} className="flex items-start gap-3 px-6 py-2.5">
+                <Component size={14} className="mt-0.5 flex-shrink-0 text-goto-green" />
+                <div className="flex-1">
+                  <code className="text-xs font-semibold text-txt-primary">{file}</code>
+                  <p className="text-xs text-txt-secondary">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div className="rounded-[12px] border border-border bg-surface shadow-card">
+        <div className="border-b border-border px-6 py-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">
+            Lib Utilities <code className="text-xs normal-case font-normal">src/lib/</code>
+          </h3>
+        </div>
+        <div className="divide-y divide-border">
+          {[
+            ["ai-client.ts", "Shared AI caller: callAI() — Anthropic Claude primary, DeepSeek fallback otomatis"],
+            ["api-utils.ts", "Helper: requireAuth(), requireRole(), successResponse(), errorResponse(), ApiError class, audit logging"],
+            ["auth.ts", "NextAuth config: credentials provider, JWT callback, session, canWriteArticles, canApproveArticles helpers"],
+            ["prisma.ts", "Prisma client singleton (cached di global untuk hot-reload dev)"],
+            ["roles.ts", "Role constants: EDITOR_ROLES, CREATOR_ROLES, ADMIN_ROLES, CAN_SUBMIT_REVIEW, roleLabelsMap"],
+            ["utils.ts", "General: slugify(), calculateReadTime(), cn() (Tailwind class merge), toJakartaISO()"],
+            ["sanitize.ts", "Sanitize HTML artikel — allowlist tags/attributes (mencegah XSS)"],
+            ["article-status.ts", "State machine status artikel: canTransition(from, to, role)"],
+            ["rate-limit.ts", "In-memory rate limiter per user/IP untuk API AI + submit"],
+            ["seo-utils.ts", "Core SEO: onArticlePublished(), autoGenerateSeoFields(), autoGenerateFaq(), autoGenerateSorotan(), Cloudflare purge, Twitter share, IndexNow"],
+            ["email.ts", "Resend wrapper — templates: articleApproved, articleRejected, articlePublished, articleInReview"],
+            ["notifications.ts", "createNotification() — in-app notification untuk user"],
+            ["export-utils.ts", "Export artikel ke PDF (jsPDF) atau TXT"],
+            ["csv-utils.ts", "Parse & generate CSV (import/export data)"],
+            ["video-data.ts", "Parse video embed URL (YouTube, TikTok) → metadata"],
+            ["social/types.ts", "Type: Platform, PublishStatus, PublishResult, PreparedPost, ArticleForPublish"],
+            ["social/instagram.ts", "InstagramPublisher class — Meta Graph API v21 (container → media_publish)"],
+            ["social/facebook.ts", "FacebookPublisher class — link_share + photo post variants"],
+            ["social/orchestrator.ts", "publishArticleToSocial() — coordinate multi-platform publish + approveDraft/rejectDraft/takedownPost"],
+            ["social/caption-generator.ts", "generateSocialCaption() — AI gen caption + hashtag + CTA"],
+            ["social/ai-caption.ts", "generateCaptionForTemplate() — AI gen paraphrased title + shortSummary"],
+            ["social/template-renderer.ts", "renderTemplate() pakai Sharp — composite photo + text layers"],
+            ["social/template-helper.ts", "findTemplateForPlatform() + renderAndStoreTemplate() + enrichArticleForTemplate()"],
+          ].map(([file, desc]) => (
+            <div key={file} className="flex items-start gap-3 px-6 py-2">
+              <Code size={14} className="mt-0.5 flex-shrink-0 text-goto-green" />
+              <div className="flex-1">
+                <code className="text-xs font-semibold text-txt-primary">{file}</code>
+                <p className="text-xs text-txt-secondary">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 14. DEPENDENCIES
+// ════════════════════════════════════════════════════════════════
+
+function DepsTab() {
+  const categories = [
+    {
+      name: "Core Framework",
+      items: [
+        ["next", "14.2.0", "React framework dengan App Router, SSR, ISR"],
+        ["react", "18.3.0", "UI library"],
+        ["react-dom", "18.3.0", "DOM renderer"],
+        ["typescript", "5.4", "Static type checker (devDep)"],
+      ],
+    },
+    {
+      name: "Database & ORM",
+      items: [
+        ["@prisma/client", "5.22", "Type-safe database client generated dari schema"],
+        ["prisma", "5.22", "CLI untuk migrate & generate (devDep)"],
+      ],
+    },
+    {
+      name: "Auth & Security",
+      items: [
+        ["next-auth", "4.24", "Authentication layer — credentials provider, JWT session"],
+        ["bcryptjs", "2.4", "Password hashing (12 rounds)"],
+        ["sanitize-html", "2.17", "HTML sanitizer untuk konten artikel (XSS prevention)"],
+        ["zod", "3.23", "Runtime validation schema untuk API input"],
+      ],
+    },
+    {
+      name: "Content Editor",
+      items: [
+        ["@tiptap/react", "3.20", "Rich text editor core (React wrapper)"],
+        ["@tiptap/starter-kit", "3.20", "Bundle: Bold, Italic, Heading, Paragraph, List, dll"],
+        ["@tiptap/extension-image", "3.20", "Inline image di editor"],
+        ["@tiptap/extension-table", "3.20", "Table support"],
+        ["@tiptap/extension-link", "3.20", "Link dengan preview"],
+        ["@tiptap/extension-underline", "3.20", "Underline (bukan default HTML)"],
+      ],
+    },
+    {
+      name: "AI Providers",
+      items: [
+        ["@anthropic-ai/sdk", "0.90", "Claude API client (claude-haiku-4-5 — provider utama)"],
+      ],
+    },
+    {
+      name: "External APIs",
+      items: [
+        ["googleapis", "171.4", "Google APIs bundle — Search Console, Indexing, Analytics, Drive"],
+        ["resend", "6.9", "Transactional email"],
+      ],
+    },
+    {
+      name: "Image Processing",
+      items: [
+        ["sharp", "0.34", "High-performance image processing (resize, compose, JPEG) — untuk template sosmed & optimasi"],
+      ],
+    },
+    {
+      name: "UI & Visualization",
+      items: [
+        ["lucide-react", "0.400", "Icon library (600+ icons) — dipakai di seluruh UI"],
+        ["recharts", "3.8", "Chart library untuk dashboard statistik (line, bar, area, pie)"],
+        ["tailwind-merge", "2.3", "Merge Tailwind classes dengan benar (handle konflik)"],
+        ["clsx", "2.1", "Conditional classname helper"],
+      ],
+    },
+    {
+      name: "Export & Utilities",
+      items: [
+        ["jspdf", "4.2", "Generate PDF client-side (export artikel)"],
+        ["date-fns", "3.6", "Date manipulation (format, parse, timezone — Jakarta ISO)"],
+      ],
+    },
+    {
+      name: "Styling",
+      items: [
+        ["tailwindcss", "3.4", "Utility-first CSS framework (devDep)"],
+        ["postcss", "8.4", "CSS processor (devDep)"],
+        ["autoprefixer", "10.4", "Auto vendor prefix (devDep)"],
+      ],
+    },
+    {
+      name: "Testing & Quality",
+      items: [
+        ["vitest", "1.6", "Unit test runner (devDep)"],
+        ["eslint", "8.57", "Code linter (devDep)"],
+        ["eslint-config-next", "14.2", "Next.js ESLint preset (devDep)"],
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          <strong>Stack dependency</strong> — total ~600 packages termasuk transitive deps.
+          Lihat <code>package.json</code> + <code>package-lock.json</code> untuk versi exact.
+          Untuk update: <code>npm outdated</code> lalu <code>npm update</code>.
+        </p>
+      </div>
+
+      {categories.map((cat) => (
+        <div key={cat.name} className="rounded-[12px] border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">
+              {cat.name}
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-surface-secondary/30 text-left font-semibold uppercase tracking-wider text-txt-muted">
+                  <th className="py-2 px-4">Package</th>
+                  <th className="py-2 px-4">Versi</th>
+                  <th className="py-2 px-4">Fungsi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {cat.items.map(([pkg, ver, desc]) => (
+                  <tr key={pkg}>
+                    <td className="py-1.5 px-4"><code className="text-xs font-semibold text-txt-primary">{pkg}</code></td>
+                    <td className="py-1.5 px-4 font-mono text-txt-muted">{ver}</td>
+                    <td className="py-1.5 px-4 text-txt-secondary">{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+
+      <div className="rounded-[12px] border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
+        <p className="font-semibold">⚠️ Catatan update:</p>
+        <ul className="mt-2 list-disc pl-5 space-y-1">
+          <li>Next.js 14.2 → jangan upgrade ke 15 tanpa testing menyeluruh (breaking changes App Router).</li>
+          <li>Prisma 5.22 → stable, bisa upgrade ke 6 tapi perlu re-generate semua query types.</li>
+          <li>TipTap 3.20 → breaking change dari v2, sudah di-handle di RichTextEditor.tsx.</li>
+          <li>Sharp 0.34 → perlu rebuild native binding per architecture (x86_64 vs ARM). Otomatis via postinstall.</li>
+          <li>Anthropic SDK 0.90 → API stable tapi model version boleh update (claude-haiku-4-5 ke haiku-5-xxx).</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 15. HALAMAN PUBLIK
+// ════════════════════════════════════════════════════════════════
+
+function PublikTab() {
+  const groups = [
+    {
+      name: "Homepage & Discovery",
+      pages: [
+        ["/", "Homepage — hero slider, headline, breaking news, kategori, trending"],
+        ["/search", "Global search artikel dengan filter + suggest"],
+        ["/topik", "Daftar semua topik/kategori"],
+        ["/topik/[slug]", "Detail topik — artikel + sub-kategori"],
+        ["/bookmark", "Bookmark user (localStorage-based)"],
+      ],
+    },
+    {
+      name: "Artikel",
+      pages: [
+        ["/berita", "Semua artikel published (paginated)"],
+        ["/berita/[slug]", "Detail artikel lengkap + komentar + share + related"],
+        ["/kategori/[slug]", "Artikel per kategori (Pidana, Perdata, Tata Negara, dll)"],
+        ["/tag/[slug]", "Artikel per tag"],
+        ["/penulis/[slug]", "Profile penulis + daftar karya"],
+      ],
+    },
+    {
+      name: "Ringkasan & Sorotan",
+      pages: [
+        ["/sorotan", "List halaman Sorotan SEO (substantive summaries)"],
+        ["/sorotan/[slug]", "Detail sorotan — 300-500 kata angle spesifik"],
+        ["/rangkuman", "Halaman rangkuman umum"],
+        ["/rangkuman/[slug]", "Rangkuman berdasarkan topik"],
+        ["/rangkuman/harian", "Rangkuman berita harian"],
+        ["/rangkuman/harian/[slug]", "Rangkuman per tanggal spesifik"],
+      ],
+    },
+    {
+      name: "Jadwal & Lokasi",
+      pages: [
+        ["/jadwal-sidang", "Jadwal sidang pengadilan (scheduled, live, done)"],
+        ["/lokasi", "Direktori lokasi/pengadilan di Bandung"],
+        ["/lokasi/[slug]", "Detail lokasi pengadilan"],
+      ],
+    },
+    {
+      name: "Informasi & Legal",
+      pages: [
+        ["/tentang", "Tentang Jurnalis Hukum Bandung"],
+        ["/redaksi", "Tim redaksi (editor + jurnalis)"],
+        ["/kode-etik", "Kode etik jurnalistik JHB"],
+        ["/pedoman-media", "Pedoman media cyber"],
+        ["/syarat-ketentuan", "Terms & conditions"],
+        ["/privasi", "Privacy policy"],
+        ["/iklan", "Info iklan & rate card"],
+        ["/kontak", "Form kontak (public)"],
+      ],
+    },
+    {
+      name: "Auth & System",
+      pages: [
+        ["/login", "Login form (email + password)"],
+        ["/offline", "Halaman fallback PWA offline"],
+      ],
+    },
+    {
+      name: "SEO Routes",
+      pages: [
+        ["/sitemap.xml", "Main sitemap (artikel published)"],
+        ["/sitemap-news.xml", "News sitemap (2 hari terakhir, format Google News)"],
+        ["/robots.txt", "Robots directive + sitemap refs"],
+        ["/opengraph-image/route", "Dynamic OG image per artikel (dibuat on-demand)"],
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          <strong>29 halaman publik</strong> diorganisir per fungsi.
+          Semua pakai Server Components (query Prisma langsung) untuk SEO-friendly + fast TTFB.
+          Dynamic routes (<code>[slug]</code>) pakai <code>generateStaticParams</code> untuk ISR.
+        </p>
+      </div>
+
+      {groups.map((g) => (
+        <div key={g.name} className="rounded-[12px] border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">{g.name}</h3>
+          </div>
+          <div className="divide-y divide-border">
+            {g.pages.map(([path, desc]) => (
+              <div key={path} className="flex items-start gap-3 px-6 py-2.5">
+                <a
+                  href={path.includes("[") ? "#" : path}
+                  target={path.includes("[") ? undefined : "_blank"}
+                  className="flex-shrink-0 rounded bg-blue-50 px-2 py-0.5 font-mono text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                >
+                  {path}
+                </a>
+                <p className="text-xs text-txt-secondary">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
