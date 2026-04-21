@@ -24,6 +24,7 @@ const FALLBACK_KEYWORDS = [
   "kejaksaan bandung",
 ];
 
+
 async function getTargetKeywords(): Promise<string[]> {
   try {
     const active = await prisma.targetKeyword.findMany({

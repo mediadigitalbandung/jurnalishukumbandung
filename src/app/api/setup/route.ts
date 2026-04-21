@@ -1,8 +1,10 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { successResponse, errorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 
 function generateSecurePassword(length = 16): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
@@ -21,22 +23,19 @@ export async function GET(request: NextRequest) {
     // Reject if SETUP_KEY env is missing or too short (prevents "empty-match" bypass)
     const envKey = process.env.SETUP_KEY;
     if (!envKey || envKey.length < 16) {
-      return errorResponse({
-        message: "Setup endpoint dinonaktifkan. SETUP_KEY harus di-set di env minimum 16 karakter.",
-        statusCode: 503,
-      });
+      throw new ApiError("Setup endpoint dinonaktifkan. SETUP_KEY harus di-set di env minimum 16 karakter.", 503);
     }
 
     // Constant-time comparison to prevent timing attacks
     if (!setupKey || setupKey.length !== envKey.length) {
-      return errorResponse({ message: "Invalid setup key", statusCode: 403 });
+      throw new ApiError("Invalid setup key", 403);
     }
     let diff = 0;
     for (let i = 0; i < envKey.length; i++) {
       diff |= envKey.charCodeAt(i) ^ setupKey.charCodeAt(i);
     }
     if (diff !== 0) {
-      return errorResponse({ message: "Invalid setup key", statusCode: 403 });
+      throw new ApiError("Invalid setup key", 403);
     }
 
     // Check if setup already completed (via system_settings flag)
@@ -44,7 +43,7 @@ export async function GET(request: NextRequest) {
       where: { key: "setup_completed" },
     });
     if (completed?.value === "true") {
-      return errorResponse({ message: "Database sudah di-setup sebelumnya. Endpoint dinonaktifkan.", statusCode: 410 });
+      throw new ApiError("Database sudah di-setup sebelumnya. Endpoint dinonaktifkan.", 410);
     }
 
     // Legacy fallback: check if ANY user already exists (not just SUPER_ADMIN)
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
         update: { value: "true" },
         create: { key: "setup_completed", value: "true" },
       });
-      return errorResponse({ message: "Database sudah di-setup sebelumnya. Endpoint dinonaktifkan.", statusCode: 410 });
+      throw new ApiError("Database sudah di-setup sebelumnya. Endpoint dinonaktifkan.", 410);
     }
 
     // Create categories

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest } from "next/server";
 import { successResponse } from "@/lib/api-utils";
 import { callAI } from "@/lib/ai-client";

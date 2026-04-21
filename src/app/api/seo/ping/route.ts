@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { requireRole, successResponse, errorResponse } from "@/lib/api-utils";
 import {
   pingSitemapToSearchEngines,
