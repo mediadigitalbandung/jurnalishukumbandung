@@ -24,22 +24,23 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// Dynamically import Recharts to avoid SSR issues
-const AreaChart = dynamic(() => import("recharts").then((m) => m.AreaChart), { ssr: false });
-const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
-const PieChart = dynamic(() => import("recharts").then((m) => m.PieChart), { ssr: false });
-const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
-const Area = dynamic(() => import("recharts").then((m) => m.Area), { ssr: false });
-const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
-const Pie = dynamic(() => import("recharts").then((m) => m.Pie), { ssr: false });
-const Line = dynamic(() => import("recharts").then((m) => m.Line), { ssr: false });
-const Cell = dynamic(() => import("recharts").then((m) => m.Cell), { ssr: false });
-const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
-const CartesianGrid = dynamic(() => import("recharts").then((m) => m.CartesianGrid), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
-const Legend = dynamic(() => import("recharts").then((m) => m.Legend), { ssr: false });
-const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
+// Consolidated Recharts imports — single webpack chunk instead of 15 separate chunks
+const rechartsLoader = () => import(/* webpackChunkName: "recharts" */ "recharts");
+const AreaChart = dynamic(() => rechartsLoader().then((m) => m.AreaChart), { ssr: false });
+const BarChart = dynamic(() => rechartsLoader().then((m) => m.BarChart), { ssr: false });
+const PieChart = dynamic(() => rechartsLoader().then((m) => m.PieChart), { ssr: false });
+const LineChart = dynamic(() => rechartsLoader().then((m) => m.LineChart), { ssr: false });
+const Area = dynamic(() => rechartsLoader().then((m) => m.Area), { ssr: false });
+const Bar = dynamic(() => rechartsLoader().then((m) => m.Bar), { ssr: false });
+const Pie = dynamic(() => rechartsLoader().then((m) => m.Pie), { ssr: false });
+const Line = dynamic(() => rechartsLoader().then((m) => m.Line), { ssr: false });
+const Cell = dynamic(() => rechartsLoader().then((m) => m.Cell), { ssr: false });
+const XAxis = dynamic(() => rechartsLoader().then((m) => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => rechartsLoader().then((m) => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => rechartsLoader().then((m) => m.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => rechartsLoader().then((m) => m.Tooltip), { ssr: false });
+const Legend = dynamic(() => rechartsLoader().then((m) => m.Legend), { ssr: false });
+const ResponsiveContainer = dynamic(() => rechartsLoader().then((m) => m.ResponsiveContainer), { ssr: false });
 
 const TABS = ["overview", "internal", "search-console", "analytics", "cloudflare"] as const;
 type Tab = typeof TABS[number];
