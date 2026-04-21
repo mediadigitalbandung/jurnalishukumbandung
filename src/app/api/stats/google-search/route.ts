@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
           startDate: startStr,
           endDate: endStr,
           dimensions: ["query"],
-          rowLimit: 15,
+          rowLimit: 1000,
         }),
       }),
       fetch(baseUrl, {
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
           startDate: startStr,
           endDate: endStr,
           dimensions: ["page"],
-          rowLimit: 10,
+          rowLimit: 500,
         }),
       }),
     ]);

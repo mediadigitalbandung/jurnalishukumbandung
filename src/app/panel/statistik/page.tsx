@@ -19,6 +19,8 @@ import {
   Settings,
   Wifi,
   WifiOff,
+  Download,
+  X as XIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -388,47 +390,228 @@ function SearchConsoleTab({ data }: { data: Record<string, unknown> | null }) {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top queries */}
-        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
-          <h3 className="font-semibold text-txt-primary mb-4">Top Kata Kunci</h3>
-          <div className="space-y-2">
-            {topQueries.map((q, i) => (
-              <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
-                <span className="w-6 text-xs text-txt-muted text-right flex-shrink-0">{i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-txt-primary truncate">{q.query}</p>
-                  <p className="text-xs text-txt-muted">CTR {q.ctr}% · Posisi #{q.position}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-txt-primary">{formatNumber(q.clicks)}</p>
-                  <p className="text-xs text-txt-muted">klik</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Top queries — FULL TABLE dengan filter */}
+      <KeywordsTable queries={topQueries} />
 
-        {/* Top pages */}
-        <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
-          <h3 className="font-semibold text-txt-primary mb-4">Top Halaman</h3>
-          <div className="space-y-2">
-            {topPages.map((p, i) => (
-              <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
-                <span className="w-6 text-xs text-txt-muted text-right flex-shrink-0">{i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-txt-primary truncate">{p.page.replace("https://jurnalishukumbandung.com", "")}</p>
-                  <p className="text-xs text-txt-muted">{formatNumber(p.impressions)} impresi</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-txt-primary">{formatNumber(p.clicks)}</p>
-                  <p className="text-xs text-txt-muted">klik</p>
-                </div>
+      {/* Top pages */}
+      <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+        <h3 className="font-semibold text-txt-primary mb-4">Top Halaman</h3>
+        <div className="space-y-2">
+          {topPages.map((p, i) => (
+            <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
+              <span className="w-6 text-xs text-txt-muted text-right flex-shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-txt-primary truncate">{p.page.replace("https://jurnalishukumbandung.com", "")}</p>
+                <p className="text-xs text-txt-muted">{formatNumber(p.impressions)} impresi</p>
               </div>
-            ))}
-          </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-semibold text-txt-primary">{formatNumber(p.clicks)}</p>
+                <p className="text-xs text-txt-muted">klik</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ───── KeywordsTable — List lengkap kata kunci dengan filter rank range + search + sort ─────
+
+type Keyword = { query: string; clicks: number; impressions: number; ctr: number; position: number };
+type RankRange = "all" | "1-3" | "4-10" | "11-20" | "21-50" | "51-100" | "100+";
+type SortKey = "clicks" | "impressions" | "ctr" | "position";
+
+const RANK_RANGES: { value: RankRange; label: string; min?: number; max?: number }[] = [
+  { value: "all", label: "Semua" },
+  { value: "1-3", label: "Top 3", min: 1, max: 3 },
+  { value: "4-10", label: "4-10", min: 4, max: 10 },
+  { value: "11-20", label: "11-20", min: 11, max: 20 },
+  { value: "21-50", label: "21-50", min: 21, max: 50 },
+  { value: "51-100", label: "51-100", min: 51, max: 100 },
+  { value: "100+", label: "100+", min: 100.5 },
+];
+
+const SORT_OPTIONS: { value: SortKey; label: string; desc: boolean }[] = [
+  { value: "clicks", label: "Klik (terbanyak)", desc: true },
+  { value: "impressions", label: "Impresi (terbanyak)", desc: true },
+  { value: "ctr", label: "CTR (tertinggi)", desc: true },
+  { value: "position", label: "Posisi (terbaik)", desc: false },
+];
+
+function exportKeywordsCSV(keywords: Keyword[]) {
+  const header = ["Kata Kunci", "Klik", "Impresi", "CTR (%)", "Posisi"];
+  const rows = keywords.map(k => [
+    `"${k.query.replace(/"/g, '""')}"`,
+    k.clicks,
+    k.impressions,
+    k.ctr,
+    k.position,
+  ]);
+  const csv = [header.join(","), ...rows.map(r => r.join(","))].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `keywords-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function KeywordsTable({ queries }: { queries: Keyword[] }) {
+  const [rankFilter, setRankFilter] = useState<RankRange>("all");
+  const [searchText, setSearchText] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("clicks");
+  const [visibleCount, setVisibleCount] = useState(20);
+
+  // Count per range (untuk badge di filter buttons)
+  const countsByRange: Record<RankRange, number> = {
+    all: queries.length,
+    "1-3": queries.filter(q => q.position >= 1 && q.position <= 3).length,
+    "4-10": queries.filter(q => q.position > 3 && q.position <= 10).length,
+    "11-20": queries.filter(q => q.position > 10 && q.position <= 20).length,
+    "21-50": queries.filter(q => q.position > 20 && q.position <= 50).length,
+    "51-100": queries.filter(q => q.position > 50 && q.position <= 100).length,
+    "100+": queries.filter(q => q.position > 100).length,
+  };
+
+  // Filter + search
+  const filtered = queries.filter(q => {
+    // Rank filter
+    const range = RANK_RANGES.find(r => r.value === rankFilter);
+    if (range?.min !== undefined && q.position < range.min) return false;
+    if (range?.max !== undefined && q.position > range.max) return false;
+    // Search filter
+    if (searchText.trim() && !q.query.toLowerCase().includes(searchText.toLowerCase().trim())) return false;
+    return true;
+  });
+
+  // Sort
+  const sortOption = SORT_OPTIONS.find(s => s.value === sortBy)!;
+  const sorted = [...filtered].sort((a, b) => {
+    const diff = (b[sortBy] as number) - (a[sortBy] as number);
+    return sortOption.desc ? diff : -diff;
+  });
+
+  const visible = sorted.slice(0, visibleCount);
+  const hasMore = sorted.length > visibleCount;
+
+  return (
+    <div className="rounded-[12px] bg-surface border border-border p-5 shadow-card">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h3 className="font-semibold text-txt-primary">
+          Kata Kunci <span className="text-sm font-normal text-txt-muted">({sorted.length.toLocaleString("id-ID")} dari {queries.length.toLocaleString("id-ID")})</span>
+        </h3>
+        <button
+          onClick={() => exportKeywordsCSV(sorted)}
+          disabled={sorted.length === 0}
+          className="inline-flex items-center gap-2 rounded-full bg-goto-green px-3 py-1.5 text-xs font-medium text-white hover:bg-goto-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={13} />
+          Export CSV
+        </button>
+      </div>
+
+      {/* Filter rank range */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <span className="text-xs text-txt-secondary">Rank:</span>
+        {RANK_RANGES.map(r => (
+          <button
+            key={r.value}
+            onClick={() => { setRankFilter(r.value); setVisibleCount(20); }}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              rankFilter === r.value
+                ? "bg-goto-green text-white"
+                : "bg-surface-secondary text-txt-secondary hover:bg-border"
+            }`}
+          >
+            {r.label}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+              rankFilter === r.value ? "bg-white/20" : "bg-border text-txt-muted"
+            }`}>
+              {countsByRange[r.value]}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search + sort */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => { setSearchText(e.target.value); setVisibleCount(20); }}
+            placeholder="Cari kata kunci..."
+            className="w-full rounded-full border border-border bg-surface pl-9 pr-9 py-2 text-sm focus:border-goto-green focus:outline-none"
+          />
+          {searchText && (
+            <button
+              onClick={() => setSearchText("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary"
+            >
+              <XIcon size={14} />
+            </button>
+          )}
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortKey)}
+          className="rounded-full border border-border bg-surface px-4 py-2 text-sm focus:border-goto-green focus:outline-none"
+        >
+          {SORT_OPTIONS.map(s => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Table header */}
+      <div className="hidden sm:grid grid-cols-[40px_1fr_80px_80px_70px_70px] gap-3 pb-2 mb-1 border-b border-border text-xs font-medium text-txt-muted uppercase tracking-wide">
+        <span className="text-right">#</span>
+        <span>Kata Kunci</span>
+        <span className="text-right">Klik</span>
+        <span className="text-right">Impresi</span>
+        <span className="text-right">CTR</span>
+        <span className="text-right">Posisi</span>
+      </div>
+
+      {/* List */}
+      {visible.length === 0 ? (
+        <div className="py-12 text-center text-sm text-txt-muted">
+          {queries.length === 0 ? "Belum ada data kata kunci" : "Tidak ada kata kunci yang cocok dengan filter"}
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {visible.map((q, i) => (
+            <div key={`${q.query}-${i}`} className="grid grid-cols-[40px_1fr_80px_80px_70px_70px] gap-3 py-2.5 items-center text-sm">
+              <span className="text-right text-xs text-txt-muted">{i + 1}</span>
+              <span className="text-txt-primary truncate" title={q.query}>{q.query}</span>
+              <span className="text-right font-semibold text-txt-primary">{formatNumber(q.clicks)}</span>
+              <span className="text-right text-txt-secondary">{formatNumber(q.impressions)}</span>
+              <span className="text-right text-txt-secondary">{q.ctr.toFixed(1)}%</span>
+              <span className={`text-right font-medium ${
+                q.position <= 3 ? "text-goto-green" :
+                q.position <= 10 ? "text-blue-600" :
+                q.position <= 20 ? "text-orange-500" :
+                "text-txt-muted"
+              }`}>#{q.position.toFixed(1)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Load more */}
+      {hasMore && (
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => setVisibleCount(c => c + 50)}
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-secondary px-4 py-2 text-xs font-medium text-txt-secondary hover:bg-border transition-colors"
+          >
+            Muat {Math.min(50, sorted.length - visibleCount)} lagi ({sorted.length - visibleCount} tersisa)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
