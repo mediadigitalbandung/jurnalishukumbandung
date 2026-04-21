@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import Image from "next/image";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Sparkles, Loader2, CheckCircle, Clock, Scale, AlertTriangle,
   BookOpen, FileText, Gavel, Users, MessageSquare, HelpCircle,
@@ -277,7 +278,7 @@ export default function SorotanPanel() {
                   {isPreview && a.sorotan && (
                     <div className="border-t border-border bg-surface-secondary px-6 py-5">
                       <h3 className="text-base font-bold text-txt-primary mb-3">{a.sorotan.title}</h3>
-                      <div className="article-content text-sm leading-relaxed text-txt-primary/80 max-h-96 overflow-y-auto" dangerouslySetInnerHTML={{ __html: a.sorotan.content.replace(/<(p|h[1-6]|ul|ol|li)[^>]*>/gi, (m) => m).split(/\n\n+/).filter(Boolean).map(p => p.trim().startsWith("<") ? p : `<p>${p}</p>`).join("") }} />
+                      <div className="article-content text-sm leading-relaxed text-txt-primary/80 max-h-96 overflow-y-auto" dangerouslySetInnerHTML={{ __html: sanitizeHtml(a.sorotan.content.replace(/<(p|h[1-6]|ul|ol|li)[^>]*>/gi, (m) => m).split(/\n\n+/).filter(Boolean).map(p => p.trim().startsWith("<") ? p : `<p>${p}</p>`).join("")) }} />
                     </div>
                   )}
                 </div>

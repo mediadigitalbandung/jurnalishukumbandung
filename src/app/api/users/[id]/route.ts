@@ -13,7 +13,7 @@ import {
 const updateUserSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
-  password: z.string().min(8).optional(),
+  password: z.string().min(12, "Password minimal 12 karakter").optional(),
   role: z.enum(["SUPER_ADMIN", "EDITOR", "JOURNALIST", "CONTRIBUTOR"]).optional(),
   specialization: z.string().max(100).optional(),
   avatar: z.string().url().nullable().optional(),
@@ -38,6 +38,16 @@ export async function PUT(
 
     const body = await request.json();
     const data = updateUserSchema.parse(body);
+
+    // Privilege escalation guard: only SUPER_ADMIN can change roles
+    if (data.role !== undefined && data.role !== user.role && session.user.role !== "SUPER_ADMIN") {
+      throw new ApiError("Hanya SUPER_ADMIN yang dapat mengubah role pengguna", 403);
+    }
+
+    // Also prevent non-SUPER_ADMIN from toggling isActive on SUPER_ADMIN accounts
+    if (data.isActive !== undefined && user.role === "SUPER_ADMIN" && session.user.role !== "SUPER_ADMIN") {
+      throw new ApiError("Hanya SUPER_ADMIN yang dapat mengubah status akun SUPER_ADMIN lain", 403);
+    }
 
     // If email is being changed, check for duplicates
     if (data.email && data.email !== user.email) {

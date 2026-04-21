@@ -49,7 +49,7 @@ export async function GET() {
 
 const createUserSchema = z.object({
   email: z.string().email("Email tidak valid"),
-  password: z.string().min(8, "Password minimal 8 karakter"),
+  password: z.string().min(12, "Password minimal 12 karakter"),
   name: z.string().min(2).max(100),
   role: z.enum(["SUPER_ADMIN", "EDITOR", "JOURNALIST", "CONTRIBUTOR"]),
   specialization: z.string().optional(),

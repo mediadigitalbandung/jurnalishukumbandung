@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   ArrowLeft,
   History,
@@ -541,7 +542,7 @@ export default function RevisionsPage() {
                     </label>
                     <div
                       className="prose prose-sm max-w-none text-txt-primary text-justify rounded-[8px] border border-border bg-surface-secondary p-4 max-h-[500px] overflow-y-auto"
-                      dangerouslySetInnerHTML={{ __html: rev.content }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(rev.content) }}
                     />
                   </div>
                 )}

@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Save,
   Send,
@@ -1839,7 +1840,7 @@ export default function EditArticlePage() {
             )}
             <div className="rounded-[12px] border border-border bg-surface p-5">
               <label className="mb-2 block text-xs font-medium text-txt-muted uppercase tracking-wider">Konten</label>
-              <div className="prose prose-sm max-w-none text-txt-primary text-justify" dangerouslySetInnerHTML={{ __html: content }} />
+              <div className="prose prose-sm max-w-none text-txt-primary text-justify" dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
             </div>
           </div>
         )}
@@ -2317,7 +2318,7 @@ export default function EditArticlePage() {
           )}
           <div className="rounded-[12px] border border-border bg-surface p-5">
             <label className="mb-2 block text-xs font-medium text-txt-muted uppercase tracking-wider">Konten</label>
-            <div className="prose prose-sm max-w-none text-txt-primary text-justify" dangerouslySetInnerHTML={{ __html: content }} />
+            <div className="prose prose-sm max-w-none text-txt-primary text-justify" dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { Role } from "@prisma/client";
+import { loginRateLimit } from "./rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -40,12 +41,22 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email dan password diperlukan");
         }
 
+        // Rate limit: 5 attempts per 15 min per IP+email combo
+        const ip = (req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+          || (req?.headers?.["x-real-ip"] as string)
+          || "unknown";
         const emailLower = credentials.email.toLowerCase();
+        const rateLimitKey = `${ip}:${emailLower}`;
+        const { success: allowed, remaining } = loginRateLimit(rateLimitKey);
+        if (!allowed) {
+          throw new Error("Terlalu banyak percobaan login. Coba lagi dalam 15 menit.");
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: emailLower },
         });
@@ -60,7 +71,7 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isValid) {
-          throw new Error("Email atau password salah");
+          throw new Error(`Email atau password salah. Sisa percobaan: ${remaining}`);
         }
 
         // Multi-device login: no session tracking, just update lastLoginAt
@@ -123,7 +134,8 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 4 * 60 * 60, // 4 hours — reduced from 24h to limit session hijack window
+    updateAge: 30 * 60,  // refresh token every 30 min of activity
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
