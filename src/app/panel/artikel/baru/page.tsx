@@ -131,7 +131,7 @@ export default function NewArticlePage() {
         if (draft.title) setTitle(draft.title);
         if (draft.content) setContent(draft.content);
         if (draft.categoryId) setCategoryId(draft.categoryId);
-        if (draft.excerpt) setExcerpt(draft.excerpt);
+        if (draft.excerpt) setExcerpt(String(draft.excerpt).slice(0, 500));
         if (draft.tags) setTags(draft.tags);
         if (draft.sources) setSources(draft.sources);
       }
@@ -301,7 +301,7 @@ export default function NewArticlePage() {
         body: JSON.stringify({
           title,
           content,
-          excerpt: excerpt || undefined,
+          excerpt: excerpt ? excerpt.slice(0, 500) : undefined,
           categoryId,
           tags: tagList,
           featuredImage: featuredImage || undefined,

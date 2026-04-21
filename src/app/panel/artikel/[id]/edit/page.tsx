@@ -250,7 +250,7 @@ export default function EditArticlePage() {
       if (draft.title !== undefined) setTitle(draft.title);
       if (draft.content !== undefined) setContent(draft.content);
       if (draft.categoryId !== undefined) setCategoryId(draft.categoryId);
-      if (draft.excerpt !== undefined) setExcerpt(draft.excerpt);
+      if (draft.excerpt !== undefined) setExcerpt(String(draft.excerpt).slice(0, 500));
       if (draft.tags !== undefined) setTags(draft.tags);
       if (draft.sources !== undefined) setSources(draft.sources);
       if (draft.seoTitle !== undefined) setSeoTitle(draft.seoTitle);
@@ -554,7 +554,7 @@ export default function EditArticlePage() {
         body: JSON.stringify({
           title,
           content,
-          excerpt: excerpt || undefined,
+          excerpt: excerpt ? excerpt.slice(0, 500) : undefined,
           categoryId,
           tags: tagList,
           featuredImage: featuredImage || undefined,
@@ -833,7 +833,7 @@ export default function EditArticlePage() {
         body: JSON.stringify({
           title,
           content,
-          excerpt: excerpt || undefined,
+          excerpt: excerpt ? excerpt.slice(0, 500) : undefined,
           categoryId,
           tags: tagList,
           featuredImage: featuredImage || undefined,
@@ -1793,7 +1793,7 @@ export default function EditArticlePage() {
                     const res = await fetch(`/api/articles/${articleId}`, {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ title, content, excerpt, categoryId, featuredImage, seoTitle, seoDescription, tags: tags.split(",").map(t => t.trim()).filter(Boolean) }),
+                      body: JSON.stringify({ title, content, excerpt: excerpt ? excerpt.slice(0, 500) : undefined, categoryId, featuredImage, seoTitle, seoDescription, tags: tags.split(",").map(t => t.trim()).filter(Boolean) }),
                     });
                     if (res.ok) {
                       clearAutosave();
