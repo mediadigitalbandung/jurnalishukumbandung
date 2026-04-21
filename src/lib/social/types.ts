@@ -50,6 +50,7 @@ export interface PublishResult {
   externalUrl?: string;
   postFormat?: string;
   captionFinal?: string;
+  renderedImageUrl?: string | null;
   slidesCount?: number;
   errorMessage?: string;
 }

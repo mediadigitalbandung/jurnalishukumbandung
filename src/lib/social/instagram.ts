@@ -148,6 +148,7 @@ export class InstagramPublisher implements SocialPublisher {
         externalUrl,
         postFormat: prepared.postFormat,
         captionFinal: prepared.caption,
+        renderedImageUrl: prepared.renderedImageUrl,
         slidesCount: 1,
       };
     } catch (err) {

@@ -116,6 +116,7 @@ export async function publishArticleToSocial(articleId: string): Promise<Publish
             externalUrl: result.externalUrl,
             postFormat: result.postFormat,
             captionFinal: result.captionFinal,
+            renderedImageUrl: result.renderedImageUrl,
             slidesCount: result.slidesCount,
             errorMessage: result.errorMessage,
             publishedAt: result.status === "success" ? new Date() : undefined,

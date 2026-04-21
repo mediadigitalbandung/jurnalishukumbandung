@@ -822,7 +822,7 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {p.status === "success" ? (
+                    {p.status === "success" || p.status === "published" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600"><CheckCircle size={10} /> Sukses</span>
                     ) : p.status === "failed" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600" title={p.errorMessage || ""}><XCircle size={10} /> Gagal</span>
@@ -865,7 +865,7 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
                           </button>
                         </>
                       )}
-                      {p.externalUrl && p.status === "success" && (
+                      {p.externalUrl && (p.status === "success" || p.status === "published") && (
                         <>
                           <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-goto-green hover:underline">
                             <ExternalLink size={11} /> Lihat

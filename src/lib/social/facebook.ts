@@ -93,14 +93,17 @@ export class FacebookPublisher implements SocialPublisher {
 
     try {
       if (prepared.postFormat === "link_share") {
-        return await this.publishLinkShare(global.fbPageId, global.metaAccessToken, prepared.caption, articleUrl);
+        const result = await this.publishLinkShare(global.fbPageId, global.metaAccessToken, prepared.caption, articleUrl);
+        return { ...result, renderedImageUrl: prepared.renderedImageUrl };
       }
       if (prepared.postFormat === "photo") {
         const imageUrl = prepared.renderedImageUrl;
         if (!imageUrl) {
-          return this.publishLinkShare(global.fbPageId, global.metaAccessToken, prepared.caption, articleUrl);
+          const result = await this.publishLinkShare(global.fbPageId, global.metaAccessToken, prepared.caption, articleUrl);
+          return { ...result, renderedImageUrl: null };
         }
-        return await this.publishPhoto(global.fbPageId, global.metaAccessToken, prepared.caption, imageUrl, articleUrl);
+        const result = await this.publishPhoto(global.fbPageId, global.metaAccessToken, prepared.caption, imageUrl, articleUrl);
+        return { ...result, renderedImageUrl: imageUrl };
       }
       return { platform: this.platform, status: "failed", errorMessage: "multi_photo not yet implemented" };
     } catch (err) {
