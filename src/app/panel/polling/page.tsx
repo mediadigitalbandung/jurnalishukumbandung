@@ -357,16 +357,16 @@ export default function PollingPanelPage() {
                   </div>
                 ) : (
                   <div className="w-full h-10 bg-gradient-to-r from-goto-green/10 to-goto-green/5 flex items-center justify-center">
-                    <span className="text-[10px] text-goto-green/50">Tanpa gambar</span>
+                    <span className="text-xs text-goto-green/50">Tanpa gambar</span>
                   </div>
                 )}
                 <div className="p-4 flex-1 flex flex-col">
                   <div className="flex items-center gap-1.5 mb-2">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${poll.isActive ? "bg-goto-light text-goto-green" : "bg-red-50 text-red-600"}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${poll.isActive ? "bg-goto-light text-goto-green" : "bg-red-50 text-red-600"}`}>
                       <Power size={8} /> {poll.isActive ? "Aktif" : "Off"}
                     </span>
                     {poll.category && (
-                      <span className="rounded bg-surface-tertiary px-1.5 py-0.5 text-[10px] text-txt-secondary">{poll.category.name}</span>
+                      <span className="rounded bg-surface-tertiary px-1.5 py-0.5 text-xs text-txt-secondary">{poll.category.name}</span>
                     )}
                   </div>
                   <p className="font-bold text-txt-primary text-sm leading-snug line-clamp-2 mb-3">{poll.question}</p>
@@ -376,13 +376,13 @@ export default function PollingPanelPage() {
                         <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
                           <div className="h-full rounded-full bg-goto-green/50" style={{ width: `${opt.percentage}%` }} />
                         </div>
-                        <span className="text-[10px] text-txt-secondary w-16 truncate">{opt.label}</span>
-                        <span className="text-[10px] font-bold text-txt-primary w-8 text-right">{opt.percentage}%</span>
+                        <span className="text-xs text-txt-secondary w-16 truncate">{opt.label}</span>
+                        <span className="text-xs font-bold text-txt-primary w-8 text-right">{opt.percentage}%</span>
                       </div>
                     ))}
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    <p className="text-[10px] text-txt-muted">
+                    <p className="text-xs text-txt-muted">
                       <BarChart3 size={10} className="inline mr-0.5" />
                       {poll.totalVotes.toLocaleString("id-ID")} suara
                     </p>

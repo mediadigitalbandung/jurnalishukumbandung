@@ -168,14 +168,14 @@ export default function IklanPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-border bg-surface-secondary">
                   <tr>
-                    <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Nama Iklan</th>
-                    <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Posisi</th>
-                    <th className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Periode</th>
-                    <th className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Tayangan</th>
-                    <th className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Klik</th>
-                    <th className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">CTR</th>
-                    <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Status</th>
-                    <th className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Aksi</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Nama Iklan</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Posisi</th>
+                    <th scope="col" className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Periode</th>
+                    <th scope="col" className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Tayangan</th>
+                    <th scope="col" className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Klik</th>
+                    <th scope="col" className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">CTR</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Status</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

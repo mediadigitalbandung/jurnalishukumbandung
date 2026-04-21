@@ -554,7 +554,7 @@ export default function TemplateEditor({
                         }`}
                       >
                         <span
-                          className={`truncate text-[10px] font-semibold ${
+                          className={`truncate text-xs font-semibold ${
                             isSelected ? "text-blue-700" : "text-blue-600"
                           } bg-white/80 px-1 rounded pointer-events-none`}
                           style={{
@@ -577,7 +577,7 @@ export default function TemplateEditor({
                     );
                   })}
                 </div>
-                <p className="mt-2 text-[11px] text-txt-muted">
+                <p className="mt-2 text-xs text-txt-muted">
                   Posisi: {Math.round(data.photoSlotX * 100)}%, {Math.round(data.photoSlotY * 100)}% · Ukuran:{" "}
                   {Math.round(data.photoSlotWidth * 100)}% × {Math.round(data.photoSlotHeight * 100)}%
                 </p>
@@ -602,7 +602,7 @@ export default function TemplateEditor({
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setPresetMenuOpen(false)} />
                       <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-lg border border-border bg-surface shadow-lg py-1">
-                        <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-txt-muted border-b border-border">
+                        <div className="px-3 py-1.5 text-xs uppercase font-bold text-txt-muted border-b border-border">
                           Preset (AI auto-fill)
                         </div>
                         {LAYER_PRESETS.map((p) => (
@@ -658,7 +658,7 @@ export default function TemplateEditor({
                     />
                     <div className="grid grid-cols-4 gap-2 text-xs">
                       <div>
-                        <label className="text-[10px] text-txt-muted">X (%)</label>
+                        <label className="text-xs text-txt-muted">X (%)</label>
                         <input
                           type="number"
                           min={0}
@@ -669,7 +669,7 @@ export default function TemplateEditor({
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-txt-muted">Y (%)</label>
+                        <label className="text-xs text-txt-muted">Y (%)</label>
                         <input
                           type="number"
                           min={0}
@@ -680,7 +680,7 @@ export default function TemplateEditor({
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-txt-muted">Size (px)</label>
+                        <label className="text-xs text-txt-muted">Size (px)</label>
                         <input
                           type="number"
                           min={10}
@@ -691,7 +691,7 @@ export default function TemplateEditor({
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-txt-muted">Warna</label>
+                        <label className="text-xs text-txt-muted">Warna</label>
                         <input
                           type="color"
                           value={layer.color}
@@ -702,7 +702,7 @@ export default function TemplateEditor({
                     </div>
                     {/* Font family selector */}
                     <div className="mt-2">
-                      <label className="text-[10px] text-txt-muted">Font</label>
+                      <label className="text-xs text-txt-muted">Font</label>
                       <select
                         value={layer.fontFamily || "Arial, Helvetica, sans-serif"}
                         onChange={(e) => updateTextLayer(i, { fontFamily: e.target.value })}
@@ -827,7 +827,7 @@ export default function TemplateEditor({
                 </p>
               )}
             </div>
-            <p className="text-[11px] text-txt-muted">
+            <p className="text-xs text-txt-muted">
               Preview menggunakan artikel terbaru yang dipublish sebagai sample.
             </p>
           </div>

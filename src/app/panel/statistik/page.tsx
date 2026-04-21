@@ -526,7 +526,7 @@ function KeywordsTable({ queries }: { queries: Keyword[] }) {
             }`}
           >
             {r.label}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
               rankFilter === r.value ? "bg-white/20" : "bg-border text-txt-muted"
             }`}>
               {countsByRange[r.value]}

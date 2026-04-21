@@ -276,7 +276,7 @@ export default function RedaksiPanelPage() {
                       <Upload size={20} className="text-txt-muted" />
                       <span className="text-sm font-medium text-txt-primary">{uploading ? "Mengupload..." : "Upload foto anggota"}</span>
                       <span className="text-xs text-txt-muted">JPEG, PNG, WebP — Maks 2MB</span>
-                      <span className="text-[11px] text-goto-green">Foto juga akan tersimpan di profil pengguna</span>
+                      <span className="text-xs text-goto-green">Foto juga akan tersimpan di profil pengguna</span>
                     </div>
                     <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); e.target.value = ""; }}
@@ -335,7 +335,7 @@ export default function RedaksiPanelPage() {
                 </div>
               </div>
 
-              <p className="text-[11px] text-txt-muted mt-3 text-center">
+              <p className="text-xs text-txt-muted mt-3 text-center">
                 Seperti ini tampilannya di halaman Redaksi
               </p>
 
@@ -351,7 +351,7 @@ export default function RedaksiPanelPage() {
                           editingId === m.id ? "bg-goto-light/50 border border-goto-green/30" : "bg-surface-secondary"
                         }`}
                       >
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-goto-green text-[10px] font-bold text-white overflow-hidden">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white overflow-hidden">
                           {m.photo ? (
                             <img src={m.photo} alt={m.name} className="h-7 w-7 object-cover" />
                           ) : (
@@ -360,7 +360,7 @@ export default function RedaksiPanelPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <span className="font-bold text-txt-primary block truncate">{m.name}</span>
-                          <span className="text-txt-muted text-[10px]">{m.position}</span>
+                          <span className="text-txt-muted text-xs">{m.position}</span>
                         </div>
                         {editingId === m.id && (
                           <span className="text-[9px] font-bold text-goto-green">EDITING</span>

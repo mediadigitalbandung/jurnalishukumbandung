@@ -232,11 +232,11 @@ export default function JadwalSidangPanel() {
           <table className="w-full text-sm">
             <thead className="bg-surface-secondary text-left text-xs uppercase tracking-wider text-txt-muted">
               <tr>
-                <th className="px-4 py-3">Sidang</th>
-                <th className="px-4 py-3">Pengadilan</th>
-                <th className="px-4 py-3">Tanggal</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Aksi</th>
+                <th scope="col" className="px-4 py-3">Sidang</th>
+                <th scope="col" className="px-4 py-3">Pengadilan</th>
+                <th scope="col" className="px-4 py-3">Tanggal</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -252,7 +252,7 @@ export default function JadwalSidangPanel() {
                     {s.time && <span className="ml-1 text-txt-muted">{s.time}</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
                       s.status === "live" ? "bg-red-50 text-red-700 border-red-200" :
                       s.status === "done" ? "bg-gray-50 text-gray-600 border-gray-200" :
                       s.status === "postponed" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :

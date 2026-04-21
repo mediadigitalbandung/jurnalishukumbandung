@@ -431,13 +431,13 @@ export default function KategoriPage() {
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-10">
                     <tr className="border-b border-border bg-surface-secondary text-left">
-                      <th className="w-10 px-2 py-3.5"></th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
-                      <th className="hidden px-5 py-3.5 text-sm font-medium text-txt-secondary md:table-cell">Deskripsi</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-center">Urutan</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-center">Artikel</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-right">Aksi</th>
+                      <th scope="col" className="w-10 px-2 py-3.5"></th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
+                      <th scope="col" className="hidden px-5 py-3.5 text-sm font-medium text-txt-secondary md:table-cell">Deskripsi</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-center">Urutan</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-center">Artikel</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -613,10 +613,10 @@ export default function KategoriPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-secondary text-left">
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-center">Artikel</th>
-                      <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-right">Aksi</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Nama</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Slug</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-center">Artikel</th>
+                      <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>

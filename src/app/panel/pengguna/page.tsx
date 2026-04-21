@@ -297,12 +297,12 @@ export default function PenggunaPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-surface-secondary">
                 <tr>
-                  <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Pengguna</th>
-                  <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Role</th>
-                  <th className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Artikel</th>
-                  <th className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Status</th>
-                  <th className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Terdaftar</th>
-                  <th className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Aksi</th>
+                  <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Pengguna</th>
+                  <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Role</th>
+                  <th scope="col" className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Artikel</th>
+                  <th scope="col" className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Status</th>
+                  <th scope="col" className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Terdaftar</th>
+                  <th scope="col" className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

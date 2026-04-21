@@ -193,11 +193,11 @@ export default function AIPage() {
           <table className="w-full min-w-[320px]">
             <thead>
               <tr className="border-b border-border bg-surface-secondary">
-                <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Waktu</th>
-                <th className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Pengguna</th>
-                <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Fitur</th>
-                <th className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Token</th>
-                <th className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Artikel</th>
+                <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Waktu</th>
+                <th scope="col" className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Pengguna</th>
+                <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Fitur</th>
+                <th scope="col" className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Token</th>
+                <th scope="col" className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Artikel</th>
               </tr>
             </thead>
             <tbody>

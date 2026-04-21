@@ -305,7 +305,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           {/* Close button — mobile only */}
           <button
             onClick={() => setSidebarOpen(false)}
-            className="absolute right-3 top-4 rounded-lg p-1 text-white/60 hover:text-white lg:hidden"
+            className="absolute right-3 top-4 rounded-lg p-2.5 text-white/60 hover:text-white lg:hidden"
             aria-label="Tutup sidebar"
           >
             <X size={20} />
@@ -320,7 +320,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-xl p-2 text-txt-primary hover:bg-surface-secondary lg:hidden"
+                className="rounded-xl p-3 text-txt-primary hover:bg-surface-secondary lg:hidden"
                 aria-label="Buka menu navigasi"
               >
                 <Menu size={24} />
@@ -337,7 +337,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
@@ -396,7 +396,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
                               <p className="text-xs text-txt-secondary mt-0.5 line-clamp-2">{notif.message}</p>
                               <div className="flex items-center gap-1 mt-1">
                                 <Clock size={10} className="text-txt-muted" />
-                                <span className="text-[10px] text-txt-muted">{timeAgo(notif.createdAt)}</span>
+                                <span className="text-xs text-txt-muted">{timeAgo(notif.createdAt)}</span>
                               </div>
                             </div>
                           </Link>

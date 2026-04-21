@@ -917,7 +917,7 @@ export default function TagsManagerPage() {
                         <Hash size={12} className={k.isActive ? "text-goto-green" : "text-txt-muted"} />
                         {k.keyword}
                         {k.source === "ai_research" && (
-                          <span className="text-[10px] font-medium bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full">AI</span>
+                          <span className="text-xs font-medium bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full">AI</span>
                         )}
                       </p>
                       {k.notes && <p className="text-xs text-txt-muted mt-0.5 truncate">{k.notes}</p>}

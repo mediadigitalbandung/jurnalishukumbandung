@@ -163,12 +163,12 @@ export default function RiwayatReviewPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-surface-secondary">
                 <tr>
-                  <th className="px-5 py-3 text-left font-medium text-txt-secondary">Judul Artikel</th>
-                  <th className="hidden md:table-cell px-5 py-3 text-left font-medium text-txt-secondary">Penulis</th>
-                  <th className="px-5 py-3 text-left font-medium text-txt-secondary">Status Akhir</th>
-                  <th className="hidden md:table-cell px-5 py-3 text-left font-medium text-txt-secondary">Catatan Review</th>
-                  <th className="hidden md:table-cell px-5 py-3 text-left font-medium text-txt-secondary">Tanggal Review</th>
-                  <th className="px-5 py-3 text-right font-medium text-txt-secondary">Aksi</th>
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-txt-secondary">Judul Artikel</th>
+                  <th scope="col" className="hidden md:table-cell px-5 py-3 text-left font-medium text-txt-secondary">Penulis</th>
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-txt-secondary">Status Akhir</th>
+                  <th scope="col" className="hidden md:table-cell px-5 py-3 text-left font-medium text-txt-secondary">Catatan Review</th>
+                  <th scope="col" className="hidden md:table-cell px-5 py-3 text-left font-medium text-txt-secondary">Tanggal Review</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium text-txt-secondary">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

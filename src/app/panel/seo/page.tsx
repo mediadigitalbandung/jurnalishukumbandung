@@ -405,7 +405,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><Globe size={18} className="text-blue-500" /></div>
               <div>
                 <p className="text-xl font-bold text-txt-primary">{stats.total}</p>
-                <p className="text-[10px] text-txt-muted">Total Artikel</p>
+                <p className="text-xs text-txt-muted">Total Artikel</p>
               </div>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50"><CheckCircle size={18} className="text-green-500" /></div>
               <div>
                 <p className="text-xl font-bold text-green-600">{stats.submitted}</p>
-                <p className="text-[10px] text-txt-muted">Submitted</p>
+                <p className="text-xs text-txt-muted">Submitted</p>
               </div>
             </div>
           </div>
@@ -423,7 +423,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50"><Clock size={18} className="text-yellow-500" /></div>
               <div>
                 <p className="text-xl font-bold text-yellow-600">{stats.notSubmitted}</p>
-                <p className="text-[10px] text-txt-muted">Belum Submit</p>
+                <p className="text-xs text-txt-muted">Belum Submit</p>
               </div>
             </div>
           </div>
@@ -432,7 +432,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><XCircle size={18} className="text-red-500" /></div>
               <div>
                 <p className="text-xl font-bold text-red-600">{stats.failed}</p>
-                <p className="text-[10px] text-txt-muted">Gagal</p>
+                <p className="text-xs text-txt-muted">Gagal</p>
               </div>
             </div>
           </div>
@@ -450,7 +450,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50"><Sparkles size={18} className="text-purple-500" /></div>
               <div>
                 <p className="text-xl font-bold text-txt-primary">{sorotanStats.total}</p>
-                <p className="text-[10px] text-txt-muted">Total Sorotan</p>
+                <p className="text-xs text-txt-muted">Total Sorotan</p>
               </div>
             </div>
           </div>
@@ -459,7 +459,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-50"><CheckCircle size={18} className="text-green-500" /></div>
               <div>
                 <p className="text-xl font-bold text-green-600">{sorotanStats.submitted}</p>
-                <p className="text-[10px] text-txt-muted">Submitted</p>
+                <p className="text-xs text-txt-muted">Submitted</p>
               </div>
             </div>
           </div>
@@ -468,7 +468,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50"><Clock size={18} className="text-yellow-500" /></div>
               <div>
                 <p className="text-xl font-bold text-yellow-600">{sorotanStats.notSubmitted}</p>
-                <p className="text-[10px] text-txt-muted">Belum Submit</p>
+                <p className="text-xs text-txt-muted">Belum Submit</p>
               </div>
             </div>
           </div>
@@ -477,7 +477,7 @@ export default function SeoMonitorPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50"><XCircle size={18} className="text-red-500" /></div>
               <div>
                 <p className="text-xl font-bold text-red-600">{sorotanStats.failed}</p>
-                <p className="text-[10px] text-txt-muted">Gagal</p>
+                <p className="text-xs text-txt-muted">Gagal</p>
               </div>
             </div>
           </div>
@@ -597,7 +597,7 @@ export default function SeoMonitorPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-border bg-surface-secondary">
-                  <th className="px-4 py-3 w-10">
+                  <th scope="col" className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
                       checked={sorotanSelected.length === sorotanList.length && sorotanList.length > 0}
@@ -605,11 +605,11 @@ export default function SeoMonitorPage() {
                       className="h-4 w-4 rounded border-border text-goto-green"
                     />
                   </th>
-                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Judul Sorotan</th>
-                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Angle</th>
-                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel Induk</th>
-                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
-                  <th className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
+                  <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Judul Sorotan</th>
+                  <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Angle</th>
+                  <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel Induk</th>
+                  <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
+                  <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -649,7 +649,7 @@ export default function SeoMonitorPage() {
                       </td>
                       <td className="px-4 py-3">
                         <p className="truncate text-xs text-txt-secondary max-w-[200px]">{s.article.title}</p>
-                        <p className="text-[10px] text-txt-muted">{s.article.category?.name}</p>
+                        <p className="text-xs text-txt-muted">{s.article.category?.name}</p>
                       </td>
                       <td className="px-4 py-3">{statusBadge(s.indexStatus)}</td>
                       <td className="px-4 py-3 text-center">
@@ -733,7 +733,7 @@ export default function SeoMonitorPage() {
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-border bg-surface-secondary">
-              <th className="px-4 py-3 w-10">
+              <th scope="col" className="px-4 py-3 w-10">
                 <input
                   type="checkbox"
                   checked={selectedIds.length === articles.length && articles.length > 0}
@@ -741,12 +741,12 @@ export default function SeoMonitorPage() {
                   className="h-4 w-4 rounded border-border text-goto-green focus:ring-goto-green"
                 />
               </th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Kategori</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Terakhir Submit</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Views</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Kategori</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Terakhir Submit</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Views</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>

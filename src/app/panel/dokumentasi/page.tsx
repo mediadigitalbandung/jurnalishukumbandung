@@ -291,10 +291,10 @@ function WorkflowTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wider text-txt-muted">
-                <th className="py-2 pr-3">Dari</th>
-                <th className="py-2 pr-3">Ke</th>
-                <th className="py-2 pr-3">Siapa</th>
-                <th className="py-2">Aksi</th>
+                <th scope="col" className="py-2 pr-3">Dari</th>
+                <th scope="col" className="py-2 pr-3">Ke</th>
+                <th scope="col" className="py-2 pr-3">Siapa</th>
+                <th scope="col" className="py-2">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

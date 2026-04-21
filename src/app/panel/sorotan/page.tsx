@@ -173,9 +173,9 @@ export default function SorotanPanel() {
   const paginatedArticles = filteredArticles.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   const statusBadge = (count: number) => {
-    if (count === 10) return <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-600"><CheckCircle size={10} /> 10/10</span>;
-    if (count > 0) return <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-600"><Clock size={10} /> {count}/10</span>;
-    return <span className="inline-flex items-center gap-1 rounded-full bg-surface-tertiary px-2 py-0.5 text-[11px] font-semibold text-txt-muted">0/10</span>;
+    if (count === 10) return <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600"><CheckCircle size={10} /> 10/10</span>;
+    if (count > 0) return <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-600"><Clock size={10} /> {count}/10</span>;
+    return <span className="inline-flex items-center gap-1 rounded-full bg-surface-tertiary px-2 py-0.5 text-xs font-semibold text-txt-muted">0/10</span>;
   };
 
   // === DETAIL VIEW (article selected) ===

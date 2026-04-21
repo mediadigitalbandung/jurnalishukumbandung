@@ -278,16 +278,16 @@ export default function StatistikEditorPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-surface-secondary">
               <tr>
-                <th className="px-5 py-3 text-left font-medium text-txt-secondary">
+                <th scope="col" className="px-5 py-3 text-left font-medium text-txt-secondary">
                   Judul
                 </th>
-                <th className="px-5 py-3 text-left font-medium text-txt-secondary">
+                <th scope="col" className="px-5 py-3 text-left font-medium text-txt-secondary">
                   Status
                 </th>
-                <th className="px-5 py-3 text-left font-medium text-txt-secondary">
+                <th scope="col" className="px-5 py-3 text-left font-medium text-txt-secondary">
                   Catatan
                 </th>
-                <th className="px-5 py-3 text-left font-medium text-txt-secondary">
+                <th scope="col" className="px-5 py-3 text-left font-medium text-txt-secondary">
                   Tanggal Review
                 </th>
               </tr>

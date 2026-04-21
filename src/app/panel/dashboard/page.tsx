@@ -161,7 +161,7 @@ function RecentActivity({ articles }: { articles: Article[] }) {
               <div className={`h-2 w-2 rounded-full ${a.action.icon}`} />
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-txt-primary truncate">{a.title}</p>
-                <p className="text-[11px] text-txt-muted mt-0.5">
+                <p className="text-xs text-txt-muted mt-0.5">
                   {a.author?.name || "—"} &middot; {a.timeAgo}
                 </p>
               </div>
@@ -417,7 +417,7 @@ function MyArticleStats({ articles }: { articles: Article[] }) {
                   style={{ width: `${(month.count / maxMonthly) * 100}%`, minWidth: month.count > 0 ? "24px" : "0px" }}
                 >
                   {month.count > 0 && (
-                    <span className="text-[10px] font-bold text-white">{month.count}</span>
+                    <span className="text-xs font-bold text-white">{month.count}</span>
                   )}
                 </div>
               </div>
@@ -481,7 +481,7 @@ function WeeklyArticleTrend({ articles }: { articles: Article[] }) {
                 style={{ width: `${(day.count / maxCount) * 100}%`, minWidth: day.count > 0 ? "24px" : "0px" }}
               >
                 {day.count > 0 && (
-                  <span className="text-[10px] font-bold text-white">{day.count}</span>
+                  <span className="text-xs font-bold text-white">{day.count}</span>
                 )}
               </div>
             </div>
@@ -522,13 +522,13 @@ function CategoryPerformance({ articles }: { articles: Article[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-secondary/50">
-              <th className="px-5 py-2.5 text-left text-xs font-semibold text-txt-muted uppercase tracking-wider">
+              <th scope="col" className="px-5 py-2.5 text-left text-xs font-semibold text-txt-muted uppercase tracking-wider">
                 Kategori
               </th>
-              <th className="px-5 py-2.5 text-right text-xs font-semibold text-txt-muted uppercase tracking-wider">
+              <th scope="col" className="px-5 py-2.5 text-right text-xs font-semibold text-txt-muted uppercase tracking-wider">
                 Artikel
               </th>
-              <th className="px-5 py-2.5 text-right text-xs font-semibold text-txt-muted uppercase tracking-wider">
+              <th scope="col" className="px-5 py-2.5 text-right text-xs font-semibold text-txt-muted uppercase tracking-wider">
                 Total Views
               </th>
             </tr>
@@ -615,12 +615,12 @@ function ArticleCalendar({ articles }: { articles: Article[] }) {
           Kalender Artikel
         </h2>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="btn-ghost rounded-lg p-1.5" aria-label="Bulan sebelumnya">
-            <ChevronLeft size={16} />
+          <button onClick={prevMonth} className="btn-ghost rounded-lg p-3" aria-label="Bulan sebelumnya">
+            <ChevronLeft size={18} />
           </button>
           <span className="text-sm font-semibold text-txt-primary min-w-[140px] text-center">{monthName}</span>
-          <button onClick={nextMonth} className="btn-ghost rounded-lg p-1.5" aria-label="Bulan berikutnya">
-            <ChevronRight size={16} />
+          <button onClick={nextMonth} className="btn-ghost rounded-lg p-3" aria-label="Bulan berikutnya">
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>
@@ -1010,7 +1010,7 @@ export default function DashboardPage() {
               <p className="mt-1.5 text-lg sm:text-2xl xl:text-3xl font-extrabold text-txt-primary truncate">
                 {stat.value}
               </p>
-              <p className="text-[10px] sm:text-xs text-txt-secondary truncate">{stat.label}</p>
+              <p className="text-xs sm:text-xs text-txt-secondary truncate">{stat.label}</p>
             </div>
           );
         })}

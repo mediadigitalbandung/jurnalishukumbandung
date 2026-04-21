@@ -574,7 +574,7 @@ export default function ArtikelPage() {
               <table className="w-full min-w-[320px] text-sm">
                 <thead className="border-b border-border bg-surface-secondary sticky top-0 z-10">
                   <tr>
-                    <th className="w-10 px-3 py-3.5 text-center">
+                    <th scope="col" className="w-10 px-3 py-3.5 text-center">
                       <input
                         type="checkbox"
                         checked={allFilteredSelected}
@@ -583,17 +583,17 @@ export default function ArtikelPage() {
                         aria-label="Pilih semua artikel"
                       />
                     </th>
-                    <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Judul</th>
-                    <th className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Kategori</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Judul</th>
+                    <th scope="col" className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Kategori</th>
                     {isEditor && (
-                      <th className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Penulis</th>
+                      <th scope="col" className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Penulis</th>
                     )}
-                    <th className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Status</th>
-                    <th className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Progres</th>
-                    <th className="hidden xl:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Editor</th>
-                    <th className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Views</th>
-                    <th className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Tanggal</th>
-                    <th className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Aksi</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Status</th>
+                    <th scope="col" className="hidden lg:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Progres</th>
+                    <th scope="col" className="hidden xl:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Editor</th>
+                    <th scope="col" className="hidden sm:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Views</th>
+                    <th scope="col" className="hidden md:table-cell px-5 py-3.5 text-left text-sm font-medium text-txt-secondary">Tanggal</th>
+                    <th scope="col" className="px-3 sm:px-5 py-3.5 text-right text-sm font-medium text-txt-secondary">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

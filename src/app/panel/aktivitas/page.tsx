@@ -239,10 +239,10 @@ export default function AktivitasPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-secondary text-left">
-                  <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Waktu</th>
-                  <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Pengguna</th>
-                  <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Aksi</th>
-                  <th className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Entitas / Detail</th>
+                  <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Waktu</th>
+                  <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Pengguna</th>
+                  <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Aksi</th>
+                  <th scope="col" className="px-5 py-3.5 text-sm font-medium text-txt-secondary">Entitas / Detail</th>
                 </tr>
               </thead>
               <tbody>

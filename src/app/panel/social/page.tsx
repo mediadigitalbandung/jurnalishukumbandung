@@ -226,7 +226,7 @@ export default function SocialMediaPanel() {
                 : "Hubungkan Facebook Page + Instagram Business Account untuk mulai auto-publish"}
             </p>
             {global?.metaTokenExpiresAt && (
-              <p className="mt-1 text-[10px] text-txt-muted">
+              <p className="mt-1 text-xs text-txt-muted">
                 Token expire: {new Date(global.metaTokenExpiresAt).toLocaleDateString("id-ID")}
               </p>
             )}
@@ -407,10 +407,10 @@ function TemplatesView({
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-txt-primary truncate">{tpl.name}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] rounded-full bg-surface-secondary px-2 py-0.5 text-txt-secondary">
+                      <span className="text-xs rounded-full bg-surface-secondary px-2 py-0.5 text-txt-secondary">
                         {tpl.platform === "both" ? "IG + FB" : tpl.platform === "instagram" ? "Instagram" : "Facebook"}
                       </span>
-                      <span className="text-[10px] rounded-full bg-surface-secondary px-2 py-0.5 text-txt-secondary">
+                      <span className="text-xs rounded-full bg-surface-secondary px-2 py-0.5 text-txt-secondary">
                         {tpl.aspectRatio}
                       </span>
                     </div>
@@ -420,7 +420,7 @@ function TemplatesView({
                       <Star size={14} className="fill-yellow-400 text-yellow-400" />
                     )}
                     {!tpl.isActive && (
-                      <span className="text-[10px] text-red-500">off</span>
+                      <span className="text-xs text-red-500">off</span>
                     )}
                   </div>
                 </div>
@@ -623,12 +623,12 @@ function PlatformSettingsForm({ settings, platform, onSave, saving }: { settings
           <div>
             <label className="mb-1 block text-xs font-medium text-txt-primary">Target Count</label>
             <input type="number" min="0" max="30" value={form.hashtagCountTarget} onChange={(e) => setForm({ ...form, hashtagCountTarget: parseInt(e.target.value) || 0 })} className="input w-full text-sm" />
-            <p className="mt-1 text-[10px] text-txt-muted">{isIg ? "IG: 10-15 recommended" : "FB: 3-5 recommended"}</p>
+            <p className="mt-1 text-xs text-txt-muted">{isIg ? "IG: 10-15 recommended" : "FB: 3-5 recommended"}</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-txt-primary">Publish Delay (detik)</label>
             <input type="number" min="0" value={form.publishDelaySec} onChange={(e) => setForm({ ...form, publishDelaySec: parseInt(e.target.value) || 0 })} className="input w-full text-sm" />
-            <p className="mt-1 text-[10px] text-txt-muted">{isIg ? "Delay sebelum post (0 = instant)" : "Stagger dari IG (300s = 5 menit after)"}</p>
+            <p className="mt-1 text-xs text-txt-muted">{isIg ? "Delay sebelum post (0 = instant)" : "Stagger dari IG (300s = 5 menit after)"}</p>
           </div>
         </div>
         <div>
@@ -654,7 +654,7 @@ function PlatformSettingsForm({ settings, platform, onSave, saving }: { settings
               </select>
             </div>
           </div>
-          <p className="mt-2 text-[10px] text-txt-muted">UTM params akan otomatis ditambahkan: ?utm_source=facebook&utm_medium=social</p>
+          <p className="mt-2 text-xs text-txt-muted">UTM params akan otomatis ditambahkan: ?utm_source=facebook&utm_medium=social</p>
         </div>
       )}
 
@@ -794,12 +794,12 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-border bg-surface-secondary">
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Platform</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Format</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary">Tanggal</th>
-              <th className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Artikel</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Platform</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Status</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Format</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary">Tanggal</th>
+              <th scope="col" className="px-4 py-3 text-sm font-semibold text-txt-primary text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
