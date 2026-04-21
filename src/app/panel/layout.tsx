@@ -33,6 +33,7 @@ import {
   AlertCircle,
   Clock,
   Hash,
+  BookOpen,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,7 @@ const menuItems: MenuItem[] = [
   { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
   { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
   { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, superAdminOnly: true },
+  { name: "Dokumentasi", href: "/panel/dokumentasi", icon: BookOpen, superAdminOnly: true },
   { name: "Profil", href: "/panel/profil", icon: UserCircle },
 ];
 
