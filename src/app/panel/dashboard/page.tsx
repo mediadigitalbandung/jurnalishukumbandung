@@ -729,9 +729,10 @@ export default function DashboardPage() {
         setError(null);
 
         // Creators fetch only their articles; editors/admins fetch all
+        // Limit reduced from 1000 -> 100 to avoid memory/bandwidth bloat (audit fix)
         const articlesUrl = isCreator
-          ? `/api/articles?limit=1000&status=ALL&authorId=${userId}`
-          : `/api/articles?limit=1000&status=ALL`;
+          ? `/api/articles?limit=100&status=ALL&authorId=${userId}`
+          : `/api/articles?limit=100&status=ALL`;
 
         const fetches: Promise<Response>[] = [fetch(articlesUrl)];
         // Only admins/editors see reports + sorotan/auto counts
