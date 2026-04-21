@@ -15,6 +15,7 @@ import Link from "next/link";
 import AdPreviewOverlay from "../../_components/AdPreviewOverlay";
 import SlotWireframe from "../../_components/SlotWireframe";
 import { slotLabels, slotSpecs, typeLabels } from "../../_components/ad-constants";
+import { sanitizeAdHtml } from "@/lib/sanitize";
 
 interface Ad {
   id: string;
@@ -278,7 +279,7 @@ export default function EditIklanPage() {
                   {formHtmlCode && (
                     <div className="rounded-lg border border-border bg-surface-secondary p-3 overflow-hidden">
                       <p className="text-xs font-semibold text-txt-secondary mb-2">Preview HTML:</p>
-                      <div dangerouslySetInnerHTML={{ __html: formHtmlCode }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeAdHtml(formHtmlCode) }} />
                     </div>
                   )}
                 </div>

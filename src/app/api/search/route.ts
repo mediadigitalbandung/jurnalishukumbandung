@@ -1,12 +1,23 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { successResponse, errorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, ApiError } from "@/lib/api-utils";
+import { apiRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/search?q=keyword
 export async function GET(request: NextRequest) {
   try {
+    // Rate limit: 60 req/min per IP (prevents DoS via expensive LIKE queries)
+    const ip =
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    if (!apiRateLimit(ip).success) {
+      throw new ApiError("Terlalu banyak permintaan. Coba lagi dalam beberapa detik.", 429);
+    }
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") || "";
     const page = parseInt(searchParams.get("page") || "1");

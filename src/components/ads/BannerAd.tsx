@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
+import { sanitizeAdHtml } from "@/lib/sanitize";
 
 interface Ad {
   id: string;
@@ -58,9 +59,13 @@ function handleClick(ad: Ad) {
 }
 
 function AdContent({ ad }: { ad: Ad }) {
+  const safeHtml = useMemo(
+    () => (ad.type === "HTML" && ad.htmlCode ? sanitizeAdHtml(ad.htmlCode) : ""),
+    [ad.type, ad.htmlCode]
+  );
   const content =
-    ad.type === "HTML" && ad.htmlCode ? (
-      <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} />
+    ad.type === "HTML" && safeHtml ? (
+      <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
     ) : ad.imageUrl ? (
       <Image
         src={ad.imageUrl}
@@ -114,12 +119,16 @@ export default function BannerAd({ size, slot, className = "", noWrapper }: Bann
 
 export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
   const ad = useAd(slot);
+  const safeHtml = useMemo(
+    () => (ad?.type === "HTML" && ad.htmlCode ? sanitizeAdHtml(ad.htmlCode) : ""),
+    [ad?.type, ad?.htmlCode]
+  );
 
   if (!ad) return null;
 
   const content =
-    ad.type === "HTML" && ad.htmlCode ? (
-      <div dangerouslySetInnerHTML={{ __html: ad.htmlCode }} className="w-full h-full" />
+    ad.type === "HTML" && safeHtml ? (
+      <div dangerouslySetInnerHTML={{ __html: safeHtml }} className="w-full h-full" />
     ) : ad.imageUrl ? (
       <Image
         src={ad.imageUrl}

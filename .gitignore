@@ -22,6 +22,10 @@ www/wp-content/plugins/speedycache-pro/
 .env.local
 .env.production
 .env.*.local
+# Ad-hoc env backup/config files (prevent accidental commit of secrets)
+*_env.txt
+*.env.txt
+vps_env.txt
 
 # Node (untuk project Next.js nanti)
 node_modules/

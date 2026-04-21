@@ -34,6 +34,45 @@ export function sanitizeHtml(html: string): string {
   });
 }
 
+// Ad HTML — stricter whitelist to block <script>, event handlers, and dangerous tags.
+// Allows images, iframes, links, and basic layout div/span for banner ads.
+const AD_ALLOWED_TAGS = [
+  "a", "img", "iframe", "picture", "source",
+  "div", "span", "p", "br",
+  "ins", // AdSense / ad network tags
+];
+
+const AD_ALLOWED_ATTR: Record<string, sanitize.AllowedAttribute[]> = {
+  a: ["href", "target", "rel", "title", "class", "style"],
+  img: ["src", "alt", "title", "width", "height", "class", "style", "loading", "srcset"],
+  iframe: ["src", "width", "height", "frameborder", "scrolling", "allow", "allowfullscreen", "title", "class", "style"],
+  source: ["src", "srcset", "type", "media"],
+  picture: ["class", "style"],
+  div: ["class", "id", "style", "data-ad-client", "data-ad-slot", "data-ad-format", "data-full-width-responsive"],
+  span: ["class", "id", "style"],
+  p: ["class", "style"],
+  ins: ["class", "style", "data-ad-client", "data-ad-slot", "data-ad-format", "data-full-width-responsive"],
+};
+
+export function sanitizeAdHtml(html: string): string {
+  return sanitize(html, {
+    allowedTags: AD_ALLOWED_TAGS,
+    allowedAttributes: AD_ALLOWED_ATTR,
+    // Trusted ad network domains only — no arbitrary iframes
+    allowedIframeHostnames: [
+      "googleads.g.doubleclick.net",
+      "www.googletagservices.com",
+      "pagead2.googlesyndication.com",
+      "tpc.googlesyndication.com",
+      "www.youtube.com",
+      "www.youtube-nocookie.com",
+    ],
+    // Block any javascript: URLs
+    allowedSchemes: ["http", "https", "mailto", "tel", "data"],
+    allowedSchemesAppliedToAttributes: ["href", "src", "srcset"],
+  });
+}
+
 // Sanitize plain text input (no HTML allowed)
 export function sanitizeText(text: string): string {
   return text

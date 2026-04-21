@@ -12,24 +12,51 @@ function generateSecurePassword(length = 16): string {
 
 // GET /api/setup — One-time setup endpoint to seed database
 // This will create default categories and admin user
-// Protected by a setup key to prevent unauthorized access
+// Protected by a setup key (min 16 chars) to prevent unauthorized access
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const setupKey = searchParams.get("key");
 
-    // Simple protection - check setup key
-    if (setupKey !== process.env.SETUP_KEY) {
+    // Reject if SETUP_KEY env is missing or too short (prevents "empty-match" bypass)
+    const envKey = process.env.SETUP_KEY;
+    if (!envKey || envKey.length < 16) {
+      return errorResponse({
+        message: "Setup endpoint dinonaktifkan. SETUP_KEY harus di-set di env minimum 16 karakter.",
+        statusCode: 503,
+      });
+    }
+
+    // Constant-time comparison to prevent timing attacks
+    if (!setupKey || setupKey.length !== envKey.length) {
+      return errorResponse({ message: "Invalid setup key", statusCode: 403 });
+    }
+    let diff = 0;
+    for (let i = 0; i < envKey.length; i++) {
+      diff |= envKey.charCodeAt(i) ^ setupKey.charCodeAt(i);
+    }
+    if (diff !== 0) {
       return errorResponse({ message: "Invalid setup key", statusCode: 403 });
     }
 
-    // Check if already seeded
-    const existingAdmin = await prisma.user.findFirst({
-      where: { role: "SUPER_ADMIN" },
+    // Check if setup already completed (via system_settings flag)
+    const completed = await prisma.systemSetting.findUnique({
+      where: { key: "setup_completed" },
     });
+    if (completed?.value === "true") {
+      return errorResponse({ message: "Database sudah di-setup sebelumnya. Endpoint dinonaktifkan.", statusCode: 410 });
+    }
 
-    if (existingAdmin) {
-      return successResponse({ message: "Database sudah di-setup sebelumnya", alreadySetup: true });
+    // Legacy fallback: check if ANY user already exists (not just SUPER_ADMIN)
+    const existingUserCount = await prisma.user.count();
+    if (existingUserCount > 0) {
+      // Set the flag so future calls are blocked even without admin role
+      await prisma.systemSetting.upsert({
+        where: { key: "setup_completed" },
+        update: { value: "true" },
+        create: { key: "setup_completed", value: "true" },
+      });
+      return errorResponse({ message: "Database sudah di-setup sebelumnya. Endpoint dinonaktifkan.", statusCode: 410 });
     }
 
     // Create categories
@@ -126,15 +153,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Mark setup as completed — endpoint akan ditolak di call berikutnya
+    await prisma.systemSetting.upsert({
+      where: { key: "setup_completed" },
+      update: { value: "true" },
+      create: { key: "setup_completed", value: "true" },
+    });
+
     return successResponse({
-      message: "Setup berhasil! Database telah di-seed.",
+      message: "Setup berhasil! Database telah di-seed. Endpoint /api/setup sekarang dinonaktifkan permanen.",
       users: {
         admin: { email: admin.email, password: adminPlain },
         editor: { email: editor.email, password: editorPlain },
         journalist: { email: journalist.email, password: journalistPlain },
       },
       categories: categories.length,
-      warning: "SIMPAN PASSWORD DI ATAS SEKARANG! Password hanya ditampilkan sekali dan tidak tersimpan di source code. SEGERA GANTI setelah login pertama kali!",
+      warning: "SIMPAN PASSWORD SEKARANG — hanya ditampilkan sekali. SEGERA GANTI setelah login pertama. Endpoint tidak bisa dipanggil lagi.",
     });
   } catch (error) {
     return errorResponse(error);

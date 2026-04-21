@@ -1,14 +1,20 @@
 "use client";
 
+import { useMemo } from "react";
 import { X, ImageIcon } from "lucide-react";
 import { slotLabels, slotSpecs } from "./ad-constants";
+import { sanitizeAdHtml } from "@/lib/sanitize";
 
 function AdContent({ type, imageUrl, htmlCode, height }: { type: string; imageUrl: string; htmlCode: string; height: number }) {
+  const safeHtml = useMemo(
+    () => (type === "HTML" && htmlCode ? sanitizeAdHtml(htmlCode) : ""),
+    [type, htmlCode]
+  );
   if (type !== "HTML" && imageUrl) {
     return <img src={imageUrl} alt="Preview" className="max-w-full h-auto object-contain" style={{ maxHeight: height }} />;
   }
-  if (type === "HTML" && htmlCode) {
-    return <div dangerouslySetInnerHTML={{ __html: htmlCode }} />;
+  if (type === "HTML" && safeHtml) {
+    return <div dangerouslySetInnerHTML={{ __html: safeHtml }} />;
   }
   return (
     <div className="flex flex-col items-center gap-1 py-6 text-txt-muted">

@@ -15,6 +15,7 @@ import Link from "next/link";
 import AdPreviewOverlay from "../_components/AdPreviewOverlay";
 import SlotWireframe from "../_components/SlotWireframe";
 import { slotLabels, slotSpecs, typeLabels } from "../_components/ad-constants";
+import { sanitizeAdHtml } from "@/lib/sanitize";
 
 export default function TambahIklanPage() {
   const router = useRouter();
@@ -193,8 +194,8 @@ export default function TambahIklanPage() {
                   <textarea placeholder="<div>Kode HTML iklan Anda...</div>" value={formHtmlCode} onChange={(e) => setFormHtmlCode(e.target.value)} rows={6} className="input w-full font-mono text-sm" />
                   {formHtmlCode && (
                     <div className="rounded-lg border border-border bg-surface-secondary p-3 overflow-hidden">
-                      <p className="text-xs font-semibold text-txt-secondary mb-2">Preview HTML:</p>
-                      <div dangerouslySetInnerHTML={{ __html: formHtmlCode }} />
+                      <p className="text-xs font-semibold text-txt-secondary mb-2">Preview HTML (sanitized):</p>
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeAdHtml(formHtmlCode) }} />
                     </div>
                   )}
                 </div>
