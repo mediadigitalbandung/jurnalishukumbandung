@@ -16,6 +16,11 @@ import {
   FileText,
   Shield,
   Sparkles,
+  Printer,
+  Layers,
+  Lock,
+  Server,
+  Key,
 } from "lucide-react";
 
 type TabKey =
@@ -25,6 +30,10 @@ type TabKey =
   | "integrasi"
   | "cron"
   | "database"
+  | "techstack"
+  | "keamanan"
+  | "deploy"
+  | "reference"
   | "trouble";
 
 interface SettingsMap {
@@ -35,6 +44,7 @@ export default function DokumentasiPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("struktur");
   const [settings, setSettings] = useState<SettingsMap>({});
   const [loading, setLoading] = useState(true);
+  const [printMode, setPrintMode] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -57,13 +67,60 @@ export default function DokumentasiPage() {
     { key: "integrasi", label: "Integrasi Eksternal", icon: Plug },
     { key: "cron", label: "Cron Jobs", icon: Clock },
     { key: "database", label: "Database & Halaman", icon: Database },
+    { key: "techstack", label: "Tech Stack", icon: Layers },
+    { key: "keamanan", label: "Keamanan", icon: Lock },
+    { key: "deploy", label: "Deploy & Backup", icon: Server },
+    { key: "reference", label: "Quick Reference", icon: Key },
     { key: "trouble", label: "Troubleshooting", icon: AlertTriangle },
   ];
 
+  const renderTabContent = (key: TabKey) => {
+    switch (key) {
+      case "struktur": return <StrukturTab />;
+      case "workflow": return <WorkflowTab />;
+      case "fitur": return <FiturTab settings={settings} has={has} loading={loading} />;
+      case "integrasi": return <IntegrasiTab settings={settings} has={has} loading={loading} />;
+      case "cron": return <CronTab />;
+      case "database": return <DatabaseTab />;
+      case "techstack": return <TechStackTab />;
+      case "keamanan": return <KeamananTab />;
+      case "deploy": return <DeployTab />;
+      case "reference": return <ReferenceTab />;
+      case "trouble": return <TroubleTab />;
+    }
+  };
+
+  const handlePrint = () => {
+    setPrintMode(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setPrintMode(false), 500);
+    }, 300);
+  };
+
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl print:max-w-none">
+      <style jsx global>{`
+        @media print {
+          @page { margin: 15mm 12mm; size: A4; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display: none !important; }
+          details { display: block !important; }
+          details > summary { list-style: none; }
+          details[open] + * { page-break-before: avoid; }
+          details:not([open]) > :not(summary) { display: block !important; }
+          details > :not(summary) { display: block !important; }
+          .print-section { page-break-before: always; }
+          .print-section:first-of-type { page-break-before: avoid; }
+          .shadow-card { box-shadow: none !important; }
+          .border { border: 1px solid #e5e7eb !important; }
+          nav, header, aside, button { display: none !important; }
+          .print-show-all summary::after { display: none !important; }
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-goto-light">
             <BookOpen size={24} className="text-goto-green" />
@@ -73,12 +130,27 @@ export default function DokumentasiPage() {
             <p className="text-sm text-txt-secondary">
               Ringkasan lengkap struktur, fitur, integrasi, dan alur kerja sistem
             </p>
+            <p className="mt-1 hidden text-xs text-txt-muted print:block">
+              Dicetak: {new Date().toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" })} · jurnalishukumbandung.com
+            </p>
           </div>
         </div>
+        <button
+          onClick={handlePrint}
+          className="no-print inline-flex items-center gap-2 rounded-full bg-goto-green px-4 py-2 text-sm font-semibold text-white hover:bg-goto-green-dark"
+        >
+          <Printer size={16} />
+          Cetak PDF
+        </button>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-5 overflow-x-auto rounded-[12px] border border-border bg-surface shadow-card">
+      {/* Info banner — only visible in print */}
+      <div className="mb-6 hidden rounded-lg border border-border bg-surface-secondary p-4 text-xs text-txt-secondary print:block">
+        <p><strong>Tips cetak ke PDF:</strong> Di dialog browser, pilih <em>Save as PDF</em> pada Destination. Aktifkan <em>Background graphics</em> agar warna & badge tercetak. Pilih ukuran kertas A4, margin Default.</p>
+      </div>
+
+      {/* Tabs — hidden in print */}
+      <div className="no-print mb-5 overflow-x-auto rounded-[12px] border border-border bg-surface shadow-card">
         <div className="flex min-w-max">
           {tabs.map((t) => {
             const Icon = t.icon;
@@ -102,13 +174,32 @@ export default function DokumentasiPage() {
       </div>
 
       {/* Content */}
-      {activeTab === "struktur" && <StrukturTab />}
-      {activeTab === "workflow" && <WorkflowTab />}
-      {activeTab === "fitur" && <FiturTab settings={settings} has={has} loading={loading} />}
-      {activeTab === "integrasi" && <IntegrasiTab settings={settings} has={has} loading={loading} />}
-      {activeTab === "cron" && <CronTab />}
-      {activeTab === "database" && <DatabaseTab />}
-      {activeTab === "trouble" && <TroubleTab />}
+      {printMode ? (
+        <div className="print-show-all space-y-10">
+          {/* TOC */}
+          <div className="print-section rounded-[12px] border border-border bg-surface p-6">
+            <h2 className="mb-4 text-xl font-bold text-txt-primary">Daftar Isi</h2>
+            <ol className="space-y-1.5 text-sm">
+              {tabs.map((t, i) => (
+                <li key={t.key}>
+                  <span className="font-semibold text-goto-green">{i + 1}.</span>{" "}
+                  <span className="text-txt-primary">{t.label}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          {tabs.map((t, i) => (
+            <section key={t.key} className="print-section">
+              <h2 className="mb-4 border-b-2 border-goto-green pb-2 text-xl font-bold text-txt-primary">
+                {i + 1}. {t.label}
+              </h2>
+              {renderTabContent(t.key)}
+            </section>
+          ))}
+        </div>
+      ) : (
+        renderTabContent(activeTab)
+      )}
     </div>
   );
 }
@@ -234,6 +325,64 @@ function StrukturTab() {
           </details>
         );
       })}
+
+      {/* Permission matrix */}
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Matriks Izin Akses</h2>
+        <p className="mb-4 text-sm text-txt-secondary">
+          Tabel ringkas siapa bisa melakukan apa. ✓ = bisa, ✗ = tidak bisa, ○ = terbatas (lihat catatan).
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-border text-left text-xs font-semibold uppercase tracking-wider text-txt-muted">
+                <th className="py-2 pr-3">Aksi</th>
+                <th className="py-2 px-2 text-center">SuperAdmin</th>
+                <th className="py-2 px-2 text-center">Editor</th>
+                <th className="py-2 px-2 text-center">Jurnalis</th>
+                <th className="py-2 px-2 text-center">Kontributor</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {[
+                ["Tulis artikel baru", "✓", "✓", "✓", "✓"],
+                ["Edit artikel sendiri (DRAFT/REJECTED)", "✓", "✓", "✓", "✓"],
+                ["Edit artikel orang lain", "✓", "✓", "✗", "✗"],
+                ["Submit artikel untuk review", "✓", "✓", "✓", "✓"],
+                ["Publish artikel langsung", "✓", "✓", "✗", "✗"],
+                ["Approve artikel review", "✓", "✓", "✗", "✗"],
+                ["Reject artikel review", "✓", "✓", "✗", "✗"],
+                ["Archive / hide artikel publish", "✓", "✓", "✗", "✗"],
+                ["Hapus artikel (permanent)", "✓", "✗", "✗", "✗"],
+                ["Kelola kategori", "✓", "✓", "✗", "✗"],
+                ["Kelola tags & keyword riset", "✓", "✓", "✗", "✗"],
+                ["Moderasi komentar", "✓", "✓", "✗", "✗"],
+                ["Kelola polling", "✓", "✓", "✗", "✗"],
+                ["Kelola user & role", "✓", "✗", "✗", "✗"],
+                ["Ubah pengaturan sistem + API keys", "✓", "✗", "✗", "✗"],
+                ["Kelola iklan", "✓", "✗", "✗", "✗"],
+                ["Auto-generate artikel AI", "✓", "✗", "✗", "✗"],
+                ["Setup sosmed (IG/FB)", "✓", "✗", "✗", "✗"],
+                ["Takedown post sosmed", "✓", "✗", "✗", "✗"],
+                ["Akses audit log", "✓", "✗", "✗", "✗"],
+                ["Akses statistik website", "✓", "✗", "✗", "✗"],
+                ["Akses dokumen master", "✓", "✗", "✗", "✗"],
+              ].map((row, i) => (
+                <tr key={i}>
+                  <td className="py-2 pr-3 text-txt-primary">{row[0]}</td>
+                  {[1, 2, 3, 4].map((col) => (
+                    <td key={col} className="py-2 px-2 text-center font-mono text-sm">
+                      <span className={row[col] === "✓" ? "text-goto-green font-bold" : row[col] === "✗" ? "text-red-400" : "text-yellow-600"}>
+                        {row[col]}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -759,7 +908,517 @@ function DatabaseTab() {
 }
 
 // ════════════════════════════════════════════════════════════════
-// 7. TROUBLESHOOTING
+// 7. TECH STACK
+// ════════════════════════════════════════════════════════════════
+
+function TechStackTab() {
+  const stack = [
+    {
+      layer: "Frontend",
+      tech: [
+        { name: "Next.js 14.2", detail: "App Router, Server Components, React 18" },
+        { name: "TypeScript", detail: "Strict mode untuk type safety" },
+        { name: "Tailwind CSS", detail: "Utility-first styling + custom design tokens (goto-green palette)" },
+        { name: "TipTap", detail: "Rich text editor untuk artikel (extensions: Image, Table, Link, Underline)" },
+        { name: "Lucide Icons", detail: "Icon set konsisten di seluruh UI" },
+        { name: "Recharts", detail: "Chart library untuk dashboard statistik" },
+      ],
+    },
+    {
+      layer: "Backend",
+      tech: [
+        { name: "Next.js API Routes", detail: "Server-side handlers di /src/app/api/**" },
+        { name: "Prisma ORM 5.22", detail: "Type-safe DB client, schema migrations" },
+        { name: "PostgreSQL 16", detail: "Database utama (hosted di VPS)" },
+        { name: "NextAuth.js", detail: "Session-based auth dengan JWT + credentials provider" },
+        { name: "bcryptjs", detail: "Password hashing 12 rounds" },
+        { name: "Zod", detail: "Runtime validation untuk API inputs" },
+        { name: "Sharp", detail: "Image processing (template render, resize, JPEG compress)" },
+      ],
+    },
+    {
+      layer: "AI & Automasi",
+      tech: [
+        { name: "Anthropic SDK", detail: "Claude Haiku 4.5 — provider AI utama untuk semua generate" },
+        { name: "DeepSeek API", detail: "Fallback AI (deepseek-chat) kalau Anthropic gagal/quota habis" },
+        { name: "Shared AI client", detail: "src/lib/ai-client.ts — callAI() dengan auto-fallback" },
+        { name: "Cron jobs", detail: "External crontab VPS trigger endpoints /api/cron/**" },
+      ],
+    },
+    {
+      layer: "Integrasi Eksternal",
+      tech: [
+        { name: "Meta Graph API v21", detail: "Instagram Business + Facebook Page publish" },
+        { name: "Google Indexing API", detail: "Submit URL baru untuk index cepat" },
+        { name: "Google Search Console API", detail: "Fetch impression, klik, CTR, position" },
+        { name: "Google Analytics Data API", detail: "GA4 pageview + top pages" },
+        { name: "Cloudflare API", detail: "Cache purge + analytics bandwidth" },
+        { name: "Resend", detail: "Transactional email (notifikasi review/approve)" },
+        { name: "Twitter/X API v2", detail: "Auto-tweet artikel (OAuth 1.0a user context)" },
+        { name: "IndexNow", detail: "Bing/Yandex instant indexing (no auth)" },
+      ],
+    },
+    {
+      layer: "Infrastructure",
+      tech: [
+        { name: "VPS Ubuntu 24.04", detail: "Hostinger VPS — 145.79.15.99, port 3001 (internal), 443 (public)" },
+        { name: "PM2", detail: "Process manager cluster mode (4 instances)" },
+        { name: "Nginx", detail: "Reverse proxy + SSL termination" },
+        { name: "Cloudflare", detail: "CDN + DDoS protection + cache layer" },
+        { name: "Let's Encrypt", detail: "SSL certificate auto-renewal via certbot" },
+        { name: "GitHub", detail: "Source control — github.com/mediadigitalbandung/jurnalishukumbandung" },
+      ],
+    },
+    {
+      layer: "Dev Tools",
+      tech: [
+        { name: "Git", detail: "Version control, master branch deploy" },
+        { name: "npm", detail: "Package manager" },
+        { name: "ESLint", detail: "Code linting (Next.js config)" },
+        { name: "Claude Code", detail: "AI-assisted development harness" },
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          Arsitektur: <strong>monolithic Next.js app</strong> — frontend + API routes + server components dalam satu codebase.
+          Deploy sebagai single PM2 cluster di VPS, PostgreSQL di same-host.
+        </p>
+      </div>
+      {stack.map((s) => (
+        <div key={s.layer} className="rounded-[12px] border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">{s.layer}</h3>
+          </div>
+          <div className="divide-y divide-border">
+            {s.tech.map((t) => (
+              <div key={t.name} className="flex items-start gap-3 px-6 py-3">
+                <Layers size={16} className="mt-0.5 flex-shrink-0 text-goto-green" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-txt-primary">{t.name}</p>
+                  <p className="text-xs text-txt-secondary">{t.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Struktur Direktori</h2>
+        <pre className="overflow-x-auto rounded-lg bg-surface-secondary p-4 text-xs font-mono text-txt-primary leading-relaxed">
+{`jurnalishukumbandung/
+├── prisma/
+│   └── schema.prisma              # Definisi semua model DB
+├── public/
+│   ├── uploads/                   # User uploads (images, social)
+│   └── indexnow-key.txt           # Bing IndexNow verification
+├── src/
+│   ├── app/
+│   │   ├── api/                   # API routes (Next.js App Router)
+│   │   │   ├── ai/                # AI generate endpoints
+│   │   │   ├── articles/          # CRUD artikel
+│   │   │   ├── cron/              # Cron job endpoints
+│   │   │   ├── social/            # IG/FB auto-publish
+│   │   │   └── ...
+│   │   ├── panel/                 # Admin panel pages
+│   │   │   ├── artikel/           # Editor artikel
+│   │   │   ├── dokumentasi/       # Halaman ini
+│   │   │   └── ...
+│   │   ├── berita/[slug]/         # Halaman artikel publik
+│   │   ├── page.tsx               # Homepage
+│   │   └── layout.tsx             # Root layout
+│   ├── components/
+│   │   ├── artikel/               # ArticleCard, CopyProtection
+│   │   ├── editor/                # RichTextEditor, ImageCropModal
+│   │   ├── layout/                # Header, Footer, Sidebar
+│   │   └── ui/                    # Toast, ConfirmDialog
+│   └── lib/
+│       ├── ai-client.ts           # Shared AI caller (Anthropic + DeepSeek)
+│       ├── api-utils.ts           # requireAuth, requireRole, errorResponse
+│       ├── auth.ts                # NextAuth config
+│       ├── prisma.ts              # Prisma client singleton
+│       ├── roles.ts               # Role constants
+│       ├── seo-utils.ts           # SEO helpers, auto-generate, onArticlePublished
+│       └── social/                # IG/FB publisher classes
+├── .env                           # Environment variables (NOT committed)
+├── CLAUDE.md                      # Instruksi Claude Code
+└── package.json`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 8. KEAMANAN
+// ════════════════════════════════════════════════════════════════
+
+function KeamananTab() {
+  const security = [
+    {
+      category: "Autentikasi & Session",
+      items: [
+        { item: "Password hashing bcrypt 12 rounds", detail: "Tahan rainbow table + brute force basic. Password minimum 8 karakter disarankan." },
+        { item: "Session JWT (NextAuth)", detail: "Signed dengan NEXTAUTH_SECRET di .env. Expire otomatis setelah 30 hari." },
+        { item: "Invalidate session saat password reset", detail: "User harus login ulang. Session lama jadi invalid = auto signOut." },
+        { item: "Email sebagai identifier unik", detail: "Tidak bisa duplikat. Lowercase normalisasi saat save." },
+      ],
+    },
+    {
+      category: "API Security",
+      items: [
+        { item: "requireAuth() di semua protected routes", detail: "Cek session valid, throw 401 jika tidak login." },
+        { item: "requireRole([...]) untuk role-gated endpoints", detail: "Admin endpoint cuma SUPER_ADMIN, editor endpoint cuma EDITOR+." },
+        { item: "Zod validation di POST/PUT", detail: "Input user divalidasi sebelum masuk Prisma — tolak payload malformed." },
+        { item: "CSRF protection via NextAuth", detail: "POST otomatis butuh CSRF token dari session." },
+        { item: "Rate limiting AI endpoints", detail: "Dibatasi per user per jam untuk cegah abuse." },
+      ],
+    },
+    {
+      category: "Data Protection",
+      items: [
+        { item: "API keys disimpan di SystemSetting DB", detail: "Tidak di source code. Hanya SUPER_ADMIN bisa read/write." },
+        { item: "Masking sensitif di UI", detail: "API keys ditampilkan dengan toggle show/hide." },
+        { item: ".env tidak di-commit", detail: "Ditambahkan ke .gitignore. DB credentials + NEXTAUTH_SECRET aman." },
+        { item: "Sanitasi HTML konten artikel", detail: "TipTap + server-side cleanup. Cegah XSS injection via paste." },
+        { item: "Service account JSON Google", detail: "Disimpan di DB (SystemSetting), bukan di filesystem." },
+      ],
+    },
+    {
+      category: "Infrastructure",
+      items: [
+        { item: "HTTPS wajib (Let's Encrypt)", detail: "Auto-renewal certbot. HTTP redirect ke HTTPS via nginx." },
+        { item: "Cloudflare DDoS + WAF", detail: "Proxy depan, block IP abuse, rate limit per IP." },
+        { item: "Firewall UFW di VPS", detail: "Port 22 (SSH), 80, 443 terbuka. PostgreSQL 5432 LOCAL-ONLY." },
+        { item: "SSH key-only auth", detail: "Password SSH disabled di /etc/ssh/sshd_config." },
+        { item: "Nginx security headers", detail: "X-Frame-Options, X-Content-Type-Options, Referrer-Policy." },
+      ],
+    },
+    {
+      category: "Audit & Logging",
+      items: [
+        { item: "AuditLog per aksi sensitif", detail: "Create/update/delete artikel, user, iklan tercatat dengan userId + timestamp." },
+        { item: "AIUsageLog", detail: "Track setiap call AI: feature, user, article, sukses/gagal." },
+        { item: "PM2 logs", detail: "Stdout/stderr aplikasi di /root/.pm2/logs/. Log rotation tiap 10MB." },
+        { item: "Nginx access log", detail: "Semua request tercatat dengan IP, UA, response code." },
+      ],
+    },
+    {
+      category: "Best Practices untuk User",
+      items: [
+        { item: "Rotate API keys tiap 6 bulan", detail: "Anthropic, DeepSeek, Meta, Google — generate baru dan update di /panel/pengaturan." },
+        { item: "Jangan share akun SUPER_ADMIN", detail: "Setiap user pegang akun sendiri. Audit log baru akurat." },
+        { item: "Password kuat: 12+ karakter", detail: "Campuran huruf, angka, simbol. Hindari kata umum." },
+        { item: "Logout di perangkat publik", detail: "Session 30 hari — jangan biarkan laptop umum tetap login." },
+        { item: "Backup DB mingguan ke eksternal", detail: "Jangan hanya andalkan backup VPS. Tarik dump ke storage terpisah." },
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
+        <p className="font-semibold">⚠️ Peringatan Penting</p>
+        <p className="mt-1">
+          Jangan pernah commit file <code className="rounded bg-white px-1.5 py-0.5 text-xs">.env</code> ke Git.
+          API keys yang bocor = potensi bill besar & takeover akun. Kalau tidak sengaja bocor: rotate segera di dashboard masing-masing (Anthropic, Meta, Google).
+        </p>
+      </div>
+      {security.map((s) => (
+        <div key={s.category} className="rounded-[12px] border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-txt-muted">{s.category}</h3>
+          </div>
+          <div className="divide-y divide-border">
+            {s.items.map((it) => (
+              <div key={it.item} className="flex items-start gap-3 px-6 py-3">
+                <Shield size={16} className="mt-0.5 flex-shrink-0 text-goto-green" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-txt-primary">{it.item}</p>
+                  <p className="text-xs text-txt-secondary">{it.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 9. DEPLOY & BACKUP
+// ════════════════════════════════════════════════════════════════
+
+function DeployTab() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Info VPS</h2>
+        <div className="grid gap-3 text-sm md:grid-cols-2">
+          <div><span className="font-semibold text-txt-muted">IP:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">145.79.15.99</code></div>
+          <div><span className="font-semibold text-txt-muted">Domain:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">jurnalishukumbandung.com</code></div>
+          <div><span className="font-semibold text-txt-muted">App dir:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">/var/www/jhb</code></div>
+          <div><span className="font-semibold text-txt-muted">PM2 process:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">jhb</code> (cluster, 4 instances)</div>
+          <div><span className="font-semibold text-txt-muted">Port internal:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">3001</code></div>
+          <div><span className="font-semibold text-txt-muted">OS:</span> Ubuntu 24.04 LTS</div>
+          <div><span className="font-semibold text-txt-muted">Node:</span> v20.x LTS</div>
+          <div><span className="font-semibold text-txt-muted">Database:</span> PostgreSQL 16 (localhost)</div>
+        </div>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Alur Deploy</h2>
+        <ol className="space-y-3 text-sm">
+          <li className="flex gap-3">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">1</span>
+            <div>
+              <p className="font-semibold text-txt-primary">Build lokal</p>
+              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs">npx next build</code>
+              <p className="mt-1 text-xs text-txt-secondary">Pastikan compile sukses sebelum deploy.</p>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">2</span>
+            <div>
+              <p className="font-semibold text-txt-primary">Commit & push</p>
+              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs whitespace-pre">{`git add [files]
+git commit -m "feat/fix: deskripsi"
+git push origin master`}</code>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">3</span>
+            <div>
+              <p className="font-semibold text-txt-primary">Deploy ke VPS</p>
+              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs whitespace-pre">{`ssh root@145.79.15.99 "cd /var/www/jhb && \\
+  git pull origin master && \\
+  npm install && \\
+  rm -rf .next/types && \\
+  npm run build && \\
+  pm2 restart jhb"`}</code>
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">4</span>
+            <div>
+              <p className="font-semibold text-txt-primary">Verifikasi</p>
+              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs">ssh root@145.79.15.99 &quot;pm2 list&quot;</code>
+              <p className="mt-1 text-xs text-txt-secondary">Pastikan status <code>online</code> untuk semua instance jhb.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Backup Strategy</h2>
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="font-semibold text-txt-primary">Database backup</p>
+            <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs whitespace-pre">{`# Backup manual
+pg_dump -U jhb_user jhb > /var/backups/jhb-$(date +%Y%m%d).sql
+
+# Restore
+psql -U jhb_user jhb < /var/backups/jhb-YYYYMMDD.sql`}</code>
+            <p className="mt-1 text-xs text-txt-secondary">Retensi: 7 hari otomatis via cron. Untuk aman, tarik backup mingguan ke storage eksternal (Google Drive, S3).</p>
+          </div>
+          <div>
+            <p className="font-semibold text-txt-primary">Media backup</p>
+            <p className="text-xs text-txt-secondary">Folder <code>/var/www/jhb/public/uploads</code> berisi semua gambar user-uploaded. Sync ke backup server via rsync harian.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-txt-primary">Code backup</p>
+            <p className="text-xs text-txt-secondary">Source code di GitHub (<code>github.com/mediadigitalbandung/jurnalishukumbandung</code>). Clone ulang jika VPS dibuild fresh.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-txt-primary">Settings & keys backup</p>
+            <p className="text-xs text-txt-secondary">Tabel <code>SystemSetting</code> berisi semua API keys. Sudah di-backup bareng DB. JANGAN lupa backup file <code>.env</code> secara manual — tidak pernah masuk ke DB backup.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Disaster Recovery</h2>
+        <ol className="space-y-2 text-sm">
+          <li><span className="font-semibold">1. VPS down:</span> Hubungi Hostinger support. Cek status di <code>hostinger.com/cpanel</code>.</li>
+          <li><span className="font-semibold">2. Database corrupt:</span> <code>psql</code> restore dari backup terbaru. Data setelah backup bisa hilang.</li>
+          <li><span className="font-semibold">3. Source code hilang:</span> <code>git clone</code> dari GitHub. Restore <code>.env</code> dari manual backup.</li>
+          <li><span className="font-semibold">4. Domain expired:</span> Cek DNS di Cloudflare & renewal di registrar. Propagasi bisa sampai 24 jam.</li>
+          <li><span className="font-semibold">5. SSL expired:</span> <code>certbot renew --force-renewal</code>. Biasanya auto-renewal jalan, cek cron via <code>crontab -l</code>.</li>
+          <li><span className="font-semibold">6. Meta/Instagram token expired:</span> Refresh di Meta Business Suite, update di <code>/panel/pengaturan</code>.</li>
+          <li><span className="font-semibold">7. AI quota habis:</span> Sistem otomatis fallback ke provider cadangan. Top-up di dashboard provider yang habis.</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 10. QUICK REFERENCE
+// ════════════════════════════════════════════════════════════════
+
+function ReferenceTab() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Settings Keys (SystemSetting)</h2>
+        <p className="mb-3 text-sm text-txt-secondary">
+          Keys yang disimpan di DB dan diakses via <code>/panel/pengaturan</code>:
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border text-left font-semibold uppercase tracking-wider text-txt-muted">
+                <th className="py-2 pr-3">Key</th>
+                <th className="py-2">Deskripsi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border font-mono">
+              {[
+                ["site_name", "Nama situs (header, SEO)"],
+                ["site_description", "Deskripsi default meta tag"],
+                ["contact_email", "Email kontak redaksi"],
+                ["alamat_redaksi", "Alamat untuk LocalBusiness schema"],
+                ["website_url", "URL publik (jurnalishukumbandung.com)"],
+                ["anthropic_api_key", "API key Claude (utama)"],
+                ["deepseek_api_key", "API key DeepSeek (fallback)"],
+                ["resend_api_key", "API key Resend untuk email"],
+                ["notification_email_from", "Alamat sender email notifikasi"],
+                ["enable_comments", "Toggle global komentar (true/false)"],
+                ["enable_ai", "Toggle fitur AI global (true/false)"],
+                ["maintenance_mode", "Aktifkan mode maintenance"],
+                ["google_credentials_json", "Service account JSON (GSC + GA4 + Indexing)"],
+                ["google_indexing_enabled", "Toggle auto-submit ke Google (true/false)"],
+                ["cloudflare_api_token", "Token cache purge"],
+                ["cloudflare_zone_id", "Zone ID domain di Cloudflare"],
+                ["auto_article_enabled", "Toggle cron auto-artikel"],
+                ["auto_article_count", "Jumlah artikel per cron run"],
+                ["auto_article_interval", "Interval cron (menit)"],
+                ["twitter_bearer_token", "Bearer token Twitter API"],
+                ["twitter_access_token", "Access token user Twitter"],
+                ["twitter_access_secret", "Access secret user Twitter"],
+                ["twitter_consumer_key", "Consumer key app Twitter"],
+                ["twitter_consumer_secret", "Consumer secret app Twitter"],
+              ].map(([k, d]) => (
+                <tr key={k}>
+                  <td className="py-1.5 pr-3"><code className="rounded bg-surface-secondary px-1.5 py-0.5">{k}</code></td>
+                  <td className="py-1.5 text-txt-secondary">{d}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Environment Variables (.env)</h2>
+        <p className="mb-3 text-sm text-txt-secondary">
+          Variabel yang HARUS di-set di <code>.env</code> VPS (tidak di DB):
+        </p>
+        <pre className="overflow-x-auto rounded bg-surface-secondary p-3 text-xs font-mono">
+{`DATABASE_URL="postgresql://jhb_user:PASSWORD@localhost:5432/jhb"
+DIRECT_URL="postgresql://jhb_user:PASSWORD@localhost:5432/jhb"
+NEXTAUTH_SECRET="..."   # random 32+ char string
+NEXTAUTH_URL="https://jurnalishukumbandung.com"
+NEXT_PUBLIC_APP_URL="https://jurnalishukumbandung.com"
+CRON_SECRET="..."       # Bearer token untuk cron endpoints
+UPLOAD_DIR="public/uploads"
+NODE_ENV="production"`}
+        </pre>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Command Reference</h2>
+        <div className="space-y-3 text-xs">
+          <div>
+            <p className="mb-1 font-semibold text-txt-primary">Lokal (development)</p>
+            <pre className="rounded bg-surface-secondary p-2 font-mono">{`npm install              # Install deps
+npx prisma db push       # Sync schema ke DB
+npx prisma studio        # GUI explore DB
+npm run dev              # Dev server port 3000
+npx next build           # Build production`}</pre>
+          </div>
+          <div>
+            <p className="mb-1 font-semibold text-txt-primary">VPS (via SSH)</p>
+            <pre className="rounded bg-surface-secondary p-2 font-mono">{`ssh root@145.79.15.99
+cd /var/www/jhb
+git pull origin master
+npm install
+rm -rf .next/types       # Clear stale types
+npm run build
+pm2 restart jhb          # Restart app
+pm2 list                 # Cek status
+pm2 logs jhb --lines 100 # Cek log
+pm2 monit                # Live monitor CPU/mem`}</pre>
+          </div>
+          <div>
+            <p className="mb-1 font-semibold text-txt-primary">Database</p>
+            <pre className="rounded bg-surface-secondary p-2 font-mono">{`psql -U jhb_user -d jhb            # Koneksi manual
+pg_dump -U jhb_user jhb > bck.sql  # Backup
+psql -U jhb_user jhb < bck.sql     # Restore`}</pre>
+          </div>
+          <div>
+            <p className="mb-1 font-semibold text-txt-primary">SSL & Nginx</p>
+            <pre className="rounded bg-surface-secondary p-2 font-mono">{`certbot renew --dry-run    # Test renewal
+systemctl reload nginx     # Reload config
+nginx -t                   # Validasi config`}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">URL Endpoint Penting</h2>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wider text-txt-muted">
+              <th className="py-2 pr-3">URL</th>
+              <th className="py-2">Fungsi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {[
+              ["/sitemap.xml", "Sitemap utama untuk Google Search Console"],
+              ["/sitemap-news.xml", "News sitemap (artikel 2 hari terakhir)"],
+              ["/robots.txt", "Instruksi crawler (allow all + sitemap refs)"],
+              ["/feed.xml atau /rss", "RSS feed (bila aktif)"],
+              ["/api/cron/publish", "Trigger publish artikel scheduled"],
+              ["/api/cron/auto-article", "Generate artikel AI"],
+              ["/api/articles", "List/create artikel (auth required)"],
+              ["/api/health atau /api/status", "Health check endpoint"],
+            ].map(([u, d]) => (
+              <tr key={u}>
+                <td className="py-1.5 pr-3"><code className="rounded bg-surface-secondary px-1.5 py-0.5 text-xs">{u}</code></td>
+                <td className="py-1.5 text-xs text-txt-secondary">{d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
+        <h2 className="mb-3 text-lg font-bold text-txt-primary">Kontak & Kredensial</h2>
+        <div className="space-y-2 text-sm">
+          <p><span className="font-semibold text-txt-muted">GitHub Repo:</span> <code>github.com/mediadigitalbandung/jurnalishukumbandung</code></p>
+          <p><span className="font-semibold text-txt-muted">VPS Provider:</span> Hostinger (panel: hpanel.hostinger.com)</p>
+          <p><span className="font-semibold text-txt-muted">Domain Registrar:</span> Cek di domain reseller</p>
+          <p><span className="font-semibold text-txt-muted">DNS:</span> Cloudflare (dash.cloudflare.com)</p>
+          <p><span className="font-semibold text-txt-muted">Meta Developer:</span> developers.facebook.com/apps</p>
+          <p><span className="font-semibold text-txt-muted">Google Cloud Console:</span> console.cloud.google.com</p>
+          <p><span className="font-semibold text-txt-muted">Anthropic Console:</span> console.anthropic.com</p>
+          <p><span className="font-semibold text-txt-muted">DeepSeek Platform:</span> platform.deepseek.com</p>
+          <p><span className="font-semibold text-txt-muted">Resend Dashboard:</span> resend.com/emails</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// 11. TROUBLESHOOTING
 // ════════════════════════════════════════════════════════════════
 
 function TroubleTab() {
@@ -824,6 +1483,81 @@ function TroubleTab() {
       solution: "Refine target keyword di /panel/tags → tab Riset Keyword. Gunakan keyword spesifik (contoh: 'sidang korupsi PN Bandung' bukan 'hukum'). Makin spesifik makin bagus.",
       severity: "info",
     },
+    {
+      problem: "PM2 restart error / app tidak naik",
+      solution: "SSH ke VPS, jalankan: pm2 delete jhb && cd /var/www/jhb && pm2 start npm --name jhb -i 4 -- start. Cek log dengan pm2 logs jhb --err. Kalau tetap gagal, pm2 kill dulu sebelum start ulang.",
+      severity: "warning",
+    },
+    {
+      problem: "Database connection refused",
+      solution: "Cek PostgreSQL jalan: systemctl status postgresql. Restart: systemctl restart postgresql. Pastikan DATABASE_URL di .env VPS benar (password, host=localhost, port=5432).",
+      severity: "error",
+    },
+    {
+      problem: "Upload gambar gagal / 413 Request Entity Too Large",
+      solution: "Cek nginx config /etc/nginx/sites-available/jhb — pastikan client_max_body_size 20M; atau lebih. Reload nginx: systemctl reload nginx. Max upload JHB default 10MB.",
+      severity: "warning",
+    },
+    {
+      problem: "SSL expired / site tidak bisa diakses HTTPS",
+      solution: "certbot renew --force-renewal. Kalau gagal, cek DNS Cloudflare — harus 'DNS only' (abu-abu) saat renewal, bukan 'Proxied' (oranye). Setelah renew sukses, kembalikan ke Proxied.",
+      severity: "error",
+    },
+    {
+      problem: "Cloudflare cache tidak terpurge otomatis",
+      solution: "Cek cloudflare_api_token di /panel/pengaturan. Token harus punya permission Zone.Cache Purge. Purge manual lewat dashboard Cloudflare kalau urgent.",
+      severity: "info",
+    },
+    {
+      problem: "Email notifikasi tidak terkirim",
+      solution: "Cek resend_api_key di /panel/pengaturan. Pastikan domain sender sudah diverifikasi di dashboard Resend. Cek juga log Resend untuk bounce/spam detection.",
+      severity: "info",
+    },
+    {
+      problem: "Google Indexing API error 403",
+      solution: "Service account belum ditambahkan sebagai 'Owner' di Google Search Console. Buka GSC → Settings → Users and permissions → Add service account email sebagai Owner.",
+      severity: "warning",
+    },
+    {
+      problem: "Bundle size besar / halaman lemot loading",
+      solution: "Jalankan npx next build dan cek report 'First Load JS'. Untuk halaman >300KB, pertimbangkan dynamic import untuk komponen berat (editor, chart). Gunakan /panel/statistik untuk monitor Core Web Vitals.",
+      severity: "info",
+    },
+    {
+      problem: "Post sosmed duplikat (muncul 2x di IG/FB)",
+      solution: "Cek /panel/social tab Logs — kalau ada 2 entry dengan status 'success' waktu mirip, delete salah satu di platform manually + klik 'Tandai Dihapus' di panel. Biasanya karena retry setelah timeout.",
+      severity: "warning",
+    },
+    {
+      problem: "Komentar spam membanjiri",
+      solution: "Aktifkan moderasi wajib: semua komentar masuk ke /panel/komentar untuk di-approve manual. Ban IP via Cloudflare kalau ekstrem. Pertimbangkan rate-limit per IP di API comment.",
+      severity: "warning",
+    },
+    {
+      problem: "Prisma error: 'Schema drift detected'",
+      solution: "Schema DB beda dengan schema.prisma. Jalankan npx prisma db push untuk sync (hati-hati: bisa hilang data kalau kolom berubah). Untuk production, pakai migration: npx prisma migrate deploy.",
+      severity: "error",
+    },
+    {
+      problem: "Token Meta / IG expired (error 'Session has expired')",
+      solution: "Token Meta long-lived expire tiap 60 hari. Refresh di Meta Business Suite → Settings → System Users → Generate New Token. Copy ke /panel/pengaturan → meta_access_token.",
+      severity: "warning",
+    },
+    {
+      problem: "Sitemap tidak ter-update ke Google",
+      solution: "Sitemap dynamic di /sitemap.xml. Submit manual ulang di Google Search Console → Sitemaps → Resubmit. Cek robots.txt juga sudah reference ke sitemap dengan benar.",
+      severity: "info",
+    },
+    {
+      problem: "Gambar artikel tidak muncul setelah publish",
+      solution: "Cek featuredImage URL masih valid (bukan dari upload yg ke-delete). Cek permission folder /var/www/jhb/public/uploads — harus dimiliki www-data atau user yang jalanin Node. chmod 755 + chown www-data.",
+      severity: "warning",
+    },
+    {
+      problem: "Font custom tidak load di halaman publik",
+      solution: "Pastikan next/font config di src/app/layout.tsx benar. Cek juga preconnect ke Google Fonts di <head>. Clear Cloudflare cache setelah update font untuk fresh delivery.",
+      severity: "info",
+    },
   ];
 
   const severityClass = (s: string) =>
@@ -870,3 +1604,4 @@ function TroubleTab() {
     </div>
   );
 }
+
