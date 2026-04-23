@@ -34,6 +34,7 @@ import {
   Clock,
   Hash,
   BookOpen,
+  Video,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ const menuItems: MenuItem[] = [
   { name: "Sorotan SEO", href: "/panel/sorotan", icon: Sparkles, superAdminOnly: true },
   { name: "Auto-Artikel", href: "/panel/auto-artikel", icon: Bot, superAdminOnly: true },
   { name: "Social Media", href: "/panel/social", icon: Share2, superAdminOnly: true },
+  { name: "TikTok Video", href: "/panel/tiktok", icon: Video, superAdminOnly: true },
   { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
   { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
   { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, superAdminOnly: true },
