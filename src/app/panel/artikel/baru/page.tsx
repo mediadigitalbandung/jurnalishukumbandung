@@ -265,7 +265,7 @@ export default function NewArticlePage() {
     setSources(updated);
   };
 
-  const handleSubmit = async (status: "DRAFT" | "IN_REVIEW") => {
+  const handleSubmit = async (status: "DRAFT" | "IN_REVIEW" | "APPROVED") => {
     setError("");
 
     if (!title.trim()) return setError("Judul wajib diisi");
@@ -273,17 +273,33 @@ export default function NewArticlePage() {
     if (content.length < 50) return setError("Konten minimal 50 karakter");
     if (!categoryId) return setError("Kategori harus dipilih");
 
+    // APPROVED status requires scheduledAt (admin-only schedule flow)
+    if (status === "APPROVED" && !scheduleDate) {
+      return setError("Pilih tanggal publikasi terlebih dahulu");
+    }
+    if (status === "APPROVED" && scheduleDate && new Date(scheduleDate) <= new Date()) {
+      return setError("Jadwal publikasi harus di masa depan");
+    }
+
     if (status === "IN_REVIEW" && !allChecked) {
       setShowChecklist(true);
       return setError("Semua checklist jurnalistik harus dipenuhi sebelum submit");
     }
 
-    // Confirmation dialog for review submission
+    // Confirmation dialog
     if (status === "IN_REVIEW") {
       const ok = await confirm({ message: "Artikel akan dikirim untuk review oleh editor. Lanjutkan?", variant: "warning", title: "Konfirmasi" });
       if (!ok) {
         return;
       }
+    }
+    if (status === "APPROVED") {
+      const ok = await confirm({
+        message: `Artikel akan otomatis dipublikasi pada ${new Date(scheduleDate).toLocaleString("id-ID")}. Lanjutkan?`,
+        variant: "warning",
+        title: "Konfirmasi Jadwal Publikasi"
+      });
+      if (!ok) return;
     }
 
     setSaving(true);
@@ -488,6 +504,18 @@ export default function NewArticlePage() {
             >
               <CalendarClock size={16} />
               Jadwalkan
+            </button>
+          )}
+          {/* Schedule + auto-publish (admin-only, visible when schedule is set) */}
+          {EDITOR_ROLES.includes(userRole) && showSchedule && scheduleDate && (
+            <button
+              type="button"
+              onClick={() => handleSubmit("APPROVED")}
+              disabled={saving}
+              className="flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              <CalendarClock size={16} />
+              Jadwalkan &amp; Publish
             </button>
           )}
         </div>

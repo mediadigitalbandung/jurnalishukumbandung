@@ -22,7 +22,7 @@ const createArticleSchema = z.object({
   tags: z.array(z.string()).optional(),
   seoTitle: z.string().max(150, "Judul SEO maksimal 150 karakter").optional(),
   seoDescription: z.string().max(300, "Deskripsi SEO maksimal 300 karakter").optional(),
-  status: z.enum(["DRAFT", "IN_REVIEW"]).optional(),
+  status: z.enum(["DRAFT", "IN_REVIEW", "APPROVED"]).optional(),
   authorId: z.string().optional(),
   assignedEditorId: z.string().optional(),
   coAuthors: z.string().optional().nullable(),
@@ -159,8 +159,18 @@ export async function POST(request: NextRequest) {
       slug = `${slug}-${Date.now().toString(36)}`;
     }
 
-    // Jurnalis/Senior Journalist can only create DRAFT or IN_REVIEW
-    const finalStatus = data.status || "DRAFT";
+    // Jurnalis/Senior Journalist: DRAFT or IN_REVIEW only
+    // Admin (EDITOR/SUPER_ADMIN) with scheduledAt: can create as APPROVED for scheduled auto-publish
+    let finalStatus = data.status || "DRAFT";
+    if (data.status === "APPROVED") {
+      if (!canApproveArticles(session.user.role)) {
+        throw new ApiError("Tidak memiliki akses untuk membuat artikel dengan status APPROVED", 403);
+      }
+      if (!data.scheduledAt) {
+        // APPROVED without schedule doesn't make sense — force to IN_REVIEW
+        finalStatus = "IN_REVIEW";
+      }
+    }
 
     // Calculate read time
     const readTime = calculateReadTime(data.content);
@@ -214,7 +224,7 @@ export async function POST(request: NextRequest) {
         content: sanitizeHtml(data.content),
         excerpt: data.excerpt || data.content.replace(/<[^>]*>/g, "").slice(0, 200),
         featuredImage: data.featuredImage,
-        status: finalStatus as "DRAFT" | "IN_REVIEW",
+        status: finalStatus as "DRAFT" | "IN_REVIEW" | "APPROVED",
         verificationLabel: "UNVERIFIED",
         readTime,
         authorId: effectiveAuthorId,
