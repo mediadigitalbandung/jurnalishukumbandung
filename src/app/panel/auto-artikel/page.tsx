@@ -226,16 +226,26 @@ export default function AutoArtikelPage() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          auto_article_enabled: enabled ? "true" : "false",
-          auto_article_count: count,
-          auto_article_interval: interval,
-        }),
-      });
-      success("Pengaturan auto-artikel disimpan");
+      const payloads = [
+        { key: "auto_article_enabled", value: enabled ? "true" : "false" },
+        { key: "auto_article_count", value: String(count) },
+        { key: "auto_article_interval", value: String(interval) },
+      ];
+      const results = await Promise.all(
+        payloads.map((p) =>
+          fetch("/api/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(p),
+          })
+        )
+      );
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        showError(`${failed.length} pengaturan gagal disimpan (HTTP ${failed[0].status})`);
+      } else {
+        success("Pengaturan auto-artikel disimpan");
+      }
     } catch {
       showError("Gagal menyimpan");
     }
