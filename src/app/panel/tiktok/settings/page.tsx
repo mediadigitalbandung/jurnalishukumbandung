@@ -147,6 +147,22 @@ export default function TiktokSettingsPage() {
     }
   };
 
+  const [debugUrl, setDebugUrl] = useState<string | null>(null);
+  const debugOAuth = async (mode?: "minimal") => {
+    try {
+      const url = mode === "minimal" ? "/api/tiktok/auth?mode=minimal" : "/api/tiktok/auth";
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.success) {
+        setDebugUrl(json.data.authUrl);
+      } else {
+        showError(json.error || "Gagal generate URL");
+      }
+    } catch {
+      showError("Error");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -352,6 +368,30 @@ export default function TiktokSettingsPage() {
               💡 <strong>Tips debug:</strong> Kalau &quot;Full Scopes&quot; error <code>client_key</code>, coba &quot;Test Minimal Scope&quot; dulu —
               kalau berhasil, berarti scope <code>video.upload</code> / <code>video.publish</code> belum ditambah di TikTok Dev Portal.
             </p>
+
+            <div className="mt-3 border-t border-border pt-3">
+              <button
+                onClick={() => debugOAuth("minimal")}
+                className="text-xs text-txt-secondary underline hover:text-goto-green"
+              >
+                🔍 Show OAuth URL (diagnostic)
+              </button>
+              {debugUrl && (
+                <div className="mt-2 rounded border border-yellow-300 bg-yellow-50 p-3">
+                  <p className="text-xs font-semibold text-yellow-900">URL yang dikirim ke TikTok:</p>
+                  <textarea
+                    readOnly
+                    value={debugUrl}
+                    className="mt-1 w-full rounded border border-yellow-200 bg-white p-2 font-mono text-[10px] text-txt-primary"
+                    rows={4}
+                  />
+                  <p className="mt-1 text-[10px] text-yellow-800">
+                    Verify: (a) <code>client_key</code> match dengan TikTok portal, (b) <code>redirect_uri</code> decoded = <code>https://jurnalishukumbandung.com/api/tiktok/auth/callback</code>
+                  </p>
+                </div>
+              )}
+            </div>
+
             {!settings.clientKey && <p className="mt-1 text-xs text-red-500">Simpan credentials dulu (Langkah 1)</p>}
           </div>
         )}
