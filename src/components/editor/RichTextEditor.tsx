@@ -41,6 +41,8 @@ import {
   Trash2,
   Search,
   Crop,
+  SpellCheck,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useState, useRef, useEffect } from "react";
@@ -164,6 +166,10 @@ export default function RichTextEditor({
   const [loadingMedia, setLoadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Typo fix state
+  const [fixingTypo, setFixingTypo] = useState(false);
+  const [typoResult, setTypoResult] = useState<{ original: string; fixed: string; changesCount: number } | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -183,6 +189,11 @@ export default function RichTextEditor({
       attributes: {
         class:
           "article-content prose prose-lg max-w-none font-serif min-h-[400px] px-6 py-4 focus:outline-none",
+        // Enable browser native spell-check (Chrome/Firefox Indonesian dictionary)
+        // Users can right-click typo → "Add to dictionary" (browser-level)
+        spellcheck: "true",
+        lang: "id",
+        "data-gramm": "false", // disable Grammarly conflict (English-only)
       },
       handleDOMEvents: {
         dblclick: (_view, event) => {
@@ -374,6 +385,45 @@ export default function RichTextEditor({
     if (url && editor) editor.chain().focus().setYoutubeVideo({ src: url }).run();
   }, [editor]);
 
+  const runTypoFix = useCallback(async () => {
+    if (!editor) return;
+    const currentContent = editor.getHTML();
+    if (currentContent.replace(/<[^>]*>/g, "").trim().length < 20) {
+      alert("Konten terlalu pendek (minimal 20 karakter).");
+      return;
+    }
+    setFixingTypo(true);
+    setTypoResult(null);
+    try {
+      const res = await fetch("/api/ai/fix-typo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: currentContent }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        alert(json.error || "Gagal memperbaiki typo");
+        setFixingTypo(false);
+        return;
+      }
+      setTypoResult({
+        original: json.data.original,
+        fixed: json.data.fixed,
+        changesCount: json.data.changesCount || 0,
+      });
+    } catch {
+      alert("Gagal menghubungi AI service");
+    }
+    setFixingTypo(false);
+  }, [editor]);
+
+  const applyTypoFix = useCallback(() => {
+    if (!editor || !typoResult) return;
+    editor.commands.setContent(typoResult.fixed);
+    onChange(typoResult.fixed);
+    setTypoResult(null);
+  }, [editor, typoResult, onChange]);
+
   if (!editor) return null;
 
   return (
@@ -524,6 +574,17 @@ export default function RichTextEditor({
 
         <div className="mx-1 h-6 w-px bg-border" />
 
+        {/* AI Typo Fix */}
+        <ToolbarButton
+          onClick={runTypoFix}
+          disabled={fixingTypo}
+          title="Perbaiki typo & ejaan dengan AI"
+        >
+          {fixingTypo ? <Loader2 size={16} className="animate-spin text-goto-green" /> : <SpellCheck size={16} className="text-goto-green" />}
+        </ToolbarButton>
+
+        <div className="mx-1 h-6 w-px bg-border" />
+
         {/* Undo/Redo */}
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
@@ -540,6 +601,63 @@ export default function RichTextEditor({
           <Redo size={16} />
         </ToolbarButton>
       </div>
+
+      {/* ── Typo fix result modal ── */}
+      {typoResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setTypoResult(null)}>
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border bg-goto-light px-5 py-3">
+              <h3 className="flex items-center gap-2 text-base font-bold text-goto-green">
+                <Sparkles size={18} /> Hasil Koreksi AI
+              </h3>
+              <button onClick={() => setTypoResult(null)} className="rounded-full p-1.5 text-txt-secondary hover:bg-white">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="max-h-[calc(90vh-140px)] overflow-y-auto p-5">
+              <div className="mb-3 rounded-lg bg-surface-secondary p-3 text-sm text-txt-secondary">
+                {typoResult.changesCount > 0 ? (
+                  <>
+                    <strong className="text-goto-green">{typoResult.changesCount} perubahan</strong> terdeteksi.
+                    Review hasil di bawah lalu klik <strong>Terapkan</strong> untuk mengganti konten editor.
+                  </>
+                ) : (
+                  <>Tidak ada perubahan signifikan — konten sudah bersih ✓</>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-txt-muted">Sebelum</p>
+                  <div className="max-h-80 overflow-y-auto rounded border border-border bg-surface-secondary p-3 text-sm">
+                    <div dangerouslySetInnerHTML={{ __html: typoResult.original }} className="prose prose-sm max-w-none font-serif" />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-goto-green">Setelah (AI-fixed)</p>
+                  <div className="max-h-80 overflow-y-auto rounded border border-goto-green bg-goto-light/20 p-3 text-sm">
+                    <div dangerouslySetInnerHTML={{ __html: typoResult.fixed }} className="prose prose-sm max-w-none font-serif" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border bg-surface-secondary px-5 py-3">
+              <button
+                onClick={() => setTypoResult(null)}
+                className="rounded-full border border-border px-4 py-2 text-sm font-medium text-txt-secondary hover:bg-surface"
+              >
+                Batal
+              </button>
+              <button
+                onClick={applyTypoFix}
+                disabled={typoResult.changesCount === 0}
+                className="flex items-center gap-1.5 rounded-full bg-goto-green px-4 py-2 text-sm font-semibold text-white hover:bg-goto-dark disabled:opacity-50"
+              >
+                <Check size={14} /> Terapkan Koreksi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Editor content ── */}
       <EditorContent editor={editor} />
