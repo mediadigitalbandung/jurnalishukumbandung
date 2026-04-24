@@ -259,7 +259,7 @@ async function applyFrameOverlay(
     case "lower-third": {
       // Lower-third graphic like TV news (title + subtitle section at bottom)
       const titleText = title?.trim() ? escapeDrawText(title.trim().slice(0, 80)) : "";
-      filters.push(
+      const lowerThirdFilters = [
         // Semi-transparent black lower third
         `drawbox=x=60:y=${height - 280}:w=${width - 120}:h=180:color=black@0.75:t=fill`,
         // Green accent stripe left
@@ -267,8 +267,9 @@ async function applyFrameOverlay(
         // Title text (if provided)
         titleText ? `drawtext=text='${titleText}':fontcolor=white:fontsize=42:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=90:y=${height - 260}` : "",
         // Source line
-        `drawtext=text='Jurnalis Hukum Bandung':fontcolor=0x00AA13:fontsize=28:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=90:y=${height - 145}`
-      ).filter(Boolean);
+        `drawtext=text='Jurnalis Hukum Bandung':fontcolor=0x00AA13:fontsize=28:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=90:y=${height - 145}`,
+      ].filter(Boolean);
+      filters.push(...lowerThirdFilters);
       break;
     }
 
