@@ -287,15 +287,34 @@ export default function TiktokEditPage() {
       const up = await fetch("/api/tiktok/upload", { method: "POST", body: fd });
       const upJson = await up.json();
       if (!up.ok || !upJson.success) {
-        throw new Error(upJson.error || "Upload gagal");
+        console.error("[OVERLAY UPLOAD] failed", upJson);
+        throw new Error(upJson.error || `Upload gagal (HTTP ${up.status})`);
       }
+      const uploadedUrl = upJson.data?.url;
+      if (!uploadedUrl) {
+        throw new Error("Server tidak return URL — response kosong");
+      }
+      console.log("[OVERLAY UPLOAD] success:", uploadedUrl);
+
       // Save URL to video metadata + switch to custom frame style
-      await saveMeta({
-        overlayImageUrl: upJson.data.url,
-        frameStyle: "custom",
+      const saveRes = await fetch(`/api/tiktok/videos/${videoId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          overlayImageUrl: uploadedUrl,
+          frameStyle: "custom",
+        }),
       });
-      success("Overlay terupload");
+      const saveJson = await saveRes.json();
+      if (!saveRes.ok || !saveJson.success) {
+        console.error("[OVERLAY SAVE] failed", saveJson);
+        throw new Error(`Upload berhasil tapi gagal save ke DB: ${saveJson.error || `HTTP ${saveRes.status}`}`);
+      }
+      setVideo(saveJson.data);
+      setSelectedLayer({ kind: "overlay" });
+      success(`Overlay "${file.name}" terupload & siap di-drag`);
     } catch (err) {
+      console.error("[OVERLAY UPLOAD] error:", err);
       showError(err instanceof Error ? err.message : "Upload gagal");
     }
     setUploadingOverlay(false);
@@ -580,7 +599,9 @@ export default function TiktokEditPage() {
               selectedClip={
                 video.clips.find((c) => c.id === selectedClipId) || video.clips[0] || null
               }
-              overlayUrl={video.frameStyle === "custom" ? video.overlayImageUrl : null}
+              // Overlay URL selalu ditampilkan kalau ada (tidak bergantung frameStyle).
+              // frameStyle "custom" cuma kontrol apakah overlay ikut masuk render FFmpeg.
+              overlayUrl={video.overlayImageUrl}
               overlayPos={{
                 x: video.overlayX,
                 y: video.overlayY,

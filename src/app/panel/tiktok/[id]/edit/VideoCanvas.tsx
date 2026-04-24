@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles } from "lucide-react";
+import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle } from "lucide-react";
 
 // ─── Public types ──────────────────────────────────────────────────────
 
@@ -87,7 +87,12 @@ export default function VideoCanvas({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [overlayImgSize, setOverlayImgSize] = useState({ w: 200, h: 200 });
+  const [overlayImgError, setOverlayImgError] = useState<string | null>(null);
   const [dragMode, setDragMode] = useState<"none" | "move-text" | "move-overlay" | "resize-overlay" | "rotate-overlay" | "move-subtitle">("none");
+
+  // Zoom state: percentage scale of canvas vs base size (100% = fills container)
+  const [zoom, setZoom] = useState(100);
+  const [fullscreen, setFullscreen] = useState(false);
 
   // Observe canvas size for coord conversion
   useEffect(() => {
@@ -102,11 +107,31 @@ export default function VideoCanvas({
     return () => obs.disconnect();
   }, []);
 
-  // Load overlay dims
+  // ESC exits fullscreen
   useEffect(() => {
-    if (!overlayUrl) return;
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen]);
+
+  // Load overlay dims + detect load errors (CORS, 404, etc)
+  useEffect(() => {
+    if (!overlayUrl) {
+      setOverlayImgError(null);
+      return;
+    }
+    setOverlayImgError(null);
     const img = new Image();
-    img.onload = () => setOverlayImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onload = () => {
+      setOverlayImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+      setOverlayImgError(null);
+    };
+    img.onerror = () => {
+      setOverlayImgError("Gagal load overlay — cek URL / CORS");
+    };
     img.src = overlayUrl;
   }, [overlayUrl]);
 
@@ -187,11 +212,23 @@ export default function VideoCanvas({
   const isOverlaySelected = selected.kind === "overlay";
   const isSubtitleSelected = selected.kind === "subtitle";
 
+  // Zoom controls
+  const zoomIn = () => setZoom((z) => Math.min(200, z + 25));
+  const zoomOut = () => setZoom((z) => Math.max(25, z - 25));
+  const zoomReset = () => setZoom(100);
+
+  // Canvas height: base = min(78vh, fits viewport), then scale by zoom
+  const baseHeight = fullscreen ? "92vh" : "min(78vh, 85vw * 16/9)";
+
+  const canvasWrapperClass = fullscreen
+    ? "fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 p-4"
+    : "flex h-full flex-col";
+
   return (
-    <div className="flex h-full flex-col">
+    <div className={canvasWrapperClass}>
       {/* Toolbar */}
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <p className="text-xs font-semibold text-txt-secondary">
+        <p className={`text-xs font-semibold ${fullscreen ? "text-white" : "text-txt-secondary"}`}>
           {selectedClip ? (
             <>
               Clip <span className="text-pink-600">#{selectedClip.id.slice(-4)}</span> · klik layer untuk edit
@@ -200,20 +237,58 @@ export default function VideoCanvas({
             "Pilih clip dari sidebar kiri untuk mulai edit"
           )}
         </p>
-        <div className="flex items-center gap-1 text-[10px] text-txt-muted">
-          {canvasSize.w > 0 && <>{Math.round(canvasSize.w)}×{Math.round(canvasSize.h)}</>}
+        <div className={`flex items-center gap-1 ${fullscreen ? "text-white/70" : "text-txt-muted"}`}>
+          <button
+            onClick={zoomOut}
+            disabled={zoom <= 25}
+            className={`rounded p-1 transition-colors disabled:opacity-30 ${fullscreen ? "hover:bg-white/10" : "hover:bg-surface-secondary"}`}
+            title="Zoom out"
+          >
+            <ZoomOut size={13} />
+          </button>
+          <button
+            onClick={zoomReset}
+            className={`min-w-[40px] rounded px-1.5 py-0.5 text-[10px] font-mono transition-colors ${fullscreen ? "hover:bg-white/10" : "hover:bg-surface-secondary"}`}
+            title="Reset zoom"
+          >
+            {zoom}%
+          </button>
+          <button
+            onClick={zoomIn}
+            disabled={zoom >= 200}
+            className={`rounded p-1 transition-colors disabled:opacity-30 ${fullscreen ? "hover:bg-white/10" : "hover:bg-surface-secondary"}`}
+            title="Zoom in"
+          >
+            <ZoomIn size={13} />
+          </button>
+          <div className={`mx-1 h-3 w-px ${fullscreen ? "bg-white/20" : "bg-border"}`} />
+          <button
+            onClick={() => setFullscreen((f) => !f)}
+            className={`rounded p-1 transition-colors ${fullscreen ? "hover:bg-white/10" : "hover:bg-surface-secondary"}`}
+            title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
+          >
+            {fullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
+          </button>
+          <span className={`ml-1 text-[10px] ${fullscreen ? "text-white/50" : ""}`}>
+            {canvasSize.w > 0 && <>{Math.round(canvasSize.w)}×{Math.round(canvasSize.h)}</>}
+          </span>
         </div>
       </div>
 
-      {/* Canvas container */}
-      <div className="flex flex-1 items-center justify-center">
+      {/* Canvas container — centered with zoom */}
+      <div
+        className={`flex flex-1 items-center justify-center ${zoom > 100 ? "overflow-auto" : "overflow-hidden"}`}
+        style={{ minHeight: "200px" }}
+      >
         <div
           ref={canvasRef}
-          className="relative overflow-hidden rounded-xl border-2 border-border bg-black shadow-xl"
+          className="relative overflow-hidden rounded-xl border-2 border-border bg-black shadow-xl transition-[transform] duration-150"
           style={{
             aspectRatio: "9 / 16",
-            height: "min(78vh, 85vw * 16/9)",
-            maxHeight: "78vh",
+            height: baseHeight,
+            maxHeight: fullscreen ? "92vh" : "78vh",
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: "center",
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) onSelectLayer({ kind: "none" });
@@ -384,6 +459,25 @@ export default function VideoCanvas({
               }}
             >
               {subtitlePreview || "Contoh subtitle akan muncul di sini"}
+            </div>
+          )}
+
+          {/* Empty state hint */}
+          {!overlayUrl && selectedClip && !overlayImgError && (
+            <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-lg bg-black/70 px-3 py-2 text-center text-xs text-white">
+              💡 Upload overlay PNG di tombol bawah-kanan untuk mulai editing
+            </div>
+          )}
+
+          {/* Overlay load error banner */}
+          {overlayImgError && (
+            <div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-lg bg-red-600/95 px-3 py-2 text-xs text-white shadow-lg">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold">Overlay gagal load</p>
+                <p className="mt-0.5 text-white/80">{overlayImgError}</p>
+                <p className="mt-0.5 break-all text-white/70 text-[10px]">URL: {overlayUrl}</p>
+              </div>
             </div>
           )}
         </div>
