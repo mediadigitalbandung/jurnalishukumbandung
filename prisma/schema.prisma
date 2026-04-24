@@ -650,6 +650,8 @@ model TiktokClip {
   textY        Float?  // Vertical position 0-100 (% from top)
   textFontSize Int?    @default(54) // Font size in pixels at 1080x1920 render
   textRotation Int?    @default(0)  // Rotation in degrees
+  // Auto-generated subtitles via Whisper — array of { start, end, text }
+  subtitles    Json?   // [{start: 0, end: 2.5, text: "Hello"}, ...]
   transition   String? @default("none") // none|fade|slide|zoom
   kenBurns     Boolean @default(false) // Zoom pan untuk foto
 
