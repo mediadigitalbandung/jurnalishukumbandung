@@ -250,20 +250,35 @@ export async function checkPublishStatus(publishId: string): Promise<{
 
 export async function fetchCreatorInfo(): Promise<{
   open_id: string;
-  union_id: string;
-  avatar_url: string;
-  display_name: string;
+  union_id?: string;
+  avatar_url?: string;
+  display_name?: string;
   username?: string;
 }> {
   const token = await getValidAccessToken();
   if (!token) throw new Error("TikTok belum terhubung");
 
-  const res = await fetch(`${TIKTOK_API_BASE}/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json();
-  if (!res.ok || data.error?.code !== "ok") {
-    throw new Error(`TikTok user info failed: ${data.error?.message || JSON.stringify(data)}`);
+  // Request only fields available with user.info.basic scope.
+  // (username requires user.info.profile scope — will 400 if included without it.)
+  // Start with minimum-guaranteed fields; try with username first, fallback to without.
+  const tryFetch = async (fields: string) => {
+    const res = await fetch(`${TIKTOK_API_BASE}/v2/user/info/?fields=${fields}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    return { ok: res.ok && data.error?.code === "ok", data };
+  };
+
+  // Attempt with full fields (works if user.info.profile granted)
+  let result = await tryFetch("open_id,union_id,avatar_url,display_name,username");
+  // Fallback: basic-only fields (works with user.info.basic alone)
+  if (!result.ok) {
+    console.warn("[TIKTOK] user.info with profile failed, retrying with basic fields:", result.data?.error?.message);
+    result = await tryFetch("open_id,avatar_url,display_name");
   }
-  return data.data.user;
+
+  if (!result.ok) {
+    throw new Error(`TikTok user info failed: ${result.data?.error?.message || JSON.stringify(result.data)}`);
+  }
+  return result.data.data.user;
 }

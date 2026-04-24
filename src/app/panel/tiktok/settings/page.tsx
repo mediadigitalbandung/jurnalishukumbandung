@@ -337,7 +337,10 @@ export default function TiktokSettingsPage() {
         {isConnected ? (
           <div className="rounded-lg bg-green-50 p-3 text-sm">
             <p className="flex items-center gap-1 font-semibold text-green-800">
-              <CheckCircle size={14} /> Terhubung dengan @{settings.username || "unknown"}
+              <CheckCircle size={14} /> Terhubung
+              {settings.username
+                ? <> dengan @{settings.username}</>
+                : <span className="ml-1 text-xs font-normal text-yellow-700">(username belum ter-fetch)</span>}
             </p>
             <p className="mt-1 text-xs text-green-700">
               Open ID: <code>{settings.openId?.slice(0, 12)}...</code>
@@ -349,9 +352,30 @@ export default function TiktokSettingsPage() {
                 Token valid sampai: {settings.tokenExpiresAt ? new Date(settings.tokenExpiresAt).toLocaleString("id-ID") : "—"}
               </p>
             )}
-            <button onClick={() => connectTikTok()} disabled={connecting} className="mt-2 text-xs text-pink-600 hover:underline">
-              {connecting ? "Mengarahkan..." : "Reconnect"}
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button onClick={() => connectTikTok()} disabled={connecting} className="text-xs text-pink-600 hover:underline">
+                {connecting ? "Mengarahkan..." : "Reconnect"}
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/tiktok/refresh-info", { method: "POST" });
+                    const json = await res.json();
+                    if (json.success) {
+                      success(json.data.username ? `Username ter-update: @${json.data.username}` : "Fetch berhasil tapi username kosong");
+                      load();
+                    } else {
+                      showError(json.error || "Gagal fetch user info");
+                    }
+                  } catch {
+                    showError("Error");
+                  }
+                }}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                🔄 Refresh User Info
+              </button>
+            </div>
           </div>
         ) : (
           <div>

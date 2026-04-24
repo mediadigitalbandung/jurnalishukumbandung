@@ -53,14 +53,21 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Fetch creator username
+    // Fetch creator username/display_name (non-critical — don't block OAuth if fails)
     try {
       const info = await fetchCreatorInfo();
-      await prisma.tiktokSettings.update({
-        where: { id: settings.id },
-        data: { username: info.username || info.display_name },
-      });
-    } catch { /* non-critical */ }
+      const resolvedName = info.username || info.display_name || null;
+      if (resolvedName) {
+        await prisma.tiktokSettings.update({
+          where: { id: settings.id },
+          data: { username: resolvedName },
+        });
+      } else {
+        console.warn("[TIKTOK] OAuth success but no username/display_name in user info:", info);
+      }
+    } catch (e) {
+      console.warn("[TIKTOK] fetchCreatorInfo failed after OAuth:", e);
+    }
 
     // Clean up state
     await prisma.systemSetting.delete({ where: { key: "tiktok_oauth_state" } }).catch(() => {});
