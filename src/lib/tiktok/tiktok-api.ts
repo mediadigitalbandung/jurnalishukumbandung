@@ -24,10 +24,10 @@ import { readFile, stat } from "fs/promises";
 const TIKTOK_API_BASE = "https://open.tiktokapis.com";
 const TIKTOK_OAUTH_BASE = "https://www.tiktok.com";
 
-export function buildAuthUrl(clientKey: string, redirectUri: string, state: string): string {
+export function buildAuthUrl(clientKey: string, redirectUri: string, state: string, scope?: string): string {
   const params = new URLSearchParams({
     client_key: clientKey,
-    scope: "user.info.basic,video.upload,video.publish",
+    scope: scope || "user.info.basic,video.upload,video.publish",
     response_type: "code",
     redirect_uri: redirectUri,
     state,

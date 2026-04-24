@@ -129,10 +129,11 @@ export default function TiktokSettingsPage() {
     setSaving(false);
   };
 
-  const connectTikTok = async () => {
+  const connectTikTok = async (mode?: "minimal") => {
     setConnecting(true);
     try {
-      const res = await fetch("/api/tiktok/auth");
+      const url = mode === "minimal" ? "/api/tiktok/auth?mode=minimal" : "/api/tiktok/auth";
+      const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
         window.location.href = json.data.authUrl;
@@ -329,14 +330,28 @@ export default function TiktokSettingsPage() {
             <p className="mb-2 text-sm text-txt-secondary">
               Klik untuk login ke TikTok dan grant akses. Scope yang diminta: user.info.basic, video.upload, video.publish.
             </p>
-            <button
-              onClick={connectTikTok}
-              disabled={connecting || !settings.clientKey}
-              className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-            >
-              {connecting ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
-              Connect TikTok
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => connectTikTok()}
+                disabled={connecting || !settings.clientKey}
+                className="inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+              >
+                {connecting ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
+                Connect TikTok (Full Scopes)
+              </button>
+              <button
+                onClick={() => connectTikTok("minimal")}
+                disabled={connecting || !settings.clientKey}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-secondary px-3 py-2 text-xs font-medium text-txt-secondary hover:border-goto-green hover:text-goto-green disabled:opacity-50"
+                title="Test dengan scope user.info.basic saja — untuk isolate issue kalau full scope fail"
+              >
+                🔬 Test Minimal Scope
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-txt-muted">
+              💡 <strong>Tips debug:</strong> Kalau &quot;Full Scopes&quot; error <code>client_key</code>, coba &quot;Test Minimal Scope&quot; dulu —
+              kalau berhasil, berarti scope <code>video.upload</code> / <code>video.publish</code> belum ditambah di TikTok Dev Portal.
+            </p>
             {!settings.clientKey && <p className="mt-1 text-xs text-red-500">Simpan credentials dulu (Langkah 1)</p>}
           </div>
         )}

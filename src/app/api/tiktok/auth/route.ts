@@ -8,8 +8,10 @@ export const dynamic = "force-dynamic";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
 
-/** GET /api/tiktok/auth — initiate OAuth flow, return auth URL */
-export async function GET(_req: NextRequest) {
+/** GET /api/tiktok/auth — initiate OAuth flow, return auth URL
+ *  Query: ?mode=minimal → only user.info.basic scope (for debug/test)
+ */
+export async function GET(req: NextRequest) {
   try {
     await requireRole(["SUPER_ADMIN"]);
 
@@ -17,6 +19,9 @@ export async function GET(_req: NextRequest) {
     if (!settings?.clientKey || !settings?.clientSecret) {
       throw new ApiError("Set clientKey & clientSecret dulu di Settings", 400);
     }
+
+    const mode = req.nextUrl.searchParams.get("mode");
+    const scope = mode === "minimal" ? "user.info.basic" : undefined;
 
     const state = randomBytes(16).toString("hex");
     // Store state di SystemSetting sementara untuk verify callback
@@ -27,7 +32,7 @@ export async function GET(_req: NextRequest) {
     });
 
     const redirectUri = `${BASE_URL.replace(/\/$/, "")}/api/tiktok/auth/callback`;
-    const authUrl = buildAuthUrl(settings.clientKey, redirectUri, state);
+    const authUrl = buildAuthUrl(settings.clientKey, redirectUri, state, scope);
 
     return successResponse({ authUrl });
   } catch (error) {
