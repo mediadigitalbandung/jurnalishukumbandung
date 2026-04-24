@@ -15,11 +15,18 @@ import {
   AlertCircle,
   Save,
   Video,
+  Eye,
+  EyeOff,
+  Copy,
 } from "lucide-react";
 
 interface TiktokSettingsData {
   enabled: boolean;
   clientKey: string | null;
+  clientSecretLength: number;
+  clientSecretPreview: string | null;
+  clientKeyValid: boolean;
+  clientSecretValid: boolean;
   hasClientSecret: boolean;
   hasAccessToken: boolean;
   hasRefreshToken: boolean;
@@ -35,6 +42,7 @@ interface TiktokSettingsData {
   aiCaptionEnabled: boolean;
   aiHashtagEnabled: boolean;
   defaultHashtags: string[];
+  updatedAt?: string;
 }
 
 export default function TiktokSettingsPage() {
@@ -46,6 +54,12 @@ export default function TiktokSettingsPage() {
   const [connecting, setConnecting] = useState(false);
   const [newClientKey, setNewClientKey] = useState("");
   const [newClientSecret, setNewClientSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [showClientKey, setShowClientKey] = useState(true);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => success(`${label} di-copy`));
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -194,19 +208,82 @@ export default function TiktokSettingsPage() {
         </div>
 
         {settings.clientKey && settings.hasClientSecret ? (
-          <div className="rounded-lg bg-surface-secondary p-3 text-sm">
-            <p className="flex items-center gap-1 text-goto-green">
-              <CheckCircle size={14} /> Credentials terpasang
-            </p>
-            <p className="mt-1 text-xs text-txt-muted">
-              Client Key: <code>{settings.clientKey.slice(0, 8)}...</code>
-            </p>
-            <button
-              onClick={() => saveField("clientKey", null).then(() => saveField("clientSecret", null))}
-              className="mt-2 text-xs text-red-600 hover:underline"
-            >
-              Reset credentials
-            </button>
+          <div className="space-y-3 rounded-lg border border-border bg-surface-secondary p-4 text-sm">
+            <div className="flex items-center justify-between">
+              <p className="flex items-center gap-1.5 font-semibold text-goto-green">
+                <CheckCircle size={16} /> Credentials terpasang
+              </p>
+              {settings.updatedAt && (
+                <span className="text-xs text-txt-muted">
+                  Update: {new Date(settings.updatedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+              )}
+            </div>
+
+            {/* Client Key — full display */}
+            <div>
+              <label className="flex items-center justify-between text-xs font-medium text-txt-secondary">
+                <span className="flex items-center gap-1.5">
+                  Client Key
+                  {settings.clientKeyValid ? (
+                    <span className="inline-flex items-center gap-0.5 rounded bg-goto-light px-1.5 py-0.5 text-[10px] font-bold text-goto-green">
+                      <CheckCircle size={10} /> VALID
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                      <XCircle size={10} /> FORMAT SALAH
+                    </span>
+                  )}
+                  <span className="text-[10px] text-txt-muted">{settings.clientKey.length} chars</span>
+                </span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setShowClientKey(!showClientKey)} className="text-txt-muted hover:text-txt-primary" title={showClientKey ? "Hide" : "Show"}>
+                    {showClientKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                  <button onClick={() => copyToClipboard(settings.clientKey || "", "Client Key")} className="text-txt-muted hover:text-txt-primary" title="Copy">
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </label>
+              <code className="mt-1 block break-all rounded border border-border bg-surface px-2.5 py-1.5 font-mono text-xs text-txt-primary">
+                {showClientKey ? settings.clientKey : "•".repeat(settings.clientKey.length)}
+              </code>
+            </div>
+
+            {/* Client Secret — masked with toggle */}
+            <div>
+              <label className="flex items-center justify-between text-xs font-medium text-txt-secondary">
+                <span className="flex items-center gap-1.5">
+                  Client Secret
+                  {settings.clientSecretValid ? (
+                    <span className="inline-flex items-center gap-0.5 rounded bg-goto-light px-1.5 py-0.5 text-[10px] font-bold text-goto-green">
+                      <CheckCircle size={10} /> VALID
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                      <XCircle size={10} /> FORMAT SALAH
+                    </span>
+                  )}
+                  <span className="text-[10px] text-txt-muted">{settings.clientSecretLength} chars</span>
+                </span>
+              </label>
+              <code className="mt-1 block break-all rounded border border-border bg-surface px-2.5 py-1.5 font-mono text-xs text-txt-primary">
+                {settings.clientSecretPreview || "•••••"}
+                <span className="ml-2 text-[10px] text-txt-muted">(masked — preview saja)</span>
+              </code>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-border pt-2">
+              <p className="text-xs text-txt-muted">
+                ✓ Client Key terlihat di atas — pastikan match dengan yang di TikTok Developer Portal
+              </p>
+              <button
+                onClick={() => saveField("clientKey", null).then(() => saveField("clientSecret", null))}
+                className="rounded border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">

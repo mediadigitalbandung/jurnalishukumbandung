@@ -30,10 +30,14 @@ export async function GET() {
       settings = await prisma.tiktokSettings.create({ data: {} });
     }
 
-    // Mask secrets in response
+    // Mask secrets in response, expose length+preview for verification
     const safe = {
       ...settings,
       clientSecret: settings.clientSecret ? "•••••••••" : null,
+      clientSecretLength: settings.clientSecret?.length || 0,
+      clientSecretPreview: settings.clientSecret ? `${settings.clientSecret.slice(0, 4)}…${settings.clientSecret.slice(-4)}` : null,
+      clientKeyValid: !!(settings.clientKey && /^[a-z0-9]{16,20}$/i.test(settings.clientKey)),
+      clientSecretValid: !!(settings.clientSecret && settings.clientSecret.length >= 30 && settings.clientSecret.length <= 50),
       accessToken: settings.accessToken ? "•••••••••" : null,
       refreshToken: settings.refreshToken ? "•••••••••" : null,
       hasClientSecret: !!settings.clientSecret,
