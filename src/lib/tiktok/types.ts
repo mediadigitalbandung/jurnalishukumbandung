@@ -25,6 +25,11 @@ export interface ClipInput {
   textOverlay?: string | null;
   textPosition?: TextPosition | null;
   textColor?: string | null;
+  // Pixel-precise positioning (overrides textPosition if set)
+  textX?: number | null;        // 0-100 (% of width)
+  textY?: number | null;        // 0-100 (% of height)
+  textFontSize?: number | null; // pixels (scales with output width)
+  textRotation?: number | null; // degrees
   transition?: Transition | null;
   kenBurns?: boolean;
 }

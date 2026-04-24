@@ -107,35 +107,52 @@ async function normalizeClip(
     );
   }
 
-  // Text overlay — supports 9-grid positions (top/center/bottom × left/center/right)
+  // Text overlay — supports pixel-precise (textX/textY %) OR 9-grid presets
   if (clip.textOverlay && clip.textOverlay.trim()) {
     const text = escapeDrawText(clip.textOverlay.trim().slice(0, 240));
     const color = clip.textColor || "#FFFFFF";
-    const position = clip.textPosition || "bottom";
+    const fontSize = clip.textFontSize || 54;
+    const rotation = clip.textRotation || 0;
 
-    // Parse position into vertical+horizontal parts (backwards compat)
-    const [vPart, hPart] = (() => {
-      if (position === "top") return ["top", "center"];
-      if (position === "center") return ["center", "center"];
-      if (position === "bottom") return ["bottom", "center"];
-      const parts = position.split("-");
-      return parts.length === 2 ? parts : ["bottom", "center"];
-    })();
-
-    // Vertical: 120px margin from edge
-    let yExpr = "h-th-120";
-    if (vPart === "top") yExpr = "120";
-    else if (vPart === "center") yExpr = "(h-th)/2";
-
-    // Horizontal: 80px margin from edge
     let xExpr = "(w-tw)/2";
-    if (hPart === "left") xExpr = "80";
-    else if (hPart === "right") xExpr = "w-tw-80";
+    let yExpr = "h-th-120";
+
+    // Pixel-precise (from drag-drop editor): textX/textY as percentage 0-100
+    if (typeof clip.textX === "number" && typeof clip.textY === "number") {
+      // Center text at (x%, y%) of video dimensions
+      const xPx = Math.round((clip.textX / 100) * width);
+      const yPx = Math.round((clip.textY / 100) * height);
+      xExpr = `${xPx}-tw/2`;
+      yExpr = `${yPx}-th/2`;
+    } else {
+      // Fallback: 9-grid preset
+      const position = clip.textPosition || "bottom";
+      const [vPart, hPart] = (() => {
+        if (position === "top") return ["top", "center"];
+        if (position === "center") return ["center", "center"];
+        if (position === "bottom") return ["bottom", "center"];
+        const parts = position.split("-");
+        return parts.length === 2 ? parts : ["bottom", "center"];
+      })();
+
+      if (vPart === "top") yExpr = "120";
+      else if (vPart === "center") yExpr = "(h-th)/2";
+
+      if (hPart === "left") xExpr = "80";
+      else if (hPart === "right") xExpr = "w-tw-80";
+    }
 
     // Box behind text for readability
-    filters.push(
-      `drawtext=text='${text}':fontcolor=${color}:fontsize=54:box=1:boxcolor=black@0.5:boxborderw=20:x=${xExpr}:y=${yExpr}`
-    );
+    let drawtext = `drawtext=text='${text}':fontcolor=${color}:fontsize=${fontSize}:box=1:boxcolor=black@0.5:boxborderw=20:x=${xExpr}:y=${yExpr}`;
+
+    // Apply rotation via filtergraph wrapper (FFmpeg drawtext doesn't support rotation directly)
+    // For rotation != 0, we'd need separate rotation layer — skip for now (common use case: 0°)
+    if (rotation !== 0) {
+      // Log but don't fail — rotation support requires more complex filter graph
+      console.warn("[FFMPEG] Text rotation requested but not yet supported in render pipeline");
+    }
+
+    filters.push(drawtext);
   }
 
   const args: string[] = [];

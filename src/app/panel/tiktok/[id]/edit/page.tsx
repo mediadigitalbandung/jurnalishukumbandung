@@ -38,6 +38,10 @@ interface Clip {
   textOverlay: string | null;
   textPosition: string | null;
   textColor: string | null;
+  textX: number | null;
+  textY: number | null;
+  textFontSize: number | null;
+  textRotation: number | null;
   transition: string | null;
   kenBurns: boolean;
 }
@@ -828,28 +832,9 @@ function ClipCard({
             </div>
           </div>
 
-          {/* Preview area — shows how text will look */}
+          {/* Visual drag-drop editor */}
           {text && (
-            <div className="relative mt-2 aspect-[9/16] max-h-48 overflow-hidden rounded bg-black">
-              {clip.type === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={clip.sourceUrl} alt="" className="h-full w-full object-cover opacity-80" />
-              ) : (
-                <video src={`${clip.sourceUrl}#t=0.5`} className="h-full w-full object-cover opacity-80" muted preload="auto" />
-              )}
-              <div
-                className="absolute px-2 py-1 font-bold text-center whitespace-pre-wrap"
-                style={{
-                  color: clip.textColor || "#FFFFFF",
-                  textShadow: "0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)",
-                  fontSize: "11px",
-                  lineHeight: "1.3",
-                  ...getPreviewPositionStyle(clip.textPosition || "bottom"),
-                }}
-              >
-                {text}
-              </div>
-            </div>
+            <DragDropTextEditor clip={clip} text={text} onUpdate={onUpdate} />
           )}
         </div>
       )}
@@ -857,7 +842,141 @@ function ClipCard({
   );
 }
 
-function getPreviewPositionStyle(pos: string): React.CSSProperties {
+function DragDropTextEditor({
+  clip,
+  text,
+  onUpdate,
+}: {
+  clip: Clip;
+  text: string;
+  onUpdate: (data: Partial<Clip>) => void;
+}) {
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [fontSize, setFontSize] = useState(clip.textFontSize || 54);
+
+  // Position state (percentage 0-100)
+  const hasCustomPos = typeof clip.textX === "number" && typeof clip.textY === "number";
+  const xPct = hasCustomPos ? clip.textX! : presetToPercent(clip.textPosition || "bottom").x;
+  const yPct = hasCustomPos ? clip.textY! : presetToPercent(clip.textPosition || "bottom").y;
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging || !previewRef.current) return;
+    const rect = previewRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const clampedX = Math.max(5, Math.min(95, x));
+    const clampedY = Math.max(5, Math.min(95, y));
+    onUpdate({ textX: clampedX, textY: clampedY });
+  };
+
+  const onPointerUp = () => {
+    setDragging(false);
+  };
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <label className="text-txt-muted">
+          {hasCustomPos ? "🎯 Posisi Custom (drag)" : "📐 Posisi Preset (9-grid)"}
+        </label>
+        {hasCustomPos && (
+          <button
+            type="button"
+            onClick={() => onUpdate({ textX: null, textY: null })}
+            className="text-[10px] text-pink-600 hover:underline"
+          >
+            Reset ke preset
+          </button>
+        )}
+      </div>
+      <div
+        ref={previewRef}
+        className="relative aspect-[9/16] max-h-64 w-auto overflow-hidden rounded border-2 border-border bg-black select-none"
+      >
+        {clip.type === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={clip.sourceUrl} alt="" className="h-full w-full object-cover opacity-75" draggable={false} />
+        ) : (
+          <video
+            src={`${clip.sourceUrl}#t=0.5`}
+            className="h-full w-full object-cover opacity-75"
+            muted
+            preload="auto"
+          />
+        )}
+
+        {/* Grid overlay untuk guide */}
+        <div className="pointer-events-none absolute inset-0 opacity-20">
+          <div className="absolute left-1/3 top-0 h-full w-px bg-white" />
+          <div className="absolute left-2/3 top-0 h-full w-px bg-white" />
+          <div className="absolute left-0 top-1/3 h-px w-full bg-white" />
+          <div className="absolute left-0 top-2/3 h-px w-full bg-white" />
+        </div>
+
+        {/* Draggable text */}
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          className={`absolute cursor-move px-2 py-1 font-bold text-center whitespace-pre-wrap select-none transition-shadow ${
+            dragging ? "ring-2 ring-pink-500 shadow-lg" : "hover:ring-1 hover:ring-pink-300"
+          }`}
+          style={{
+            left: `${xPct}%`,
+            top: `${yPct}%`,
+            transform: "translate(-50%, -50%)",
+            color: clip.textColor || "#FFFFFF",
+            textShadow: "0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)",
+            fontSize: `${(fontSize / 54) * 12}px`,
+            lineHeight: "1.3",
+            maxWidth: "85%",
+            touchAction: "none",
+          }}
+        >
+          {text}
+        </div>
+
+        {/* Position indicator badge */}
+        <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[9px] text-white">
+          X: {xPct.toFixed(0)}% · Y: {yPct.toFixed(0)}%
+        </div>
+      </div>
+
+      <p className="mt-1 text-[10px] text-txt-muted">
+        💡 <strong>Drag</strong> teks untuk posisi custom. Klik ↖↑↗ di grid 3×3 di atas untuk preset cepat.
+      </p>
+
+      {/* Font size slider */}
+      <div className="mt-2">
+        <label className="flex items-center justify-between text-xs">
+          <span className="text-txt-muted">Ukuran Font</span>
+          <span className="font-mono text-txt-primary">{fontSize}px</span>
+        </label>
+        <input
+          type="range"
+          min={24}
+          max={120}
+          step={2}
+          value={fontSize}
+          onChange={(e) => setFontSize(parseInt(e.target.value))}
+          onMouseUp={(e) => onUpdate({ textFontSize: parseInt((e.target as HTMLInputElement).value) })}
+          onTouchEnd={(e) => onUpdate({ textFontSize: parseInt((e.target as HTMLInputElement).value) })}
+          className="mt-1 w-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+function presetToPercent(pos: string): { x: number; y: number } {
+  // Convert preset string to x/y percentage for initial display
   const [v, h] = (() => {
     if (pos === "top") return ["top", "center"];
     if (pos === "center") return ["center", "center"];
@@ -865,14 +984,8 @@ function getPreviewPositionStyle(pos: string): React.CSSProperties {
     const parts = pos.split("-");
     return parts.length === 2 ? parts : ["bottom", "center"];
   })();
-  const style: React.CSSProperties = { maxWidth: "85%" };
-  // Vertical
-  if (v === "top") style.top = "6%";
-  else if (v === "center") { style.top = "50%"; style.transform = "translateY(-50%)"; }
-  else style.bottom = "6%";
-  // Horizontal
-  if (h === "left") style.left = "6%";
-  else if (h === "right") { style.right = "6%"; }
-  else { style.left = "50%"; style.transform = (style.transform || "") + " translateX(-50%)"; }
-  return style;
+  const y = v === "top" ? 10 : v === "center" ? 50 : 90;
+  const x = h === "left" ? 15 : h === "right" ? 85 : 50;
+  return { x, y };
 }
+

@@ -71,6 +71,10 @@ async function processNext(): Promise<void> {
         textOverlay: c.textOverlay,
         textPosition: (c.textPosition || null) as TextPosition | null,
         textColor: c.textColor,
+        textX: c.textX,
+        textY: c.textY,
+        textFontSize: c.textFontSize,
+        textRotation: c.textRotation,
         transition: (c.transition || null) as Transition | null,
         kenBurns: c.kenBurns,
       }));

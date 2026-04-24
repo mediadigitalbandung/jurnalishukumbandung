@@ -642,9 +642,14 @@ model TiktokClip {
   // Editing
   durationSec  Float // Durasi clip di output (untuk image: user-set; video: trim length)
   trimStart    Float?  @default(0) // Trim mulai dari detik (video only)
-  textOverlay  String? // Teks caption atas/bawah
-  textPosition String? @default("bottom") // top|center|bottom
+  textOverlay  String? // Teks caption
+  textPosition String? @default("bottom") // preset: top|center|bottom|top-left|top-right|center-left|center-right|bottom-left|bottom-right
   textColor    String? @default("#FFFFFF")
+  // Pixel-precise position (0-100% of width/height). If set, overrides textPosition.
+  textX        Float?  // Horizontal position 0-100 (% from left)
+  textY        Float?  // Vertical position 0-100 (% from top)
+  textFontSize Int?    @default(54) // Font size in pixels at 1080x1920 render
+  textRotation Int?    @default(0)  // Rotation in degrees
   transition   String? @default("none") // none|fade|slide|zoom
   kenBurns     Boolean @default(false) // Zoom pan untuk foto
 
