@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Kebijakan Privasi",
-  description: "Kebijakan privasi Jurnalis Hukum Bandung - Informasi mengenai pengumpulan, penggunaan, dan perlindungan data pengguna.",
+  title: "Privacy Policy — Kebijakan Privasi",
+  description: "Privacy Policy of Jurnalis Hukum Bandung — Kebijakan privasi mengenai pengumpulan, penggunaan, dan perlindungan data pengguna.",
   alternates: { canonical: "https://jurnalishukumbandung.com/privasi" },
 };
 
@@ -10,7 +10,7 @@ export default function PrivasiPage() {
   return (
     <div className="container-main py-12">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-3xl font-bold text-txt-primary">Kebijakan Privasi</h1>
+        <h1 className="text-3xl font-bold text-txt-primary">Privacy Policy — Kebijakan Privasi</h1>
         <div className="mt-2 h-1 w-16 bg-goto-green" />
         <p className="mt-4 text-sm text-txt-muted">
           Terakhir diperbarui: 1 Januari 2026

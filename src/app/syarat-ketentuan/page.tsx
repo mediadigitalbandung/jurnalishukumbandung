@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Syarat & Ketentuan",
-  description: "Syarat dan ketentuan penggunaan platform Jurnalis Hukum Bandung.",
+  title: "Terms of Service — Syarat & Ketentuan",
+  description: "Terms of Service of Jurnalis Hukum Bandung — Syarat dan ketentuan penggunaan platform.",
   alternates: { canonical: "https://jurnalishukumbandung.com/syarat-ketentuan" },
 };
 
@@ -10,7 +10,7 @@ export default function SyaratKetentuanPage() {
   return (
     <div className="container-main py-12">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-3xl font-bold text-txt-primary">Syarat & Ketentuan</h1>
+        <h1 className="text-3xl font-bold text-txt-primary">Terms of Service — Syarat & Ketentuan</h1>
         <div className="mt-2 h-1 w-16 bg-goto-green" />
         <p className="mt-4 text-sm text-txt-muted">
           Terakhir diperbarui: 1 Januari 2026
