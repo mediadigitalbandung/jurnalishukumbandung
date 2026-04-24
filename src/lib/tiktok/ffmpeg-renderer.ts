@@ -195,9 +195,19 @@ async function concatClips(normalizedPaths: string[], concatListPath: string, ou
   await runFfmpeg(args);
 }
 
+interface CustomOverlaySpec {
+  imagePath: string;      // Local FS path to overlay PNG (already downloaded)
+  x: number;              // 0-1 normalized center x
+  y: number;              // 0-1 normalized center y
+  scale: number;          // 0.1-3 scale factor (1 = 30% of canvas width)
+  rotation: number;       // degrees -180 to 180
+  opacity: number;        // 0-1
+}
+
 /**
  * Apply frame overlay style on top of the concatenated video.
  * Frame styles applied entirely via FFmpeg filters — no PNG assets needed.
+ * For "custom" style, uses an external PNG file with positioning/scale/rotation.
  */
 async function applyFrameOverlay(
   inputPath: string,
@@ -206,9 +216,58 @@ async function applyFrameOverlay(
   breakingText: string | null | undefined,
   title: string | null | undefined,
   width: number,
-  height: number
+  height: number,
+  customOverlay?: CustomOverlaySpec
 ): Promise<void> {
   const filters: string[] = [];
+
+  // Handle custom overlay separately (requires second input)
+  if (frameStyle === "custom") {
+    if (!customOverlay) {
+      // No overlay image configured — just copy
+      await runFfmpeg(["-i", inputPath, "-c", "copy", "-y", outputPath]);
+      return;
+    }
+
+    // Compute target overlay width in pixels (30% of canvas at scale=1)
+    const baseWidth = Math.round(0.3 * width);
+    const targetWidth = Math.max(20, Math.round(baseWidth * customOverlay.scale));
+    // Center coordinates in canvas pixels
+    const centerX = Math.round(customOverlay.x * width);
+    const centerY = Math.round(customOverlay.y * height);
+    const opacity = Math.max(0, Math.min(1, customOverlay.opacity));
+    const rotation = customOverlay.rotation || 0;
+
+    // Build filter graph:
+    // [1:v] scale -> rotate -> opacity adjust
+    // [0:v][1:v] overlay at center
+    const overlayFilters: string[] = [
+      `[1:v]scale=${targetWidth}:-1`,
+    ];
+    if (rotation !== 0) {
+      // rotate filter uses radians; ow/oh auto-expand
+      overlayFilters.push(`rotate=${rotation}*PI/180:c=none:ow=rotw(${rotation}*PI/180):oh=roth(${rotation}*PI/180)`);
+    }
+    if (opacity < 1) {
+      // format to RGBA first, then adjust alpha
+      overlayFilters.push(`format=rgba`, `colorchannelmixer=aa=${opacity.toFixed(3)}`);
+    }
+    const filterComplex = `${overlayFilters.join(",")}[ov];[0:v][ov]overlay=x=${centerX}-overlay_w/2:y=${centerY}-overlay_h/2`;
+
+    const args = [
+      "-i", inputPath,
+      "-i", customOverlay.imagePath,
+      "-filter_complex", filterComplex,
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-pix_fmt", "yuv420p",
+      "-c:a", "copy",
+      "-y",
+      outputPath,
+    ];
+    await runFfmpeg(args);
+    return;
+  }
 
   switch (frameStyle) {
     case "ticker-news": {
@@ -420,7 +479,20 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
     const frameStyle = spec.frameStyle || "none";
     const framedPath = frameStyle === "none" ? concatPath : join(workDir, "framed.mp4");
     if (frameStyle !== "none") {
-      await applyFrameOverlay(concatPath, framedPath, frameStyle, spec.breakingText, spec.title, width, height);
+      // Build custom overlay spec if needed (resolve URL → local FS path)
+      let customSpec: CustomOverlaySpec | undefined;
+      if (frameStyle === "custom" && spec.customOverlay?.imageUrl) {
+        const overlayFsPath = resolveAssetPath(spec.customOverlay.imageUrl);
+        customSpec = {
+          imagePath: overlayFsPath,
+          x: spec.customOverlay.x,
+          y: spec.customOverlay.y,
+          scale: spec.customOverlay.scale,
+          rotation: spec.customOverlay.rotation,
+          opacity: spec.customOverlay.opacity,
+        };
+      }
+      await applyFrameOverlay(concatPath, framedPath, frameStyle, spec.breakingText, spec.title, width, height, customSpec);
     }
 
     // Step 3: finalize with backsong + trim

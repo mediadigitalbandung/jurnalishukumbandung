@@ -54,6 +54,8 @@ interface Backsong {
   mood: string | null;
 }
 
+import OverlayEditor, { OverlayPosition } from "./OverlayEditor";
+
 interface Video {
   id: string;
   title: string;
@@ -63,6 +65,13 @@ interface Video {
   backsongVolume: number;
   frameStyle: string;
   breakingText: string | null;
+  // Custom overlay (when frameStyle === "custom")
+  overlayImageUrl: string | null;
+  overlayX: number;
+  overlayY: number;
+  overlayScale: number;
+  overlayRotation: number;
+  overlayOpacity: number;
   renderStatus: string;
   renderedUrl: string | null;
   durationSec: number | null;
@@ -81,6 +90,7 @@ const FRAME_STYLES: Array<{ value: string; label: string; desc: string; icon: st
   { value: "breaking-news", label: "Breaking News", desc: "Badge BREAKING merah atas + ticker bawah", icon: "⚡" },
   { value: "minimal", label: "Minimal", desc: "Border putih tipis 4px — simpel elegan", icon: "▫️" },
   { value: "lower-third", label: "Lower Third (TV Style)", desc: "Judul + source di bawah seperti TV news", icon: "📺" },
+  { value: "custom", label: "Custom Overlay (PNG)", desc: "Upload PNG sendiri — drag untuk posisikan, resize, rotate", icon: "🎨" },
 ];
 
 export default function TiktokEditPage() {
@@ -246,6 +256,61 @@ export default function TiktokEditPage() {
       showError("Gagal simpan");
     }
     setSaving(false);
+  };
+
+  // Upload custom overlay PNG
+  const [uploadingOverlay, setUploadingOverlay] = useState(false);
+  const uploadOverlay = async (file: File) => {
+    setUploadingOverlay(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("kind", "image");
+      const up = await fetch("/api/tiktok/upload", { method: "POST", body: fd });
+      const upJson = await up.json();
+      if (!up.ok || !upJson.success) {
+        throw new Error(upJson.error || "Upload gagal");
+      }
+      // Save URL to video metadata + switch to custom frame style
+      await saveMeta({
+        overlayImageUrl: upJson.data.url,
+        frameStyle: "custom",
+      });
+      success("Overlay terupload");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Upload gagal");
+    }
+    setUploadingOverlay(false);
+  };
+
+  const removeOverlay = async () => {
+    await saveMeta({ overlayImageUrl: null });
+  };
+
+  // Debounced position update — kalau drag cepat, jangan spam API
+  const overlaySaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const updateOverlayPosition = (pos: OverlayPosition) => {
+    if (!video) return;
+    // Optimistic UI update
+    setVideo({
+      ...video,
+      overlayX: pos.x,
+      overlayY: pos.y,
+      overlayScale: pos.scale,
+      overlayRotation: pos.rotation,
+      overlayOpacity: pos.opacity,
+    });
+    // Debounce server save (300ms after last change)
+    if (overlaySaveTimer.current) clearTimeout(overlaySaveTimer.current);
+    overlaySaveTimer.current = setTimeout(() => {
+      saveMeta({
+        overlayX: pos.x,
+        overlayY: pos.y,
+        overlayScale: pos.scale,
+        overlayRotation: pos.rotation,
+        overlayOpacity: pos.opacity,
+      });
+    }, 400);
   };
 
   const triggerRender = async () => {
@@ -581,6 +646,31 @@ export default function TiktokEditPage() {
                 <p className="mt-0.5 text-[10px] text-txt-muted">
                   Max 80 char — akan muncul di badge merah atas
                 </p>
+              </div>
+            )}
+
+            {/* Custom overlay editor — only visible when custom selected */}
+            {video.frameStyle === "custom" && (
+              <div className="mt-3 border-t border-border pt-3">
+                <p className="mb-2 text-xs font-semibold text-txt-secondary">
+                  Editor Posisi Overlay
+                </p>
+                <OverlayEditor
+                  firstClipUrl={video.clips[0]?.sourceUrl || null}
+                  firstClipType={video.clips[0]?.type}
+                  overlayUrl={video.overlayImageUrl}
+                  position={{
+                    x: video.overlayX,
+                    y: video.overlayY,
+                    scale: video.overlayScale,
+                    rotation: video.overlayRotation,
+                    opacity: video.overlayOpacity,
+                  }}
+                  onChange={updateOverlayPosition}
+                  onUploadOverlay={uploadOverlay}
+                  onRemoveOverlay={removeOverlay}
+                  uploading={uploadingOverlay}
+                />
               </div>
             )}
           </div>

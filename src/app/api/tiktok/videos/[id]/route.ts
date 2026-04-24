@@ -14,8 +14,15 @@ const updateSchema = z.object({
   backsongId: z.string().nullable().optional(),
   backsongVolume: z.number().min(0).max(1).optional(),
   articleId: z.string().nullable().optional(),
-  frameStyle: z.enum(["none", "ticker-news", "brand-green", "breaking-news", "minimal", "lower-third"]).optional(),
+  frameStyle: z.enum(["none", "ticker-news", "brand-green", "breaking-news", "minimal", "lower-third", "custom"]).optional(),
   breakingText: z.string().max(200).optional().nullable(),
+  // Custom overlay fields
+  overlayImageUrl: z.string().url().max(500).nullable().optional(),
+  overlayX: z.number().min(0).max(1).optional(),
+  overlayY: z.number().min(0).max(1).optional(),
+  overlayScale: z.number().min(0.1).max(3).optional(),
+  overlayRotation: z.number().min(-180).max(180).optional(),
+  overlayOpacity: z.number().min(0).max(1).optional(),
 });
 
 /** GET /api/tiktok/videos/:id */
@@ -58,6 +65,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ...(data.articleId !== undefined && { articleId: data.articleId }),
         ...(data.frameStyle !== undefined && { frameStyle: data.frameStyle }),
         ...(data.breakingText !== undefined && { breakingText: data.breakingText }),
+        ...(data.overlayImageUrl !== undefined && { overlayImageUrl: data.overlayImageUrl }),
+        ...(data.overlayX !== undefined && { overlayX: data.overlayX }),
+        ...(data.overlayY !== undefined && { overlayY: data.overlayY }),
+        ...(data.overlayScale !== undefined && { overlayScale: data.overlayScale }),
+        ...(data.overlayRotation !== undefined && { overlayRotation: data.overlayRotation }),
+        ...(data.overlayOpacity !== undefined && { overlayOpacity: data.overlayOpacity }),
       },
       include: {
         clips: { orderBy: { order: "asc" } },

@@ -93,6 +93,16 @@ async function processNext(): Promise<void> {
         frameStyle: (next.frameStyle || "none") as FrameStyle,
         breakingText: next.breakingText,
         title: next.title,
+        customOverlay: next.overlayImageUrl
+          ? {
+              imageUrl: next.overlayImageUrl,
+              x: next.overlayX,
+              y: next.overlayY,
+              scale: next.overlayScale,
+              rotation: next.overlayRotation,
+              opacity: next.overlayOpacity,
+            }
+          : null,
       });
 
       if (result.success) {

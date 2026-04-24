@@ -12,7 +12,16 @@ export type Transition = "none" | "fade" | "slide" | "zoom";
 export type RenderStatus = "draft" | "queued" | "rendering" | "rendered" | "failed";
 export type PublishStatus = "not_published" | "draft_tiktok" | "published" | "failed";
 export type BacksongMood = "serius" | "dramatis" | "santai" | "urgent" | "netral";
-export type FrameStyle = "none" | "ticker-news" | "brand-green" | "breaking-news" | "minimal" | "lower-third";
+export type FrameStyle = "none" | "ticker-news" | "brand-green" | "breaking-news" | "minimal" | "lower-third" | "custom";
+
+export interface CustomOverlayInput {
+  imageUrl: string;       // Absolute URL or path relative to public/
+  x: number;              // 0-1 normalized center x
+  y: number;              // 0-1 normalized center y
+  scale: number;          // 0.1-3 scale factor
+  rotation: number;       // degrees -180 to 180
+  opacity: number;        // 0-1
+}
 
 export interface ClipInput {
   id: string;
@@ -46,6 +55,7 @@ export interface RenderSpec {
   frameStyle?: FrameStyle;  // default "none"
   breakingText?: string | null; // Text for "breaking-news" frame
   title?: string | null;    // Video title (used in lower-third frame)
+  customOverlay?: CustomOverlayInput | null; // Used when frameStyle === "custom"
 }
 
 export interface RenderResult {
