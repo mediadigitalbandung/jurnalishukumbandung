@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import {
   ArrowLeft,
@@ -48,12 +48,14 @@ interface TiktokSettingsData {
 export default function TiktokSettingsPage() {
   const { success, error: showError } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [settings, setSettings] = useState<TiktokSettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [newClientKey, setNewClientKey] = useState("");
   const [newClientSecret, setNewClientSecret] = useState("");
+  const oauthFeedbackShown = useRef(false);
   const [showSecret, setShowSecret] = useState(false);
   const [showClientKey, setShowClientKey] = useState(true);
 
@@ -73,11 +75,21 @@ export default function TiktokSettingsPage() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Show OAuth result toast ONCE, then strip query params to prevent re-trigger
+  useEffect(() => {
+    if (oauthFeedbackShown.current) return;
     const success1 = searchParams?.get("tiktok_success");
     const errMsg = searchParams?.get("tiktok_error");
+    if (!success1 && !errMsg) return;
+    oauthFeedbackShown.current = true;
     if (success1) success("TikTok terhubung!");
     if (errMsg) showError(`TikTok OAuth error: ${errMsg}`);
-  }, [load, searchParams, success, showError]);
+    // Clean URL so refresh doesn't re-trigger
+    router.replace("/panel/tiktok/settings");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const saveCredentials = async () => {
     if (!newClientKey.trim() || !newClientSecret.trim()) {
