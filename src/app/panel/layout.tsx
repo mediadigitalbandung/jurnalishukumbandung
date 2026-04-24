@@ -71,6 +71,7 @@ const menuItems: MenuItem[] = [
   { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
   { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
   { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, superAdminOnly: true },
+  { name: "Kamus JHB", href: "/panel/kamus", icon: BookOpen },
   { name: "Dokumentasi", href: "/panel/dokumentasi", icon: BookOpen, superAdminOnly: true },
   { name: "Profil", href: "/panel/profil", icon: UserCircle },
 ];

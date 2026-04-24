@@ -4,9 +4,29 @@ import { NextRequest } from "next/server";
 import { requireAuth, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 import { aiRateLimit } from "@/lib/rate-limit";
 import { callAI, hasAIKey } from "@/lib/ai-client";
+import { prisma } from "@/lib/prisma";
 
-const SYSTEM_PROMPT =
+const BASE_SYSTEM_PROMPT =
   "Kamu adalah proofreader profesional untuk media berita hukum Indonesia. Tugasmu: perbaiki HANYA typo, ejaan salah (EYD/EBI), dan kesalahan tanda baca. JANGAN ubah struktur kalimat, gaya penulisan, atau makna. JANGAN hapus/tambah konten. Pertahankan semua tag HTML persis seperti aslinya. Jangan ubah istilah hukum (KUHP, KUHAP, UU, Pasal, dll.), nama orang, nama tempat, atau istilah asing yang sengaja dipakai.";
+
+async function buildSystemPrompt(): Promise<string> {
+  try {
+    const entries = await prisma.dictionaryEntry.findMany({
+      select: { originalWord: true, word: true },
+      take: 500, // cap at 500 to avoid prompt bloat
+    });
+    if (entries.length === 0) return BASE_SYSTEM_PROMPT;
+
+    const whitelist = entries
+      .map((e) => e.originalWord || e.word)
+      .filter(Boolean)
+      .join(", ");
+
+    return `${BASE_SYSTEM_PROMPT}\n\nKAMUS JHB (JANGAN PERNAH UBAH kata-kata berikut, anggap benar semua): ${whitelist}`;
+  } catch {
+    return BASE_SYSTEM_PROMPT;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,6 +75,8 @@ export async function POST(req: NextRequest) {
       if (buffer) chunks.push(buffer);
     }
 
+    const systemPrompt = await buildSystemPrompt();
+
     const fixedChunks: string[] = [];
     for (const chunk of chunks) {
       const prompt = `Perbaiki typo dan ejaan pada konten HTML berikut. Kembalikan HANYA konten HTML yang sudah diperbaiki, tanpa penjelasan, tanpa markdown wrapper. Pertahankan semua tag HTML.
@@ -62,7 +84,7 @@ export async function POST(req: NextRequest) {
 KONTEN:
 ${chunk}`;
 
-      const fixed = await callAI(SYSTEM_PROMPT, prompt, 3500, 90000);
+      const fixed = await callAI(systemPrompt, prompt, 3500, 90000);
       if (!fixed || fixed.trim().length === 0) {
         // If AI returns empty, use original chunk
         fixedChunks.push(chunk);
