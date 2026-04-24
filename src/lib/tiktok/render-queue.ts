@@ -8,7 +8,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { renderTiktokVideo } from "./ffmpeg-renderer";
-import type { ClipInput } from "./types";
+import type { ClipInput, FrameStyle, TextPosition, Transition } from "./types";
 
 let isProcessing = false;
 
@@ -69,9 +69,9 @@ async function processNext(): Promise<void> {
         durationSec: c.durationSec,
         trimStart: c.trimStart,
         textOverlay: c.textOverlay,
-        textPosition: c.textPosition as "top" | "center" | "bottom" | null,
+        textPosition: (c.textPosition || null) as TextPosition | null,
         textColor: c.textColor,
-        transition: c.transition as "none" | "fade" | "slide" | "zoom" | null,
+        transition: (c.transition || null) as Transition | null,
         kenBurns: c.kenBurns,
       }));
 
@@ -86,6 +86,9 @@ async function processNext(): Promise<void> {
         outputHeight: settings?.outputHeight || 1920,
         outputFps: settings?.outputFps || 30,
         maxDurationSec: settings?.maxDurationSec || 60,
+        frameStyle: (next.frameStyle || "none") as FrameStyle,
+        breakingText: next.breakingText,
+        title: next.title,
       });
 
       if (result.success) {

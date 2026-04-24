@@ -178,6 +178,120 @@ async function concatClips(normalizedPaths: string[], concatListPath: string, ou
   await runFfmpeg(args);
 }
 
+/**
+ * Apply frame overlay style on top of the concatenated video.
+ * Frame styles applied entirely via FFmpeg filters — no PNG assets needed.
+ */
+async function applyFrameOverlay(
+  inputPath: string,
+  outputPath: string,
+  frameStyle: string,
+  breakingText: string | null | undefined,
+  title: string | null | undefined,
+  width: number,
+  height: number
+): Promise<void> {
+  const filters: string[] = [];
+
+  switch (frameStyle) {
+    case "ticker-news": {
+      // Red bottom bar with brand text (news ticker style)
+      filters.push(
+        // Red bar at bottom
+        `drawbox=x=0:y=${height - 140}:w=${width}:h=140:color=0xCC0000@0.95:t=fill`,
+        // White left indicator bar
+        `drawbox=x=0:y=${height - 140}:w=12:h=140:color=white:t=fill`,
+        // LIVE badge (red circle with animated pulse effect via fontsize)
+        `drawbox=x=40:y=${height - 115}:w=130:h=40:color=white:t=fill`,
+        `drawtext=text='LIVE':fontcolor=0xCC0000:fontsize=28:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=80:y=${height - 105}`,
+        // JHB brand text
+        `drawtext=text='JURNALIS HUKUM BANDUNG':fontcolor=white:fontsize=32:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=200:y=${height - 110}`
+      );
+      break;
+    }
+
+    case "brand-green": {
+      // JHB brand green border (12px) + logo bottom-right corner hint
+      filters.push(
+        // Top green bar
+        `drawbox=x=0:y=0:w=${width}:h=12:color=0x00AA13:t=fill`,
+        // Bottom green bar
+        `drawbox=x=0:y=${height - 12}:w=${width}:h=12:color=0x00AA13:t=fill`,
+        // Left green bar
+        `drawbox=x=0:y=0:w=12:h=${height}:color=0x00AA13:t=fill`,
+        // Right green bar
+        `drawbox=x=${width - 12}:y=0:w=12:h=${height}:color=0x00AA13:t=fill`,
+        // Small JHB text bottom-right
+        `drawtext=text='@jurnalishukumbdg':fontcolor=white:fontsize=26:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':box=1:boxcolor=0x00AA13@0.9:boxborderw=10:x=w-tw-40:y=h-th-40`
+      );
+      break;
+    }
+
+    case "breaking-news": {
+      const breaking = breakingText?.trim() || "BREAKING NEWS";
+      const escBreaking = escapeDrawText(breaking.toUpperCase().slice(0, 80));
+      filters.push(
+        // Top red breaking bar
+        `drawbox=x=0:y=60:w=${width}:h=100:color=0xCC0000@0.95:t=fill`,
+        // BREAKING badge left
+        `drawbox=x=30:y=75:w=250:h=70:color=white:t=fill`,
+        `drawtext=text='BREAKING':fontcolor=0xCC0000:fontsize=40:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=55:y=95`,
+        // Breaking news text
+        `drawtext=text='${escBreaking}':fontcolor=white:fontsize=38:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=310:y=93`,
+        // Bottom JHB ticker
+        `drawbox=x=0:y=${height - 80}:w=${width}:h=80:color=black@0.85:t=fill`,
+        `drawtext=text='JURNALIS HUKUM BANDUNG · jurnalishukumbandung.com':fontcolor=white:fontsize=28:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=(w-tw)/2:y=${height - 60}`
+      );
+      break;
+    }
+
+    case "minimal": {
+      // Thin white border 4px
+      filters.push(
+        `drawbox=x=0:y=0:w=${width}:h=4:color=white:t=fill`,
+        `drawbox=x=0:y=${height - 4}:w=${width}:h=4:color=white:t=fill`,
+        `drawbox=x=0:y=0:w=4:h=${height}:color=white:t=fill`,
+        `drawbox=x=${width - 4}:y=0:w=4:h=${height}:color=white:t=fill`
+      );
+      break;
+    }
+
+    case "lower-third": {
+      // Lower-third graphic like TV news (title + subtitle section at bottom)
+      const titleText = title?.trim() ? escapeDrawText(title.trim().slice(0, 80)) : "";
+      filters.push(
+        // Semi-transparent black lower third
+        `drawbox=x=60:y=${height - 280}:w=${width - 120}:h=180:color=black@0.75:t=fill`,
+        // Green accent stripe left
+        `drawbox=x=60:y=${height - 280}:w=8:h=180:color=0x00AA13:t=fill`,
+        // Title text (if provided)
+        titleText ? `drawtext=text='${titleText}':fontcolor=white:fontsize=42:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=90:y=${height - 260}` : "",
+        // Source line
+        `drawtext=text='Jurnalis Hukum Bandung':fontcolor=0x00AA13:fontsize=28:fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf':x=90:y=${height - 145}`
+      ).filter(Boolean);
+      break;
+    }
+
+    case "none":
+    default:
+      // No frame — just copy
+      await runFfmpeg(["-i", inputPath, "-c", "copy", "-y", outputPath]);
+      return;
+  }
+
+  const args = [
+    "-i", inputPath,
+    "-vf", filters.join(","),
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-pix_fmt", "yuv420p",
+    "-c:a", "copy",
+    "-y",
+    outputPath,
+  ];
+  await runFfmpeg(args);
+}
+
 /** Get duration of a media file using ffprobe */
 async function probeDuration(path: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -284,12 +398,19 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
     const concatPath = join(workDir, "concat.mp4");
     await concatClips(normalizedPaths, concatListPath, concatPath);
 
+    // Step 2b: apply frame overlay (if any)
+    const frameStyle = spec.frameStyle || "none";
+    const framedPath = frameStyle === "none" ? concatPath : join(workDir, "framed.mp4");
+    if (frameStyle !== "none") {
+      await applyFrameOverlay(concatPath, framedPath, frameStyle, spec.breakingText, spec.title, width, height);
+    }
+
     // Step 3: finalize with backsong + trim
     const outputFilename = `tiktok-${spec.videoId}-${sessionId}.mp4`;
     const outputPath = join(TIKTOK_DIR, outputFilename);
     const backsongPath = spec.backsongUrl ? resolveAssetPath(spec.backsongUrl) : null;
     const finalDuration = await finalizeVideo(
-      concatPath,
+      framedPath,
       backsongPath,
       spec.backsongVolume ?? 0.5,
       maxDuration,
@@ -302,6 +423,7 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
     }
     await unlink(concatListPath).catch(() => {});
     await unlink(concatPath).catch(() => {});
+    if (frameStyle !== "none") await unlink(framedPath).catch(() => {});
 
     const stats = await stat(outputPath);
     const outputUrl = `${BASE_URL.replace(/\/$/, "")}/uploads/tiktok/${outputFilename}`;

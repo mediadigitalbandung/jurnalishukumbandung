@@ -3,11 +3,16 @@
  */
 
 export type ClipType = "video" | "image";
-export type TextPosition = "top" | "center" | "bottom";
+export type TextPosition =
+  | "top" | "center" | "bottom"
+  | "top-left" | "top-right"
+  | "center-left" | "center-right"
+  | "bottom-left" | "bottom-right";
 export type Transition = "none" | "fade" | "slide" | "zoom";
 export type RenderStatus = "draft" | "queued" | "rendering" | "rendered" | "failed";
 export type PublishStatus = "not_published" | "draft_tiktok" | "published" | "failed";
 export type BacksongMood = "serius" | "dramatis" | "santai" | "urgent" | "netral";
+export type FrameStyle = "none" | "ticker-news" | "brand-green" | "breaking-news" | "minimal" | "lower-third";
 
 export interface ClipInput {
   id: string;
@@ -33,6 +38,9 @@ export interface RenderSpec {
   outputHeight?: number;    // default 1920 (9:16 vertical)
   outputFps?: number;       // default 30
   maxDurationSec?: number;  // default 60 (TikTok limit)
+  frameStyle?: FrameStyle;  // default "none"
+  breakingText?: string | null; // Text for "breaking-news" frame
+  title?: string | null;    // Video title (used in lower-third frame)
 }
 
 export interface RenderResult {

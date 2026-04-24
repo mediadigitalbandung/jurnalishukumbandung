@@ -14,6 +14,8 @@ const updateSchema = z.object({
   backsongId: z.string().nullable().optional(),
   backsongVolume: z.number().min(0).max(1).optional(),
   articleId: z.string().nullable().optional(),
+  frameStyle: z.enum(["none", "ticker-news", "brand-green", "breaking-news", "minimal", "lower-third"]).optional(),
+  breakingText: z.string().max(200).optional().nullable(),
 });
 
 /** GET /api/tiktok/videos/:id */
@@ -54,6 +56,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ...(data.backsongId !== undefined && { backsongId: data.backsongId }),
         ...(data.backsongVolume !== undefined && { backsongVolume: data.backsongVolume }),
         ...(data.articleId !== undefined && { articleId: data.articleId }),
+        ...(data.frameStyle !== undefined && { frameStyle: data.frameStyle }),
+        ...(data.breakingText !== undefined && { breakingText: data.breakingText }),
       },
       include: {
         clips: { orderBy: { order: "asc" } },

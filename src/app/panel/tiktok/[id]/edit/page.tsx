@@ -57,6 +57,8 @@ interface Video {
   hashtags: string[];
   backsongId: string | null;
   backsongVolume: number;
+  frameStyle: string;
+  breakingText: string | null;
   renderStatus: string;
   renderedUrl: string | null;
   durationSec: number | null;
@@ -67,6 +69,15 @@ interface Video {
   clips: Clip[];
   backsong: Backsong | null;
 }
+
+const FRAME_STYLES: Array<{ value: string; label: string; desc: string; icon: string }> = [
+  { value: "none", label: "Tanpa Frame", desc: "Video polos tanpa dekorasi", icon: "⬜" },
+  { value: "ticker-news", label: "News Ticker", desc: "Bar merah bawah + badge LIVE + brand JHB", icon: "🔴" },
+  { value: "brand-green", label: "Brand JHB Green", desc: "Border hijau 12px + handle TikTok", icon: "🟢" },
+  { value: "breaking-news", label: "Breaking News", desc: "Badge BREAKING merah atas + ticker bawah", icon: "⚡" },
+  { value: "minimal", label: "Minimal", desc: "Border putih tipis 4px — simpel elegan", icon: "▫️" },
+  { value: "lower-third", label: "Lower Third (TV Style)", desc: "Judul + source di bawah seperti TV news", icon: "📺" },
+];
 
 export default function TiktokEditPage() {
   const params = useParams<{ id: string }>();
@@ -516,6 +527,58 @@ export default function TiktokEditPage() {
             <Link href="/panel/tiktok/backsongs" className="mt-2 inline-block text-xs text-pink-600 hover:underline">
               Kelola backsong →
             </Link>
+          </div>
+
+          {/* Frame Overlay */}
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
+              🎞 Frame Overlay
+            </h3>
+            <p className="mb-3 text-xs text-txt-secondary">
+              Dekorasi yang dilayer di seluruh video (news ticker, breaking, border, dll)
+            </p>
+            <div className="space-y-2">
+              {FRAME_STYLES.map((style) => {
+                const active = (video.frameStyle || "none") === style.value;
+                return (
+                  <button
+                    key={style.value}
+                    onClick={() => saveMeta({ frameStyle: style.value })}
+                    className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
+                      active ? "border-pink-600 bg-pink-50" : "border-border bg-surface hover:border-pink-300"
+                    }`}
+                  >
+                    <span className="text-2xl">{style.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${active ? "text-pink-700" : "text-txt-primary"}`}>
+                        {style.label}
+                      </p>
+                      <p className="text-xs text-txt-secondary">{style.desc}</p>
+                    </div>
+                    {active && <CheckCircle size={16} className="text-pink-600 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Breaking text — only visible when breaking-news selected */}
+            {video.frameStyle === "breaking-news" && (
+              <div className="mt-3 border-t border-border pt-3">
+                <label className="text-xs font-semibold text-txt-secondary">Teks Breaking News</label>
+                <input
+                  type="text"
+                  value={video.breakingText || ""}
+                  onChange={(e) => setVideo({ ...video, breakingText: e.target.value })}
+                  onBlur={(e) => saveMeta({ breakingText: e.target.value || null })}
+                  placeholder="Contoh: Putusan Kasus Korupsi Turun"
+                  maxLength={80}
+                  className="input mt-1 w-full text-xs"
+                />
+                <p className="mt-0.5 text-[10px] text-txt-muted">
+                  Max 80 char — akan muncul di badge merah atas
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

@@ -595,6 +595,11 @@ model TiktokVideo {
   backsongId     String?
   backsongVolume Float           @default(0.5) // 0.0-1.0
 
+  // Frame overlay style — applied to entire video (none|ticker-news|brand-green|breaking-news|minimal|lower-third)
+  frameStyle     String          @default("none")
+  // Breaking news text for "breaking-news" frame style
+  breakingText   String?         @db.Text
+
   // Render status
   renderStatus    String    @default("draft") // draft|queued|rendering|rendered|failed
   renderedUrl     String? // URL hasil render MP4
