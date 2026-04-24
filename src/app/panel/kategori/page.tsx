@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useCallback, useRef, FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { Plus, Edit, Trash2, Tag, FolderOpen, X, GripVertical } from "lucide-react";
