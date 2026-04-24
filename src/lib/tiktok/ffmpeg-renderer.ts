@@ -107,17 +107,34 @@ async function normalizeClip(
     );
   }
 
-  // Text overlay
+  // Text overlay — supports 9-grid positions (top/center/bottom × left/center/right)
   if (clip.textOverlay && clip.textOverlay.trim()) {
-    const text = escapeDrawText(clip.textOverlay.trim().slice(0, 120));
+    const text = escapeDrawText(clip.textOverlay.trim().slice(0, 240));
     const color = clip.textColor || "#FFFFFF";
     const position = clip.textPosition || "bottom";
+
+    // Parse position into vertical+horizontal parts (backwards compat)
+    const [vPart, hPart] = (() => {
+      if (position === "top") return ["top", "center"];
+      if (position === "center") return ["center", "center"];
+      if (position === "bottom") return ["bottom", "center"];
+      const parts = position.split("-");
+      return parts.length === 2 ? parts : ["bottom", "center"];
+    })();
+
+    // Vertical: 120px margin from edge
     let yExpr = "h-th-120";
-    if (position === "top") yExpr = "120";
-    else if (position === "center") yExpr = "(h-th)/2";
+    if (vPart === "top") yExpr = "120";
+    else if (vPart === "center") yExpr = "(h-th)/2";
+
+    // Horizontal: 80px margin from edge
+    let xExpr = "(w-tw)/2";
+    if (hPart === "left") xExpr = "80";
+    else if (hPart === "right") xExpr = "w-tw-80";
+
     // Box behind text for readability
     filters.push(
-      `drawtext=text='${text}':fontcolor=${color}:fontsize=54:box=1:boxcolor=black@0.5:boxborderw=20:x=(w-tw)/2:y=${yExpr}`
+      `drawtext=text='${text}':fontcolor=${color}:fontsize=54:box=1:boxcolor=black@0.5:boxborderw=20:x=${xExpr}:y=${yExpr}`
     );
   }
 

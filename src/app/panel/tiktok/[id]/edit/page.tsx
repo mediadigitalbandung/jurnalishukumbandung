@@ -602,11 +602,36 @@ function ClipCard({
           </button>
         </div>
 
-        <div className="relative h-20 w-16 flex-shrink-0 overflow-hidden rounded bg-surface-dark">
+        <div className="relative h-20 w-16 flex-shrink-0 overflow-hidden rounded bg-surface-dark group">
           {clip.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={clip.sourceUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <video src={clip.sourceUrl} className="h-full w-full object-cover" preload="metadata" muted />
+            <video
+              src={`${clip.sourceUrl}#t=0.5`}
+              className="h-full w-full object-cover"
+              preload="auto"
+              muted
+              playsInline
+              // Force load first frame as poster
+              onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
+            />
+          )}
+          {clip.type === "video" && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity group-hover:bg-black/30 group-hover:opacity-100">
+              <button
+                type="button"
+                onClick={(e) => {
+                  const preview = e.currentTarget.closest(".group")?.querySelector("video");
+                  if (!preview) return;
+                  if (preview.paused) { preview.play(); } else { preview.pause(); }
+                }}
+                className="rounded-full bg-white/90 p-1.5 text-black hover:bg-white"
+                title="Play preview"
+              >
+                <PlayCircle size={18} />
+              </button>
+            </div>
           )}
           <div className="absolute bottom-0 right-0 rounded-tl bg-black/70 px-1 text-[10px] text-white">
             {clip.type === "video" ? <Video size={10} /> : <ImageIcon size={10} />}
@@ -652,31 +677,78 @@ function ClipCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-border px-2 py-2 space-y-2">
+        <div className="border-t border-border px-2 py-2 space-y-3">
           <div>
             <label className="text-xs text-txt-muted">Text Overlay</label>
-            <input
-              type="text"
+            <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               onBlur={() => onUpdate({ textOverlay: text || null })}
-              placeholder="Tulis teks caption..."
-              maxLength={120}
-              className="input mt-1 w-full text-xs"
+              placeholder="Tulis teks caption... (gunakan Enter untuk subtitle multi-line)"
+              maxLength={240}
+              rows={2}
+              className="input mt-1 w-full text-xs resize-none"
             />
+            <p className="mt-0.5 text-[10px] text-txt-muted">{text.length}/240 char — max 3 baris direkomendasi</p>
           </div>
+
+          {/* 9-position grid selector */}
+          <div>
+            <label className="text-xs text-txt-muted">Posisi Text (grid 3×3)</label>
+            <div className="mt-1 inline-grid grid-cols-3 gap-1 rounded border border-border bg-surface p-1">
+              {[
+                { val: "top-left", label: "↖" },
+                { val: "top", label: "↑" },
+                { val: "top-right", label: "↗" },
+                { val: "center-left", label: "←" },
+                { val: "center", label: "•" },
+                { val: "center-right", label: "→" },
+                { val: "bottom-left", label: "↙" },
+                { val: "bottom", label: "↓" },
+                { val: "bottom-right", label: "↘" },
+              ].map((p) => {
+                const current = clip.textPosition || "bottom";
+                // Backwards compat: "top"/"center"/"bottom" map to column center
+                const normalized = current === "top" ? "top" : current === "center" ? "center" : current === "bottom" ? "bottom" : current;
+                const active = p.val === normalized;
+                return (
+                  <button
+                    key={p.val}
+                    type="button"
+                    onClick={() => onUpdate({ textPosition: p.val })}
+                    className={`flex h-7 w-7 items-center justify-center rounded text-sm transition-colors ${
+                      active ? "bg-pink-600 text-white" : "bg-surface-secondary text-txt-secondary hover:bg-surface-tertiary"
+                    }`}
+                    title={p.val}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[10px] text-txt-muted">
+              Pilih posisi: atas / tengah / bawah × kiri / tengah / kanan
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-txt-muted">Posisi Text</label>
-              <select
-                value={clip.textPosition || "bottom"}
-                onChange={(e) => onUpdate({ textPosition: e.target.value })}
-                className="input mt-1 w-full text-xs"
-              >
-                <option value="top">Atas</option>
-                <option value="center">Tengah</option>
-                <option value="bottom">Bawah</option>
-              </select>
+              <label className="text-xs text-txt-muted">Warna Text</label>
+              <div className="mt-1 flex items-center gap-1.5">
+                <input
+                  type="color"
+                  value={clip.textColor || "#FFFFFF"}
+                  onChange={(e) => onUpdate({ textColor: e.target.value })}
+                  className="h-7 w-10 cursor-pointer rounded border border-border"
+                />
+                <input
+                  type="text"
+                  value={clip.textColor || "#FFFFFF"}
+                  onChange={(e) => onUpdate({ textColor: e.target.value })}
+                  className="input flex-1 font-mono text-xs"
+                  maxLength={7}
+                />
+              </div>
             </div>
             <div className="flex-1">
               <label className="text-xs text-txt-muted">Transisi Masuk</label>
@@ -692,8 +764,52 @@ function ClipCard({
               </select>
             </div>
           </div>
+
+          {/* Preview area — shows how text will look */}
+          {text && (
+            <div className="relative mt-2 aspect-[9/16] max-h-48 overflow-hidden rounded bg-black">
+              {clip.type === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={clip.sourceUrl} alt="" className="h-full w-full object-cover opacity-80" />
+              ) : (
+                <video src={`${clip.sourceUrl}#t=0.5`} className="h-full w-full object-cover opacity-80" muted preload="auto" />
+              )}
+              <div
+                className="absolute px-2 py-1 font-bold text-center whitespace-pre-wrap"
+                style={{
+                  color: clip.textColor || "#FFFFFF",
+                  textShadow: "0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)",
+                  fontSize: "11px",
+                  lineHeight: "1.3",
+                  ...getPreviewPositionStyle(clip.textPosition || "bottom"),
+                }}
+              >
+                {text}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+function getPreviewPositionStyle(pos: string): React.CSSProperties {
+  const [v, h] = (() => {
+    if (pos === "top") return ["top", "center"];
+    if (pos === "center") return ["center", "center"];
+    if (pos === "bottom") return ["bottom", "center"];
+    const parts = pos.split("-");
+    return parts.length === 2 ? parts : ["bottom", "center"];
+  })();
+  const style: React.CSSProperties = { maxWidth: "85%" };
+  // Vertical
+  if (v === "top") style.top = "6%";
+  else if (v === "center") { style.top = "50%"; style.transform = "translateY(-50%)"; }
+  else style.bottom = "6%";
+  // Horizontal
+  if (h === "left") style.left = "6%";
+  else if (h === "right") { style.right = "6%"; }
+  else { style.left = "50%"; style.transform = (style.transform || "") + " translateX(-50%)"; }
+  return style;
 }
