@@ -54,7 +54,8 @@ interface Backsong {
   mood: string | null;
 }
 
-import OverlayEditor, { OverlayPosition } from "./OverlayEditor";
+import VideoCanvas, { SelectedLayer, OverlayPos, SubtitlePos, ClipData } from "./VideoCanvas";
+import LayerInspector from "./LayerInspector";
 
 interface Video {
   id: string;
@@ -72,6 +73,10 @@ interface Video {
   overlayScale: number;
   overlayRotation: number;
   overlayOpacity: number;
+  // Subtitle config
+  subtitleEnabled: boolean;
+  subtitleY: number;
+  subtitleFontSize: number;
   renderStatus: string;
   renderedUrl: string | null;
   durationSec: number | null;
@@ -110,12 +115,25 @@ export default function TiktokEditPage() {
   const [generatingCaption, setGeneratingCaption] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // NEW: Unified editor state
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<SelectedLayer>({ kind: "none" });
+  const [subtitlePreviewText, setSubtitlePreviewText] = useState("Contoh subtitle — akan auto-generate dari audio");
+
   const fetchVideo = useCallback(async () => {
     try {
       const res = await fetch(`/api/tiktok/videos/${videoId}`);
       const json = await res.json();
-      if (json.success) setVideo(json.data);
-      else showError(json.error || "Gagal memuat video");
+      if (json.success) {
+        setVideo(json.data);
+        // Auto-select first clip jika belum ada yang dipilih
+        setSelectedClipId((current) => {
+          if (current && json.data.clips.some((c: Clip) => c.id === current)) return current;
+          return json.data.clips[0]?.id || null;
+        });
+      } else {
+        showError(json.error || "Gagal memuat video");
+      }
     } catch {
       showError("Gagal memuat video");
     }
@@ -289,7 +307,38 @@ export default function TiktokEditPage() {
 
   // Debounced position update — kalau drag cepat, jangan spam API
   const overlaySaveTimer = useRef<NodeJS.Timeout | null>(null);
-  const updateOverlayPosition = (pos: OverlayPosition) => {
+  const clipTextSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const subtitleSaveTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced text position update (while dragging text overlay on canvas)
+  const updateTextPosition = (clipId: string, xPct: number, yPct: number) => {
+    if (!video) return;
+    setVideo({
+      ...video,
+      clips: video.clips.map((c) => c.id === clipId ? { ...c, textX: xPct, textY: yPct } : c),
+    });
+    if (clipTextSaveTimer.current) clearTimeout(clipTextSaveTimer.current);
+    clipTextSaveTimer.current = setTimeout(() => {
+      updateClip(clipId, { textX: xPct, textY: yPct });
+    }, 400);
+  };
+
+  // Update subtitle pos (debounced)
+  const updateSubtitle = (patch: Partial<SubtitlePos>) => {
+    if (!video) return;
+    const next = {
+      subtitleY: patch.y ?? video.subtitleY,
+      subtitleFontSize: patch.fontSize ?? video.subtitleFontSize,
+      subtitleEnabled: patch.show ?? video.subtitleEnabled,
+    };
+    setVideo({ ...video, ...next });
+    if (subtitleSaveTimer.current) clearTimeout(subtitleSaveTimer.current);
+    subtitleSaveTimer.current = setTimeout(() => {
+      saveMeta(next);
+    }, 400);
+  };
+
+  const updateOverlayPosition = (pos: OverlayPos) => {
     if (!video) return;
     // Optimistic UI update
     setVideo({
@@ -312,6 +361,13 @@ export default function TiktokEditPage() {
       });
     }, 400);
   };
+
+  // Auto-select overlay layer when user uploads custom PNG
+  useEffect(() => {
+    if (video?.frameStyle === "custom" && video?.overlayImageUrl && selectedLayer.kind === "none") {
+      setSelectedLayer({ kind: "overlay" });
+    }
+  }, [video?.frameStyle, video?.overlayImageUrl, selectedLayer.kind]);
 
   const triggerRender = async () => {
     if (!video || video.clips.length === 0) {
@@ -422,13 +478,15 @@ export default function TiktokEditPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Kolom kiri & tengah: editor */}
-        <div className="lg:col-span-2 space-y-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        {/* ═══════════════════════════════════════════════════
+            KOLOM KIRI — Clip list + Upload (3/12)
+            ═══════════════════════════════════════════════════ */}
+        <div className="space-y-4 lg:col-span-3">
           {/* Upload */}
-          <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
-              <Upload size={14} /> Upload Video / Foto
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <h2 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-txt-muted">
+              <Upload size={12} /> Upload
             </h2>
             <input
               ref={fileInputRef}
@@ -441,36 +499,43 @@ export default function TiktokEditPage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading || totalDuration >= MAX_DURATION}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-8 text-sm font-medium text-txt-secondary hover:border-pink-400 hover:text-pink-600 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-4 text-xs font-medium text-txt-secondary hover:border-pink-400 hover:text-pink-600 disabled:opacity-50"
             >
               {uploading ? (
-                <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                <><Loader2 size={14} className="animate-spin" /> Uploading...</>
               ) : (
-                <><Upload size={16} /> Klik atau drag-drop file (video .mp4, foto .jpg/.png)</>
+                <><Upload size={14} /> Video / Foto</>
               )}
             </button>
-            <p className="mt-2 text-xs text-txt-muted">
-              Max 128MB per video, 15MB per foto. Otomatis resize ke 1080×1920 (9:16).
+            <p className="mt-1.5 text-[10px] text-txt-muted">
+              Max 128MB (video), 15MB (foto)
             </p>
           </div>
 
           {/* Clips list */}
-          <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
-              <Video size={14} /> Urutan Clip ({video.clips.length})
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <h2 className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-txt-muted">
+              <span className="flex items-center gap-2"><Video size={12} /> Clips</span>
+              <span className="text-[10px] text-txt-secondary">
+                {video.clips.length} · {totalDuration.toFixed(1)}s
+              </span>
             </h2>
             {video.clips.length === 0 ? (
-              <p className="py-8 text-center text-sm text-txt-muted">Belum ada clip. Upload dulu di atas.</p>
+              <p className="py-6 text-center text-xs text-txt-muted">Belum ada clip</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {video.clips.map((clip, i) => (
-                  <ClipCard
+                  <ClipThumb
                     key={clip.id}
                     clip={clip}
                     index={i}
                     total={video.clips.length}
+                    active={selectedClipId === clip.id}
+                    onSelect={() => {
+                      setSelectedClipId(clip.id);
+                      setSelectedLayer({ kind: "none" });
+                    }}
                     onMove={moveClip}
-                    onUpdate={(data) => updateClip(clip.id, data)}
                     onDelete={() => deleteClip(clip.id)}
                   />
                 ))}
@@ -478,35 +543,222 @@ export default function TiktokEditPage() {
             )}
           </div>
 
+          {/* Frame Style picker (compact) */}
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <h2 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-txt-muted">
+              🎞 Frame
+            </h2>
+            <select
+              value={video.frameStyle || "none"}
+              onChange={(e) => saveMeta({ frameStyle: e.target.value })}
+              className="input w-full text-xs"
+            >
+              {FRAME_STYLES.map((s) => (
+                <option key={s.value} value={s.value}>{s.icon} {s.label}</option>
+              ))}
+            </select>
+            {video.frameStyle === "breaking-news" && (
+              <input
+                type="text"
+                value={video.breakingText || ""}
+                onChange={(e) => setVideo({ ...video, breakingText: e.target.value })}
+                onBlur={(e) => saveMeta({ breakingText: e.target.value || null })}
+                placeholder="Teks breaking..."
+                maxLength={80}
+                className="input mt-2 w-full text-xs"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════
+            KOLOM TENGAH — Unified Video Canvas (6/12)
+            ═══════════════════════════════════════════════════ */}
+        <div className="lg:col-span-6">
+          <div className="sticky top-4 rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <VideoCanvas
+              selectedClip={
+                video.clips.find((c) => c.id === selectedClipId) || video.clips[0] || null
+              }
+              overlayUrl={video.frameStyle === "custom" ? video.overlayImageUrl : null}
+              overlayPos={{
+                x: video.overlayX,
+                y: video.overlayY,
+                scale: video.overlayScale,
+                rotation: video.overlayRotation,
+                opacity: video.overlayOpacity,
+              }}
+              subtitlePreview={subtitlePreviewText}
+              subtitlePos={{
+                y: video.subtitleY,
+                fontSize: video.subtitleFontSize,
+                show: video.subtitleEnabled,
+              }}
+              selected={selectedLayer}
+              onSelectLayer={setSelectedLayer}
+              onTextMove={updateTextPosition}
+              onOverlayChange={updateOverlayPosition}
+              onSubtitleMove={(y) => updateSubtitle({ y })}
+              onUploadOverlay={uploadOverlay}
+              onRemoveOverlay={removeOverlay}
+              uploadingOverlay={uploadingOverlay}
+            />
+
+            {/* Render + Publish buttons — stacked below canvas */}
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              <button
+                onClick={triggerRender}
+                disabled={!canRender || rendering || totalDuration === 0}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-40"
+              >
+                {rendering || video.renderStatus === "queued" || video.renderStatus === "rendering" ? (
+                  <><Loader2 size={14} className="animate-spin" /> {video.renderStatus === "rendering" ? "Rendering..." : "Queued..."}</>
+                ) : video.renderStatus === "rendered" ? (
+                  <><RotateCw size={14} /> Render Ulang</>
+                ) : (
+                  <><PlayCircle size={14} /> Render Video</>
+                )}
+              </button>
+
+              <button
+                onClick={triggerPublish}
+                disabled={!canPublish || publishing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border-2 border-pink-600 bg-white px-4 py-2 text-sm font-semibold text-pink-600 hover:bg-pink-50 disabled:opacity-40"
+              >
+                {publishing ? (
+                  <><Loader2 size={14} className="animate-spin" /> Publishing...</>
+                ) : (
+                  <><Send size={14} /> Publish TikTok</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════
+            KOLOM KANAN — Layer Inspector + Backsong + Caption (3/12)
+            ═══════════════════════════════════════════════════ */}
+        <div className="space-y-4 lg:col-span-3">
+          {/* Layer Inspector — context-sensitive editing panel */}
+          <LayerInspector
+            selected={selectedLayer}
+            selectedClip={
+              (video.clips.find((c) => c.id === selectedClipId) || video.clips[0] || null) as ClipData | null
+            }
+            onTextChange={(clipId, patch) => {
+              if (!video) return;
+              setVideo({
+                ...video,
+                clips: video.clips.map((c) => c.id === clipId ? { ...c, ...patch } : c),
+              });
+              if (clipTextSaveTimer.current) clearTimeout(clipTextSaveTimer.current);
+              clipTextSaveTimer.current = setTimeout(() => {
+                updateClip(clipId, patch);
+              }, 400);
+            }}
+            overlayPos={{
+              x: video.overlayX,
+              y: video.overlayY,
+              scale: video.overlayScale,
+              rotation: video.overlayRotation,
+              opacity: video.overlayOpacity,
+            }}
+            onOverlayChange={updateOverlayPosition}
+            subtitlePos={{
+              y: video.subtitleY,
+              fontSize: video.subtitleFontSize,
+              show: video.subtitleEnabled,
+            }}
+            subtitlePreview={subtitlePreviewText}
+            onSubtitleChange={updateSubtitle}
+            onSubtitlePreviewChange={setSubtitlePreviewText}
+          />
+
+          {/* Hasil Render (kalau ada) */}
+          {video.renderedUrl && (
+            <div className="rounded-[12px] border border-goto-green/40 bg-surface p-3 shadow-card">
+              <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-goto-green">
+                <CheckCircle size={11} /> Hasil Render Terakhir
+              </p>
+              <video src={video.renderedUrl} controls className="w-full rounded-lg" />
+              <p className="mt-1 text-xs text-txt-muted">{video.durationSec?.toFixed(1)}s</p>
+            </div>
+          )}
+
+          {/* Error banner */}
+          {video.renderStatus === "failed" && video.renderError && (
+            <div className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-xs text-red-800">
+              <p className="font-semibold flex items-center gap-1"><AlertCircle size={12} /> Render Gagal</p>
+              <p className="mt-1 break-words">{video.renderError}</p>
+            </div>
+          )}
+
+          {/* Backsong (collapsible) */}
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-txt-muted">
+              <Music size={12} /> Backsong
+            </h3>
+            <select
+              value={video.backsongId || ""}
+              onChange={(e) => saveMeta({ backsongId: e.target.value || null })}
+              className="input w-full text-xs"
+            >
+              <option value="">— Tanpa backsong —</option>
+              {backsongs.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.durationSec.toFixed(0)}s)
+                </option>
+              ))}
+            </select>
+            {video.backsongId && (
+              <div className="mt-2">
+                <label className="text-[10px] text-txt-secondary">Volume: {(video.backsongVolume * 100).toFixed(0)}%</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={video.backsongVolume}
+                  onChange={(e) => setVideo({ ...video, backsongVolume: parseFloat(e.target.value) })}
+                  onMouseUp={(e) => saveMeta({ backsongVolume: parseFloat((e.target as HTMLInputElement).value) })}
+                  className="w-full accent-pink-600"
+                />
+              </div>
+            )}
+            <Link href="/panel/tiktok/backsongs" className="mt-1 inline-block text-[10px] text-pink-600 hover:underline">
+              Kelola backsong →
+            </Link>
+          </div>
+
           {/* Caption & Hashtags */}
-          <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
-                <Type size={14} /> Caption & Hashtag
-              </h2>
+          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-txt-muted">
+                <Type size={12} /> Caption
+              </h3>
               <button
                 onClick={generateCaption}
                 disabled={generatingCaption}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-pink-600 hover:underline disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-[10px] font-semibold text-pink-600 hover:underline disabled:opacity-50"
               >
-                {generatingCaption ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                AI Generate
+                {generatingCaption ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                AI
               </button>
             </div>
             <textarea
               value={video.caption || ""}
               onChange={(e) => setVideo({ ...video, caption: e.target.value })}
               onBlur={(e) => saveMeta({ caption: e.target.value })}
-              placeholder="Caption menarik untuk TikTok (max 150 char, bahasa santai + hook di awal)..."
+              placeholder="Caption untuk TikTok..."
               rows={3}
-              className="input w-full resize-none text-sm"
+              className="input w-full resize-none text-xs"
               maxLength={300}
             />
-            <p className="mt-1 text-xs text-txt-muted">{(video.caption || "").length}/300 karakter</p>
+            <p className="mt-0.5 text-[10px] text-txt-muted">{(video.caption || "").length}/300</p>
 
-            <div className="mt-3">
-              <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-txt-secondary">
-                <Hash size={11} /> Hashtag (pisah dengan koma atau spasi)
+            <div className="mt-2">
+              <div className="mb-1 flex items-center gap-1 text-[10px] font-semibold text-txt-secondary">
+                <Hash size={9} /> Hashtag
               </div>
               <input
                 type="text"
@@ -519,207 +771,34 @@ export default function TiktokEditPage() {
                     .slice(0, 15);
                   saveMeta({ hashtags: tags });
                 }}
-                placeholder="fyp, hukum, bandung, pidana, ..."
-                className="input w-full text-sm"
+                placeholder="fyp, hukum, bandung..."
+                className="input w-full text-xs"
               />
               {video.hashtags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-1.5 flex flex-wrap gap-1">
                   {video.hashtags.map((t) => (
-                    <span key={t} className="rounded-full bg-pink-50 px-2 py-0.5 text-xs text-pink-700">#{t}</span>
+                    <span key={t} className="rounded-full bg-pink-50 px-2 py-0.5 text-[10px] text-pink-700">#{t}</span>
                   ))}
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Kolom kanan: backsong + render + publish */}
-        <div className="space-y-5">
-          {/* Preview video (kalau sudah dirender) */}
-          {video.renderedUrl && (
-            <div className="rounded-[12px] border border-border bg-surface p-3 shadow-card">
-              <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-goto-green">
-                <CheckCircle size={11} /> Hasil Render
-              </p>
-              <video
-                src={video.renderedUrl}
-                controls
-                className="w-full rounded-lg"
-              />
-              <p className="mt-1 text-xs text-txt-muted">
-                {video.durationSec?.toFixed(1)}s
-              </p>
-            </div>
-          )}
-
-          {/* Error banner */}
-          {video.renderStatus === "failed" && video.renderError && (
-            <div className="rounded-[12px] border border-red-300 bg-red-50 p-3 text-xs text-red-800">
-              <p className="font-semibold flex items-center gap-1"><AlertCircle size={12} /> Render Gagal</p>
-              <p className="mt-1 break-words">{video.renderError}</p>
-            </div>
-          )}
-
-          {/* Backsong */}
-          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
-              <Music size={12} /> Backsong
-            </h3>
-            <select
-              value={video.backsongId || ""}
-              onChange={(e) => saveMeta({ backsongId: e.target.value || null })}
-              className="input w-full text-sm"
-            >
-              <option value="">— Tanpa backsong —</option>
-              {backsongs.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} ({b.durationSec.toFixed(0)}s{b.mood ? ` · ${b.mood}` : ""})
-                </option>
-              ))}
-            </select>
-            {video.backsongId && (
-              <div className="mt-3">
-                <label className="text-xs text-txt-secondary">Volume: {(video.backsongVolume * 100).toFixed(0)}%</label>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={video.backsongVolume}
-                  onChange={(e) => setVideo({ ...video, backsongVolume: parseFloat(e.target.value) })}
-                  onMouseUp={(e) => saveMeta({ backsongVolume: parseFloat((e.target as HTMLInputElement).value) })}
-                  onTouchEnd={(e) => saveMeta({ backsongVolume: parseFloat((e.target as HTMLInputElement).value) })}
-                  className="w-full"
-                />
-              </div>
-            )}
-            <Link href="/panel/tiktok/backsongs" className="mt-2 inline-block text-xs text-pink-600 hover:underline">
-              Kelola backsong →
-            </Link>
-          </div>
-
-          {/* Frame Overlay */}
-          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
-              🎞 Frame Overlay
-            </h3>
-            <p className="mb-3 text-xs text-txt-secondary">
-              Dekorasi yang dilayer di seluruh video (news ticker, breaking, border, dll)
+          {/* Publish status */}
+          {video.publishStatus === "draft_tiktok" && (
+            <p className="rounded bg-yellow-50 px-2 py-1.5 text-[10px] text-yellow-800">
+              ✓ Upload sukses ke TikTok inbox. Buka app untuk finalize.
             </p>
-            <div className="space-y-2">
-              {FRAME_STYLES.map((style) => {
-                const active = (video.frameStyle || "none") === style.value;
-                return (
-                  <button
-                    key={style.value}
-                    onClick={() => saveMeta({ frameStyle: style.value })}
-                    className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
-                      active ? "border-pink-600 bg-pink-50" : "border-border bg-surface hover:border-pink-300"
-                    }`}
-                  >
-                    <span className="text-2xl">{style.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${active ? "text-pink-700" : "text-txt-primary"}`}>
-                        {style.label}
-                      </p>
-                      <p className="text-xs text-txt-secondary">{style.desc}</p>
-                    </div>
-                    {active && <CheckCircle size={16} className="text-pink-600 flex-shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Breaking text — only visible when breaking-news selected */}
-            {video.frameStyle === "breaking-news" && (
-              <div className="mt-3 border-t border-border pt-3">
-                <label className="text-xs font-semibold text-txt-secondary">Teks Breaking News</label>
-                <input
-                  type="text"
-                  value={video.breakingText || ""}
-                  onChange={(e) => setVideo({ ...video, breakingText: e.target.value })}
-                  onBlur={(e) => saveMeta({ breakingText: e.target.value || null })}
-                  placeholder="Contoh: Putusan Kasus Korupsi Turun"
-                  maxLength={80}
-                  className="input mt-1 w-full text-xs"
-                />
-                <p className="mt-0.5 text-[10px] text-txt-muted">
-                  Max 80 char — akan muncul di badge merah atas
-                </p>
-              </div>
-            )}
-
-            {/* Custom overlay editor — only visible when custom selected */}
-            {video.frameStyle === "custom" && (
-              <div className="mt-3 border-t border-border pt-3">
-                <p className="mb-2 text-xs font-semibold text-txt-secondary">
-                  Editor Posisi Overlay
-                </p>
-                <OverlayEditor
-                  firstClipUrl={video.clips[0]?.sourceUrl || null}
-                  firstClipType={video.clips[0]?.type}
-                  overlayUrl={video.overlayImageUrl}
-                  position={{
-                    x: video.overlayX,
-                    y: video.overlayY,
-                    scale: video.overlayScale,
-                    rotation: video.overlayRotation,
-                    opacity: video.overlayOpacity,
-                  }}
-                  onChange={updateOverlayPosition}
-                  onUploadOverlay={uploadOverlay}
-                  onRemoveOverlay={removeOverlay}
-                  uploading={uploadingOverlay}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
-            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-txt-muted">Aksi</h3>
-
-            <button
-              onClick={triggerRender}
-              disabled={!canRender || rendering || totalDuration === 0}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-40"
-            >
-              {rendering || video.renderStatus === "queued" || video.renderStatus === "rendering" ? (
-                <><Loader2 size={14} className="animate-spin" /> {video.renderStatus === "rendering" ? "Rendering..." : "Queued..."}</>
-              ) : video.renderStatus === "rendered" ? (
-                <><RotateCw size={14} /> Render Ulang</>
-              ) : (
-                <><PlayCircle size={14} /> Render Video</>
-              )}
-            </button>
-
-            <button
-              onClick={triggerPublish}
-              disabled={!canPublish || publishing}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border-2 border-pink-600 bg-white px-4 py-2 text-sm font-semibold text-pink-600 hover:bg-pink-50 disabled:opacity-40"
-            >
-              {publishing ? (
-                <><Loader2 size={14} className="animate-spin" /> Publishing...</>
-              ) : (
-                <><Send size={14} /> Publish ke TikTok</>
-              )}
-            </button>
-
-            {video.publishStatus === "draft_tiktok" && (
-              <p className="mt-2 rounded bg-yellow-50 px-2 py-1.5 text-xs text-yellow-800">
-                ✓ Upload sukses ke TikTok inbox. Buka app TikTok untuk finalize.
-              </p>
-            )}
-            {video.publishError && (
-              <p className="mt-2 rounded bg-red-50 px-2 py-1.5 text-xs text-red-800 break-words">
-                {video.publishError}
-              </p>
-            )}
-          </div>
+          )}
+          {video.publishError && (
+            <p className="rounded bg-red-50 px-2 py-1.5 text-[10px] text-red-800 break-words">
+              {video.publishError}
+            </p>
+          )}
 
           {saving && (
-            <div className="flex items-center gap-1 text-xs text-txt-muted">
-              <Loader2 size={10} className="animate-spin" /> Menyimpan...
+            <div className="flex items-center gap-1 text-[10px] text-txt-muted">
+              <Loader2 size={9} className="animate-spin" /> Menyimpan...
             </div>
           )}
         </div>
@@ -729,7 +808,86 @@ export default function TiktokEditPage() {
 }
 
 // ────────────────────────────────────────────
-// Clip Card (inline component)
+// Clip Thumb — compact left-sidebar item (click to select clip for canvas)
+// ────────────────────────────────────────────
+
+function ClipThumb({
+  clip, index, total, active, onSelect, onMove, onDelete,
+}: {
+  clip: Clip;
+  index: number;
+  total: number;
+  active: boolean;
+  onSelect: () => void;
+  onMove: (i: number, dir: -1 | 1) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      className={`group relative flex cursor-pointer gap-2 rounded-lg border p-2 transition-colors ${
+        active ? "border-pink-600 bg-pink-50 ring-2 ring-pink-600/20" : "border-border bg-surface hover:border-pink-300 hover:bg-pink-50/30"
+      }`}
+    >
+      {/* Thumbnail */}
+      <div className="relative flex-shrink-0 overflow-hidden rounded bg-black" style={{ width: 48, height: 64 }}>
+        {clip.type === "video" ? (
+          <video src={clip.sourceUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={clip.sourceUrl} alt="" className="h-full w-full object-cover" />
+        )}
+        {active && (
+          <div className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-pink-600 ring-2 ring-white" />
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-1 flex-col justify-between min-w-0">
+        <div>
+          <p className="text-[11px] font-semibold text-txt-primary">#{index + 1} · {clip.type}</p>
+          <p className="text-[10px] text-txt-muted">{clip.durationSec.toFixed(1)}s</p>
+          {clip.textOverlay && (
+            <p className="truncate text-[10px] text-pink-600">📝 {clip.textOverlay}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Controls (visible on hover or active) */}
+      <div className={`flex flex-col items-center gap-0.5 ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onMove(index, -1); }}
+          disabled={index === 0}
+          className="rounded p-0.5 text-txt-muted hover:bg-surface-tertiary hover:text-txt-primary disabled:opacity-30"
+          title="Naik"
+        >
+          <ChevronUp size={12} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onMove(index, 1); }}
+          disabled={index === total - 1}
+          className="rounded p-0.5 text-txt-muted hover:bg-surface-tertiary hover:text-txt-primary disabled:opacity-30"
+          title="Turun"
+        >
+          <ChevronDown size={12} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm("Hapus clip ini?")) onDelete();
+          }}
+          className="rounded p-0.5 text-red-400 hover:bg-red-50 hover:text-red-600"
+          title="Hapus"
+        >
+          <Trash2 size={11} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// Clip Card (legacy — kept for reference, not used in new layout)
 // ────────────────────────────────────────────
 
 function ClipCard({

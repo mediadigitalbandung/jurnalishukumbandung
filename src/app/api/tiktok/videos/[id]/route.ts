@@ -23,6 +23,10 @@ const updateSchema = z.object({
   overlayScale: z.number().min(0.1).max(3).optional(),
   overlayRotation: z.number().min(-180).max(180).optional(),
   overlayOpacity: z.number().min(0).max(1).optional(),
+  // Subtitle config
+  subtitleEnabled: z.boolean().optional(),
+  subtitleY: z.number().min(0).max(1).optional(),
+  subtitleFontSize: z.number().int().min(16).max(200).optional(),
 });
 
 /** GET /api/tiktok/videos/:id */
@@ -71,6 +75,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ...(data.overlayScale !== undefined && { overlayScale: data.overlayScale }),
         ...(data.overlayRotation !== undefined && { overlayRotation: data.overlayRotation }),
         ...(data.overlayOpacity !== undefined && { overlayOpacity: data.overlayOpacity }),
+        ...(data.subtitleEnabled !== undefined && { subtitleEnabled: data.subtitleEnabled }),
+        ...(data.subtitleY !== undefined && { subtitleY: data.subtitleY }),
+        ...(data.subtitleFontSize !== undefined && { subtitleFontSize: data.subtitleFontSize }),
       },
       include: {
         clips: { orderBy: { order: "asc" } },
