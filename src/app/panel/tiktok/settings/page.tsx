@@ -321,7 +321,7 @@ export default function TiktokSettingsPage() {
                 Token valid sampai: {settings.tokenExpiresAt ? new Date(settings.tokenExpiresAt).toLocaleString("id-ID") : "—"}
               </p>
             )}
-            <button onClick={connectTikTok} disabled={connecting} className="mt-2 text-xs text-pink-600 hover:underline">
+            <button onClick={() => connectTikTok()} disabled={connecting} className="mt-2 text-xs text-pink-600 hover:underline">
               {connecting ? "Mengarahkan..." : "Reconnect"}
             </button>
           </div>
