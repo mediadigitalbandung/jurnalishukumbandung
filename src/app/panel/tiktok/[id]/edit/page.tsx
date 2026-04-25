@@ -1386,7 +1386,7 @@ function ClipThumb({
 
       {/* Thumbnail — draggable=false on media so parent div drag works */}
       <div
-        className="relative flex-shrink-0 overflow-hidden rounded bg-black pointer-events-none"
+        className="relative flex-shrink-0 overflow-hidden rounded bg-black"
         style={{ width: 48, height: 64 }}
       >
         {isPlaceholder ? (
