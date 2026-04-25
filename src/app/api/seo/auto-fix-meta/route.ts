@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "No AI key configured" }, { status: 503 });
     }
 
-    // Find articles missing meta
+    // Find articles missing meta OR excerpt
     const candidates = await prisma.article.findMany({
       where: {
         status: "PUBLISHED",
@@ -70,6 +70,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           { seoTitle: "" },
           { seoDescription: null },
           { seoDescription: "" },
+          { excerpt: null },
+          { excerpt: "" },
         ],
       },
       select: {
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         content: true,
         seoTitle: true,
         seoDescription: true,
+        publishedAt: true,
         category: { select: { name: true } },
         tags: { select: { name: true }, take: 5 },
       },
@@ -156,6 +159,8 @@ Generate seoTitle dan seoDescription yang optimal untuk Google. Output JSON saja
             data: {
               ...(article.seoTitle ? {} : { seoTitle }),
               ...(article.seoDescription ? {} : { seoDescription }),
+              // Use seoDescription as excerpt fallback if missing (slightly longer)
+              ...(article.excerpt ? {} : { excerpt: seoDescription }),
             },
           });
         }
