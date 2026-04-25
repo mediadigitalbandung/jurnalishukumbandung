@@ -26,6 +26,7 @@ export default function SubtitleManager({ videoId, totalDuration, onChange }: Pr
   const [generating, setGenerating] = useState(false);
   const [showGenForm, setShowGenForm] = useState(false);
   const [genCount, setGenCount] = useState<number | "auto">("auto");
+  const [genTargetDuration, setGenTargetDuration] = useState<number>(60);
   const [genError, setGenError] = useState<string | null>(null);
 
   // Add form
@@ -108,7 +109,7 @@ export default function SubtitleManager({ videoId, totalDuration, onChange }: Pr
     setGenerating(true);
     setGenError(null);
     try {
-      const body: Record<string, unknown> = { replace: true };
+      const body: Record<string, unknown> = { replace: true, targetDurationSec: genTargetDuration };
       if (genCount !== "auto") body.count = genCount;
       const res = await fetch(`/api/tiktok/videos/${videoId}/generate-text-segments`, {
         method: "POST",
@@ -147,24 +148,43 @@ export default function SubtitleManager({ videoId, totalDuration, onChange }: Pr
       {showGenForm && (
         <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 p-3">
           <p className="mb-2 text-[11px] text-emerald-900 leading-relaxed">
-            AI akan pecah artikel terkait jadi <strong>beberapa text overlay timed</strong> yang muncul beruntun di video, total {totalDuration.toFixed(0)}s.
+            AI akan pecah artikel terkait jadi <strong>beberapa text overlay timed</strong> yang muncul beruntun di video, total <strong>{genTargetDuration}s</strong> (full durasi video).
           </p>
-          <div className="mb-2">
-            <label className="mb-1 block text-[10px] font-semibold text-emerald-900">Jumlah Segment</label>
-            <select
-              value={genCount}
-              onChange={(e) => setGenCount(e.target.value === "auto" ? "auto" : parseInt(e.target.value))}
-              className="input w-full text-xs"
-              disabled={generating}
-            >
-              <option value="auto">Auto (sesuai durasi)</option>
-              <option value={3}>3 segment</option>
-              <option value={5}>5 segment</option>
-              <option value={6}>6 segment</option>
-              <option value={8}>8 segment</option>
-              <option value={10}>10 segment</option>
-              <option value={12}>12 segment</option>
-            </select>
+          <div className="mb-2 grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold text-emerald-900">Target Durasi</label>
+              <select
+                value={genTargetDuration}
+                onChange={(e) => setGenTargetDuration(parseInt(e.target.value))}
+                className="input w-full text-xs"
+                disabled={generating}
+              >
+                <option value={15}>15 detik</option>
+                <option value={30}>30 detik</option>
+                <option value={45}>45 detik</option>
+                <option value={60}>60 detik (1 menit)</option>
+                <option value={90}>90 detik</option>
+                <option value={120}>2 menit</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold text-emerald-900">Jumlah Segment</label>
+              <select
+                value={genCount}
+                onChange={(e) => setGenCount(e.target.value === "auto" ? "auto" : parseInt(e.target.value))}
+                className="input w-full text-xs"
+                disabled={generating}
+              >
+                <option value="auto">Auto (~5-7s/segment)</option>
+                <option value={3}>3 segment</option>
+                <option value={5}>5 segment</option>
+                <option value={6}>6 segment</option>
+                <option value={8}>8 segment</option>
+                <option value={10}>10 segment</option>
+                <option value={12}>12 segment</option>
+                <option value={15}>15 segment</option>
+              </select>
+            </div>
           </div>
           {genError && (
             <div className="mb-2 flex items-start gap-1.5 rounded bg-red-100 p-1.5 text-[10px] text-red-800">

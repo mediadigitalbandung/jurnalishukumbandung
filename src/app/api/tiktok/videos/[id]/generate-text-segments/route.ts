@@ -10,8 +10,9 @@ const SYSTEM_PROMPT =
   "Kamu adalah copywriter TikTok untuk media berita hukum Indonesia. Tugasmu mengubah artikel berita jadi serangkaian kalimat overlay teks pendek yang muncul beruntun di video TikTok 9:16, tiap segment 4-7 detik. Gaya: punchy, hook strong, pakai emoji 1x per segment max. Hindari kalimat panjang. Balas HANYA JSON array tanpa penjelasan apapun.";
 
 const inputSchema = z.object({
-  count: z.number().int().min(3).max(12).optional(),  // jumlah segments yang diinginkan
-  replace: z.boolean().optional(),                     // hapus existing entries dulu
+  count: z.number().int().min(3).max(20).optional(),         // jumlah segments yang diinginkan
+  replace: z.boolean().optional(),                            // hapus existing entries dulu
+  targetDurationSec: z.number().min(5).max(180).optional(),   // override durasi total (default: settings.maxDurationSec atau 60)
 });
 
 interface AIResponseSegment {
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const body = await req.json().catch(() => ({}));
-    const { count, replace = true } = inputSchema.parse(body);
+    const { count, replace = true, targetDurationSec } = inputSchema.parse(body);
 
     const video = await prisma.tiktokVideo.findUnique({
       where: { id: params.id },
@@ -61,14 +62,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       throw new ApiError("Video belum di-link ke artikel. Pilih artikel di panel atas dulu.", 400);
     }
 
-    // Compute total video duration (clamp 10-60s untuk TikTok)
-    const totalDuration = Math.max(
-      10,
-      Math.min(60, video.clips.reduce((s, c) => s + c.durationSec, 0) || 30)
-    );
+    // Default target duration: max video TikTok dari settings (default 60s = 1 menit penuh)
+    // Subtitle akan span FULL durasi ini, terlepas dari berapa lama clip-nya.
+    // Kalau caller passing targetDurationSec, pakai itu.
+    let totalDuration: number;
+    if (targetDurationSec) {
+      totalDuration = targetDurationSec;
+    } else {
+      const settings = await prisma.tiktokSettings.findFirst();
+      totalDuration = settings?.maxDurationSec || 60;
+    }
 
-    // Decide segment count based on duration if not specified (1 segment per ~6s)
-    const targetSegments = count ?? Math.max(3, Math.min(12, Math.round(totalDuration / 6)));
+    // Decide segment count based on duration if not specified
+    // Target ~5-7 detik per segment (sweet spot untuk TikTok readability)
+    const targetSegments = count ?? Math.max(3, Math.min(15, Math.round(totalDuration / 6)));
 
     // Strip HTML from article content for AI input
     const plainContent = (video.article.content || "")
