@@ -19,6 +19,7 @@ const updateSchema = z.object({
   draftModeEnabled: z.boolean().optional(),
   aiCaptionEnabled: z.boolean().optional(),
   aiHashtagEnabled: z.boolean().optional(),
+  renderEngine: z.enum(["ffmpeg", "hyperframes"]).optional(),
 });
 
 /** GET /api/tiktok/settings */

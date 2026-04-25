@@ -876,6 +876,9 @@ model TiktokSettings {
   aiCaptionEnabled   Boolean @default(true) // Auto-generate caption via AI
   aiHashtagEnabled   Boolean @default(true) // Auto-generate hashtag
 
+  // Render engine: "ffmpeg" (default, fast) | "hyperframes" (HTML+CSS+GSAP via headless Chrome, animasi lebih bagus)
+  renderEngine String @default("ffmpeg")
+
   updatedAt DateTime @updatedAt
 
   @@map("tiktok_settings")

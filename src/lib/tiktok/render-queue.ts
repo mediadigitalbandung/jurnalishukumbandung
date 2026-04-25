@@ -8,7 +8,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { renderTiktokVideo } from "./ffmpeg-renderer";
-import type { ClipInput, FrameStyle, TextPosition, Transition } from "./types";
+import { renderWithHyperframes } from "./hyperframes/renderer";
+import type { ClipInput, FrameStyle, TextPosition, Transition, RenderSpec } from "./types";
 
 let isProcessing = false;
 
@@ -88,7 +89,7 @@ async function processNext(): Promise<void> {
 
       const settings = await prisma.tiktokSettings.findFirst();
 
-      const result = await renderTiktokVideo({
+      const renderSpec: RenderSpec = {
         videoId: next.id,
         clips: clipInputs,
         backsongUrl: next.backsong?.url,
@@ -127,7 +128,13 @@ async function processNext(): Promise<void> {
           fontSize: s.fontSize,
           color: s.color,
         })),
-      });
+      };
+
+      // Dispatch ke engine yang dipilih (default: ffmpeg)
+      const engine = settings?.renderEngine || "ffmpeg";
+      const result = engine === "hyperframes"
+        ? await renderWithHyperframes(renderSpec)
+        : await renderTiktokVideo(renderSpec);
 
       if (result.success) {
         await prisma.tiktokVideo.update({

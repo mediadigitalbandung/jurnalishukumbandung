@@ -42,6 +42,7 @@ interface TiktokSettingsData {
   aiCaptionEnabled: boolean;
   aiHashtagEnabled: boolean;
   defaultHashtags: string[];
+  renderEngine: "ffmpeg" | "hyperframes";
   updatedAt?: string;
 }
 
@@ -457,6 +458,32 @@ export default function TiktokSettingsPage() {
           </div>
         </div>
         <p className="mt-2 text-xs text-txt-muted">Default: 1080×1920 (9:16), 30fps, 60s — optimal untuk TikTok vertikal.</p>
+
+        {/* Render Engine selector */}
+        <div className="mt-4 border-t border-border pt-4">
+          <label className="text-xs font-semibold text-txt-secondary">Render Engine</label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => saveField("renderEngine", "ffmpeg")}
+              className={`rounded-lg border p-3 text-left text-xs transition ${settings.renderEngine === "ffmpeg" ? "border-pink-600 bg-pink-50 ring-2 ring-pink-200" : "border-border hover:border-pink-300"}`}
+            >
+              <div className="font-bold text-txt-primary">⚡ FFmpeg <span className="text-[10px] text-txt-muted">(default)</span></div>
+              <div className="mt-1 text-txt-secondary">Cepat (~30s/video). Filter dasar: text overlay, transisi, Ken Burns.</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => saveField("renderEngine", "hyperframes")}
+              className={`rounded-lg border p-3 text-left text-xs transition ${settings.renderEngine === "hyperframes" ? "border-pink-600 bg-pink-50 ring-2 ring-pink-200" : "border-border hover:border-pink-300"}`}
+            >
+              <div className="font-bold text-txt-primary">🎬 HyperFrames <span className="text-[10px] text-txt-muted">(advanced)</span></div>
+              <div className="mt-1 text-txt-secondary">HTML+CSS+GSAP via Chrome. Animasi text & transisi premium. Lebih lambat (~60-90s/video).</div>
+            </button>
+          </div>
+          <p className="mt-2 text-[10px] text-txt-muted">
+            HyperFrames butuh Chromium + Node 22 di VPS (sudah disetup). Gunakan kalau mau visual lebih kinetik & professional. FFmpeg tetap recommended untuk render cepat.
+          </p>
+        </div>
       </div>
 
       {/* Publish behavior */}
