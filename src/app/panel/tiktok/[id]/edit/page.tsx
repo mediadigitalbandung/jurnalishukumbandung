@@ -57,12 +57,15 @@ interface Backsong {
 import VideoCanvas, { SelectedLayer, OverlayPos, SubtitlePos, ClipData } from "./VideoCanvas";
 import TimelinePanel, { TimelineLayer } from "./TimelinePanel";
 import LayerInspector from "./LayerInspector";
+import ArticlePicker, { SelectOptions } from "./ArticlePicker";
+import { FileText } from "lucide-react";
 
 interface Video {
   id: string;
   title: string;
   caption: string | null;
   hashtags: string[];
+  articleId: string | null;
   backsongId: string | null;
   backsongVolume: number;
   frameStyle: string;
@@ -87,6 +90,7 @@ interface Video {
   publishError: string | null;
   clips: Clip[];
   backsong: Backsong | null;
+  article?: { id: string; title: string; slug: string } | null;
 }
 
 const FRAME_STYLES: Array<{ value: string; label: string; desc: string; icon: string }> = [
@@ -128,6 +132,44 @@ export default function TiktokEditPage() {
   const [layerLock, setLayerLock] = useState<Record<TimelineLayer, boolean>>({
     background: false, text: false, overlay: false, subtitle: false,
   });
+
+  // Article picker
+  const [articlePickerOpen, setArticlePickerOpen] = useState(false);
+  const [applyingArticle, setApplyingArticle] = useState(false);
+
+  const applyArticle = useCallback(async (
+    article: { id: string; title: string; slug: string },
+    opts: SelectOptions
+  ) => {
+    setApplyingArticle(true);
+    try {
+      const res = await fetch(`/api/tiktok/videos/${videoId}/from-article`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          articleId: article.id,
+          ...opts,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const summary: string[] = [`Artikel "${article.title.slice(0, 40)}..." applied`];
+        if (json.data.textOverlaysGenerated > 0) {
+          summary.push(`${json.data.textOverlaysGenerated} text overlay AI di-generate`);
+        }
+        if (json.data.clipsCreated > 0) {
+          summary.push("Featured image jadi clip");
+        }
+        success(summary.join(" · "));
+        await fetchVideo();
+      } else {
+        showError(json.error || "Gagal apply artikel");
+      }
+    } catch {
+      showError("Error");
+    }
+    setApplyingArticle(false);
+  }, [videoId, success, showError]);
 
   const fetchVideo = useCallback(async () => {
     try {
@@ -583,6 +625,55 @@ export default function TiktokEditPage() {
             KOLOM KIRI — Clip list + Upload (3/12)
             ═══════════════════════════════════════════════════ */}
         <div className="space-y-4 lg:col-span-3">
+          {/* Article Picker — link to JHB article */}
+          <div className="rounded-[12px] border border-pink-200 bg-gradient-to-br from-pink-50 to-purple-50 p-4 shadow-card">
+            <h2 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-pink-700">
+              <FileText size={12} /> Artikel Terkait
+            </h2>
+            {video.articleId ? (
+              <div className="rounded-lg border border-pink-300 bg-white p-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-pink-600">✓ Linked Article</p>
+                <p className="mt-0.5 text-xs font-medium text-txt-primary line-clamp-2">
+                  {video.article?.title || `ID: ${video.articleId.slice(-8)}`}
+                </p>
+                {video.article?.slug && (
+                  <a
+                    href={`/berita/${video.article.slug}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="mt-1 block text-[10px] text-pink-500 hover:underline"
+                  >
+                    /berita/{video.article.slug.slice(0, 30)}{video.article.slug.length > 30 ? "..." : ""} ↗
+                  </a>
+                )}
+                <button
+                  onClick={() => setArticlePickerOpen(true)}
+                  disabled={applyingArticle}
+                  className="mt-2 text-[10px] font-semibold text-pink-600 hover:underline disabled:opacity-50"
+                >
+                  Ganti artikel →
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="mb-2 text-[11px] text-txt-secondary">
+                  Pilih artikel JHB untuk auto-generate caption, hashtag, foto, dan text overlay AI.
+                </p>
+                <button
+                  onClick={() => setArticlePickerOpen(true)}
+                  disabled={applyingArticle}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-pink-600 px-3 py-2 text-xs font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
+                >
+                  {applyingArticle ? (
+                    <><Loader2 size={12} className="animate-spin" /> Generating...</>
+                  ) : (
+                    <><Sparkles size={12} /> Pilih Artikel</>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+
           {/* Upload */}
           <div className="rounded-[12px] border border-border bg-surface p-4 shadow-card">
             <h2 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-txt-muted">
@@ -1049,6 +1140,13 @@ function ClipThumb({
           <Trash2 size={11} />
         </button>
       </div>
+
+      {/* Article Picker Modal */}
+      <ArticlePicker
+        open={articlePickerOpen}
+        onClose={() => setArticlePickerOpen(false)}
+        onSelect={applyArticle}
+      />
     </div>
   );
 }
