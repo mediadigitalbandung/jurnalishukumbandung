@@ -23,6 +23,17 @@ export interface CustomOverlayInput {
   opacity: number;        // 0-1
 }
 
+// Multiple overlays — each independently positionable, applied in order
+export interface MultiOverlayInput {
+  imageUrl: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  order: number;
+}
+
 export interface ClipInput {
   id: string;
   order: number;
@@ -55,7 +66,8 @@ export interface RenderSpec {
   frameStyle?: FrameStyle;  // default "none"
   breakingText?: string | null; // Text for "breaking-news" frame
   title?: string | null;    // Video title (used in lower-third frame)
-  customOverlay?: CustomOverlayInput | null; // Used when frameStyle === "custom"
+  customOverlay?: CustomOverlayInput | null; // DEPRECATED: legacy single overlay, used when frameStyle === "custom"
+  multiOverlays?: MultiOverlayInput[];        // NEW: multiple overlays applied regardless of frameStyle
 }
 
 export interface RenderResult {

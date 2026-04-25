@@ -369,6 +369,96 @@ async function applyFrameOverlay(
   await runFfmpeg(args);
 }
 
+/**
+ * Apply multiple PNG overlays on top of video. Each overlay independently scaled, positioned, rotated.
+ * Builds filter_complex chain with cumulative overlay filters.
+ *
+ * Returns: void (writes to outputPath)
+ */
+async function applyMultiOverlays(
+  inputPath: string,
+  outputPath: string,
+  overlays: Array<{
+    imagePath: string;
+    x: number;       // 0-1 normalized
+    y: number;       // 0-1 normalized
+    scale: number;   // 0.1-3
+    rotation: number; // -180..180
+    opacity: number;  // 0-1
+  }>,
+  width: number,
+  height: number
+): Promise<void> {
+  if (overlays.length === 0) {
+    await runFfmpeg(["-i", inputPath, "-c", "copy", "-y", outputPath]);
+    return;
+  }
+
+  // Build inputs: -i video, then -i overlay1, -i overlay2, ...
+  const inputs: string[] = ["-i", inputPath];
+  for (const o of overlays) inputs.push("-i", o.imagePath);
+
+  // Build filter_complex chain.
+  // For each overlay: scale → rotate → format with alpha → overlay onto base
+  // Each overlay's base is 30% canvas width × scale (matches client-side preview math).
+  const filterParts: string[] = [];
+  let lastLabel = "[0:v]"; // start with main video stream
+
+  overlays.forEach((o, i) => {
+    const overlayInputIdx = i + 1; // overlay PNG is input index i+1
+    const baseW = Math.round(0.3 * width * o.scale); // proportional to canvas
+    const xPx = Math.round(o.x * width);
+    const yPx = Math.round(o.y * height);
+    const opacity = Math.max(0, Math.min(1, o.opacity));
+
+    const scaledLabel = `[ovS${i}]`;
+    const rotatedLabel = `[ovR${i}]`;
+    const finalLabel = i === overlays.length - 1 ? "[outv]" : `[v${i}]`;
+
+    // 1. Scale overlay PNG to baseW (preserve aspect)
+    filterParts.push(`[${overlayInputIdx}:v]scale=${baseW}:-1${scaledLabel}`);
+
+    // 2. Rotate (skip if 0 to keep crisp)
+    let nextInput = scaledLabel;
+    if (Math.abs(o.rotation) > 0.5) {
+      filterParts.push(`${scaledLabel}rotate=${(o.rotation * Math.PI / 180).toFixed(4)}:c=none:ow=rotw(iw):oh=roth(ih)${rotatedLabel}`);
+      nextInput = rotatedLabel;
+    }
+
+    // 3. Apply opacity (multiply alpha channel)
+    let opacityLabel = nextInput;
+    if (opacity < 0.99) {
+      const alphaLabel = `[ovA${i}]`;
+      filterParts.push(`${nextInput}format=rgba,colorchannelmixer=aa=${opacity.toFixed(3)}${alphaLabel}`);
+      opacityLabel = alphaLabel;
+    }
+
+    // 4. Overlay onto previous layer with center positioning (x = xPx - W/2, y = yPx - H/2)
+    filterParts.push(
+      `${lastLabel}${opacityLabel}overlay=${xPx}-overlay_w/2:${yPx}-overlay_h/2${finalLabel}`
+    );
+
+    lastLabel = finalLabel;
+  });
+
+  const filterComplex = filterParts.join(";");
+
+  const args = [
+    ...inputs,
+    "-filter_complex", filterComplex,
+    "-map", "[outv]",
+    "-map", "0:a?",       // copy audio if present
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-pix_fmt", "yuv420p",
+    "-c:a", "copy",
+    "-y",
+    outputPath,
+  ];
+
+  await runFfmpeg(args);
+}
+
 /** Get duration of a media file using ffprobe */
 async function probeDuration(path: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -495,12 +585,27 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
       await applyFrameOverlay(concatPath, framedPath, frameStyle, spec.breakingText, spec.title, width, height, customSpec);
     }
 
+    // Step 2c: apply multiple PNG overlays (NEW — multi-overlay support)
+    const overlayInputs = (spec.multiOverlays || []).slice().sort((a, b) => a.order - b.order);
+    const multiPath = overlayInputs.length > 0 ? join(workDir, "multi.mp4") : framedPath;
+    if (overlayInputs.length > 0) {
+      const resolvedOverlays = overlayInputs.map((o) => ({
+        imagePath: resolveAssetPath(o.imageUrl),
+        x: o.x,
+        y: o.y,
+        scale: o.scale,
+        rotation: o.rotation,
+        opacity: o.opacity,
+      }));
+      await applyMultiOverlays(framedPath, multiPath, resolvedOverlays, width, height);
+    }
+
     // Step 3: finalize with backsong + trim
     const outputFilename = `tiktok-${spec.videoId}-${sessionId}.mp4`;
     const outputPath = join(TIKTOK_DIR, outputFilename);
     const backsongPath = spec.backsongUrl ? resolveAssetPath(spec.backsongUrl) : null;
     const finalDuration = await finalizeVideo(
-      framedPath,
+      multiPath,
       backsongPath,
       spec.backsongVolume ?? 0.5,
       maxDuration,
@@ -514,6 +619,7 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
     await unlink(concatListPath).catch(() => {});
     await unlink(concatPath).catch(() => {});
     if (frameStyle !== "none") await unlink(framedPath).catch(() => {});
+    if (overlayInputs.length > 0) await unlink(multiPath).catch(() => {});
 
     const stats = await stat(outputPath);
     const outputUrl = `${BASE_URL.replace(/\/$/, "")}/uploads/tiktok/${outputFilename}`;

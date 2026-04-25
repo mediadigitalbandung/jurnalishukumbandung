@@ -50,7 +50,11 @@ async function processNext(): Promise<void> {
       const next = await prisma.tiktokVideo.findFirst({
         where: { renderStatus: "queued" },
         orderBy: { createdAt: "asc" },
-        include: { clips: { orderBy: { order: "asc" } }, backsong: true },
+        include: {
+          clips: { orderBy: { order: "asc" } },
+          backsong: true,
+          overlays: { orderBy: { order: "asc" } },
+        },
       });
       if (!next) break;
 
@@ -103,6 +107,15 @@ async function processNext(): Promise<void> {
               opacity: next.overlayOpacity,
             }
           : null,
+        multiOverlays: next.overlays.map((o) => ({
+          imageUrl: o.imageUrl,
+          x: o.x,
+          y: o.y,
+          scale: o.scale,
+          rotation: o.rotation,
+          opacity: o.opacity,
+          order: o.order,
+        })),
       });
 
       if (result.success) {
