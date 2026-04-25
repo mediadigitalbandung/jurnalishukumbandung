@@ -138,6 +138,10 @@ export default function TiktokEditPage() {
   const [selectedLayer, setSelectedLayer] = useState<SelectedLayer>({ kind: "none" });
   const [subtitlePreviewText, setSubtitlePreviewText] = useState("Contoh subtitle — akan auto-generate dari audio");
 
+  // Clip drag-and-drop reorder state
+  const [draggedClipIdx, setDraggedClipIdx] = useState<number | null>(null);
+  const [dragOverClipIdx, setDragOverClipIdx] = useState<number | null>(null);
+
   // Timeline layer visibility & lock (UI-only state, doesn't affect render)
   const [layerVisibility, setLayerVisibility] = useState<Record<TimelineLayer, boolean>>({
     background: true, text: true, overlay: true, subtitle: true,
@@ -368,21 +372,44 @@ export default function TiktokEditPage() {
     }
   };
 
+  // Drag-and-drop / arrow-button reorder: pindah clip dari fromIdx ke toIdx (insert position)
+  const reorderClips = async (fromIdx: number, toIdx: number) => {
+    if (!video) return;
+    if (fromIdx === toIdx) return;
+    if (fromIdx < 0 || fromIdx >= video.clips.length) return;
+    if (toIdx < 0 || toIdx >= video.clips.length) return;
+
+    // Optimistic UI update — geser tanpa tunggu server
+    const reordered = [...video.clips];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    setVideo({ ...video, clips: reordered });
+
+    const clipIds = reordered.map((c) => c.id);
+    try {
+      const res = await fetch(`/api/tiktok/videos/${videoId}/clips/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipIds }),
+      });
+      const json = await res.json();
+      if (json.success) fetchVideo();
+      else {
+        showError(json.error || "Gagal reorder");
+        fetchVideo(); // rollback ke state server
+      }
+    } catch {
+      showError("Gagal reorder");
+      fetchVideo();
+    }
+  };
+
+  // Arrow-button move (legacy: ChevronUp/Down) — wrapper around reorderClips
   const moveClip = async (index: number, direction: -1 | 1) => {
     if (!video) return;
     const newIdx = index + direction;
     if (newIdx < 0 || newIdx >= video.clips.length) return;
-    const reordered = [...video.clips];
-    [reordered[index], reordered[newIdx]] = [reordered[newIdx], reordered[index]];
-    const clipIds = reordered.map((c) => c.id);
-    const res = await fetch(`/api/tiktok/videos/${videoId}/clips/reorder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clipIds }),
-    });
-    const json = await res.json();
-    if (json.success) fetchVideo();
-    else showError(json.error || "Gagal reorder");
+    await reorderClips(index, newIdx);
   };
 
   const saveMeta = async (data: Partial<Video>) => {
@@ -792,7 +819,16 @@ export default function TiktokEditPage() {
             {video.clips.length === 0 ? (
               <p className="py-6 text-center text-xs text-txt-muted">Belum ada clip</p>
             ) : (
-              <div className="space-y-1.5">
+              <>
+                {video.clips.length > 1 && (
+                  <p className="mb-2 text-[10px] text-txt-muted leading-tight">
+                    💡 <strong>Drag</strong> clip untuk reorder, atau pakai panah ↑↓
+                  </p>
+                )}
+                <div
+                  className="space-y-1.5"
+                  onDragOver={(e) => e.preventDefault()}
+                >
                 {video.clips.map((clip, i) => (
                   <ClipThumb
                     key={clip.id}
@@ -800,15 +836,36 @@ export default function TiktokEditPage() {
                     index={i}
                     total={video.clips.length}
                     active={selectedClipId === clip.id}
+                    isDragging={draggedClipIdx === i}
+                    isDragOver={dragOverClipIdx === i && draggedClipIdx !== null && draggedClipIdx !== i}
                     onSelect={() => {
                       setSelectedClipId(clip.id);
                       setSelectedLayer({ kind: "none" });
                     }}
                     onMove={moveClip}
                     onDelete={() => deleteClip(clip.id)}
+                    onDragStart={() => setDraggedClipIdx(i)}
+                    onDragOverThis={() => {
+                      if (draggedClipIdx !== null && draggedClipIdx !== i) setDragOverClipIdx(i);
+                    }}
+                    onDragLeaveThis={() => {
+                      setDragOverClipIdx((cur) => (cur === i ? null : cur));
+                    }}
+                    onDropThis={() => {
+                      if (draggedClipIdx !== null && draggedClipIdx !== i) {
+                        reorderClips(draggedClipIdx, i);
+                      }
+                      setDraggedClipIdx(null);
+                      setDragOverClipIdx(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedClipIdx(null);
+                      setDragOverClipIdx(null);
+                    }}
                   />
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
 
@@ -1207,23 +1264,71 @@ export default function TiktokEditPage() {
 // ────────────────────────────────────────────
 
 function ClipThumb({
-  clip, index, total, active, onSelect, onMove, onDelete,
+  clip, index, total, active, isDragging, isDragOver,
+  onSelect, onMove, onDelete,
+  onDragStart, onDragOverThis, onDragLeaveThis, onDropThis, onDragEnd,
 }: {
   clip: Clip;
   index: number;
   total: number;
   active: boolean;
+  isDragging?: boolean;
+  isDragOver?: boolean;
   onSelect: () => void;
   onMove: (i: number, dir: -1 | 1) => void;
   onDelete: () => void;
+  onDragStart?: () => void;
+  onDragOverThis?: () => void;
+  onDragLeaveThis?: () => void;
+  onDropThis?: () => void;
+  onDragEnd?: () => void;
 }) {
   return (
     <div
+      draggable
       onClick={onSelect}
-      className={`group relative flex cursor-pointer gap-2 rounded-lg border p-2 transition-colors ${
-        active ? "border-pink-600 bg-pink-50 ring-2 ring-pink-600/20" : "border-border bg-surface hover:border-pink-300 hover:bg-pink-50/30"
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        // Required for Firefox to start drag
+        e.dataTransfer.setData("text/plain", String(index));
+        onDragStart?.();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOverThis?.();
+      }}
+      onDragLeave={() => onDragLeaveThis?.()}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDropThis?.();
+      }}
+      onDragEnd={() => onDragEnd?.()}
+      className={`group relative flex cursor-grab gap-2 rounded-lg border p-2 transition-all active:cursor-grabbing ${
+        isDragging
+          ? "opacity-30 border-pink-400 scale-[0.98]"
+          : isDragOver
+          ? "border-pink-600 bg-pink-100 ring-2 ring-pink-600/40 shadow-md"
+          : active
+          ? "border-pink-600 bg-pink-50 ring-2 ring-pink-600/20"
+          : "border-border bg-surface hover:border-pink-300 hover:bg-pink-50/30"
       }`}
+      title="Drag untuk reorder, klik untuk pilih"
     >
+      {/* Drop indicator line on top */}
+      {isDragOver && (
+        <div className="absolute -top-1 left-2 right-2 h-1 rounded-full bg-pink-600 shadow-md" />
+      )}
+
+      {/* Drag grip handle */}
+      <div
+        className={`flex flex-col items-center justify-center text-txt-muted ${active ? "opacity-100" : "opacity-30 group-hover:opacity-80"} transition-opacity`}
+        title="Drag untuk reorder"
+      >
+        <GripVertical size={14} />
+      </div>
+
       {/* Thumbnail */}
       <div className="relative flex-shrink-0 overflow-hidden rounded bg-black" style={{ width: 48, height: 64 }}>
         {clip.type === "video" ? (
