@@ -18,6 +18,9 @@ import {
   ChevronRight,
   Sparkles,
   FileText,
+  TrendingUp,
+  Award,
+  ArrowRight,
 } from "lucide-react";
 
 interface Article {
@@ -360,6 +363,36 @@ export default function SeoMonitorPage() {
 
   return (
     <div className="space-y-6">
+      {/* Sub-page nav cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link
+          href="/panel/seo/insight"
+          className="group flex items-center gap-4 rounded-[12px] border border-border bg-surface p-5 shadow-card hover:border-purple-300 hover:shadow-card-hover transition-all"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 group-hover:bg-purple-100">
+            <TrendingUp size={22} className="text-purple-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-txt-primary">GSC Insight</h3>
+            <p className="text-xs text-txt-secondary">Categorized keyword: top 3, page 1, opportunity, low CTR</p>
+          </div>
+          <ArrowRight size={16} className="text-txt-muted group-hover:text-purple-600 shrink-0" />
+        </Link>
+        <Link
+          href="/panel/seo/scores"
+          className="group flex items-center gap-4 rounded-[12px] border border-border bg-surface p-5 shadow-card hover:border-orange-300 hover:shadow-card-hover transition-all"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 group-hover:bg-orange-100">
+            <Award size={22} className="text-orange-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-txt-primary">SEO Scores</h3>
+            <p className="text-xs text-txt-secondary">Score artikel published berdasarkan 10 kriteria</p>
+          </div>
+          <ArrowRight size={16} className="text-txt-muted group-hover:text-orange-600 shrink-0" />
+        </Link>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

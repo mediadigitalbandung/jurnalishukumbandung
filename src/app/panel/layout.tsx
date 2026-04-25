@@ -68,7 +68,6 @@ const menuItems: MenuItem[] = [
   { name: "Auto-Artikel", href: "/panel/auto-artikel", icon: Bot, superAdminOnly: true },
   { name: "Social Media", href: "/panel/social", icon: Share2, superAdminOnly: true },
   { name: "TikTok Video", href: "/panel/tiktok", icon: Video, superAdminOnly: true },
-  { name: "Obsidian Vault", href: "/panel/vault", icon: BookOpen, superAdminOnly: true },
   { name: "AI Tools", href: "/panel/ai-log", icon: Sparkles, superAdminOnly: true },
   { name: "Pengguna", href: "/panel/pengguna", icon: Users, superAdminOnly: true },
   { name: "Pengaturan", href: "/panel/pengaturan", icon: Settings, superAdminOnly: true },

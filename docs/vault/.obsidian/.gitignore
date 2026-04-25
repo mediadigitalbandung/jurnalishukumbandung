@@ -1,7 +1,0 @@
-# Per-device files (jangan di-commit)
-workspace.json
-workspace-mobile.json
-workspaces.json
-
-# Plugin local cache
-plugins/

@@ -77,12 +77,6 @@ Kamu WAJIB otomatis memilih dan menjalankan skill yang relevan berdasarkan promp
 | "statistik", "analytics", "laporan", "performa konten" | `/analytics` |
 | "monitor", "health check", "cek sistem", "status server" | `/monitor` |
 
-#### Obsidian Vault
-| Keyword/Intent di prompt user | Skill yang dijalankan |
-|---|----|
-| "obsidian", "vault", "knowledge base", "import draft", "sync sidang" | `/vault` |
-| "daily log", "editorial journal" | `/vault daily-log` |
-| "sync keyword vault" | `/vault pull-keywords` atau `push-keywords` |
 
 ### Hierarki Agent (Main → Sub-Agent)
 

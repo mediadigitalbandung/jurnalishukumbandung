@@ -827,51 +827,33 @@ curl -X POST https://api.cloudflare.com/client/v4/zones/$CF_ZONE/purge_cache \
 
 ---
 
-## 17. Obsidian Vault (Editorial Knowledge Base)
+## 17. SEO Tooling (Panel Admin)
 
-Knowledge base editorial di `docs/vault/` — komplemen DB Prisma untuk konten naratif (kasus, narasumber, pasal, draft, daily log) yang tidak muat di tabel relasional.
+Workflow SEO terintegrasi di `/panel/seo/*`:
 
-**Lokasi**: `docs/vault/` (Git-tracked, sub-folder repo)
-**Setup**: lihat [docs/vault/SETUP.md](docs/vault/SETUP.md)
-**Workflow**: lihat [docs/vault/README.md](docs/vault/README.md)
+| Halaman | Fungsi |
+|---|---|
+| `/panel/seo` | SEO Monitor — index status + bulk submit Google Indexing |
+| `/panel/seo/insight` | GSC Insight — categorized keyword (top 3, page 1, opportunity, low CTR) |
+| `/panel/seo/scores` | SEO Scores — score 10 kriteria untuk artikel published |
 
-### Struktur Folder
+### API Endpoints
+- `GET /api/seo/insight?days=28|90` — pull GSC + auto-categorize
+- `GET /api/seo/scores?sort=score-asc&limit=300` — score artikel published
 
-```
-docs/vault/
-├── 00-Inbox/         # Catatan cepat
-├── 01-Kasus/         # 1 file = 1 kasus hukum
-├── 02-Narasumber/    # Profil narasumber
-├── 03-Hukum/
-│   ├── Pasal/        # KUHP, UU ITE, dll
-│   └── Yurisprudensi/  # Putusan penting
-├── 04-Topik-Riset/   # Topic cluster, keyword, gap analysis
-├── 05-Editorial/
-│   ├── Daily-Log/    # Daily journal (auto-generate)
-│   └── Calendar/     # Editorial calendar + Kanban
-├── 06-Sidang/        # Catatan sidang lapangan
-├── 07-Drafts/        # Draft artikel sebelum push ke DB
-├── 08-Sosmed-Plan/   # Plan konten IG/FB/TikTok
-├── 09-Templates/     # 9 template Templater
-└── 99-Archive/       # Arsip case selesai
-```
+### Keyword Categories (Insight)
+- **🎯 Opportunity** — posisi #11-30 dengan impresi ≥50 (rank 1 candidate)
+- **⚠️ Low CTR** — top 10 dengan CTR <50% expected (revisi judul)
+- **🏆 Top 3** — current wins
+- **🥇 Page 1** — posisi #4-10
+- **📍 Page 2-3** — semua #11-30
+- **🔭 Deep** — posisi >30
 
-### 9 Template Templater (di 09-Templates/)
-- artikel-draft, kasus, narasumber, pasal, yurisprudensi, daily-log, sidang-note, topic-cluster, source-link
-
-### Plugin Wajib (.obsidian/community-plugins.json)
-- Dataview · Templater · Calendar · Periodic Notes · Kanban · Excalidraw · Obsidian Git · Linter · Auto-Link Title
-
-### Integration Scripts (scripts/obsidian/)
-
-| Script | Arah | Fungsi |
-|---|---|---|
-| `export-sidang.js` | DB → Vault | Pull CourtSchedule → markdown |
-| `import-draft.js` | Vault → DB | Push draft .md → POST /api/articles |
-| `sync-keywords.js` | Bidirectional | Sync TargetKeyword ↔ Keywords.md |
-| `export-daily-digest.js` | DB → Vault | Auto daily editorial log |
-
-Slash command: `/vault` (lihat [.claude/commands/vault.md](.claude/commands/vault.md))
+### SEO Score (10 Kriteria)
+1. Title 50-70 char (10) · 2. seoTitle 50-60 (10) · 3. seoDesc 145-160 (10)
+4. Excerpt (5) · 5. Keyword di title (10) · 6. Keyword di H2 (10)
+7. Keyword paragraf 1 (10) · 8. Word count (15) · 9. Internal links (10) · 10. Tags (5)
+Bonus: FAQ section (5)
 
 ---
 
@@ -889,8 +871,7 @@ Slash command: `/vault` (lihat [.claude/commands/vault.md](.claude/commands/vaul
 | [tailwind.config.ts](tailwind.config.ts) | Design tokens |
 | [ecosystem.config.js](ecosystem.config.js) | PM2 production |
 | [.github/workflows/deploy.yml](.github/workflows/deploy.yml) | Auto-deploy |
-| [docs/vault/](docs/vault/) | Obsidian editorial vault |
-| [scripts/obsidian/](scripts/obsidian/) | Vault ↔ DB integration scripts |
+| [src/app/panel/seo/](src/app/panel/seo/) | SEO Monitor + Insight + Scores |
 
 ---
 
