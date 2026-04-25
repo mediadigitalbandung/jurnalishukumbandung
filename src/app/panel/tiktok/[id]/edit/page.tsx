@@ -1329,13 +1329,28 @@ function ClipThumb({
         <GripVertical size={14} />
       </div>
 
-      {/* Thumbnail */}
-      <div className="relative flex-shrink-0 overflow-hidden rounded bg-black" style={{ width: 48, height: 64 }}>
+      {/* Thumbnail — draggable=false on media so parent div drag works */}
+      <div
+        className="relative flex-shrink-0 overflow-hidden rounded bg-black pointer-events-none"
+        style={{ width: 48, height: 64 }}
+      >
         {clip.type === "video" ? (
-          <video src={clip.sourceUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+          <video
+            src={clip.sourceUrl}
+            className="h-full w-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            draggable={false}
+          />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={clip.sourceUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={clip.sourceUrl}
+            alt=""
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
         )}
         {active && (
           <div className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-pink-600 ring-2 ring-white" />
