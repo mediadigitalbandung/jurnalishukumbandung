@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle, Film, Pencil, Plus, Loader2 } from "lucide-react";
+import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle, Film, Pencil, Plus, Loader2, Play, Pause, SkipForward, Copy } from "lucide-react";
 
 // ─── Public types ──────────────────────────────────────────────────────
 
@@ -87,6 +87,22 @@ interface Props {
   // NEW: Quick action handlers
   onAddTextLayer?: () => void;       // focuses text edit on selected clip
   onAddSubtitleLayer?: () => void;   // toggles subtitle on
+  // Sequential play — receives all clips in order for "Play All" mode
+  allClips?: Array<{
+    id: string;
+    type: "video" | "image";
+    sourceUrl: string;
+    durationSec: number;
+    textOverlay: string | null;
+    textColor: string | null;
+    textX: number | null;
+    textY: number | null;
+    textFontSize: number | null;
+    textRotation: number | null;
+  }>;
+  onSelectClipById?: (clipId: string) => void;
+  // Apply current text/duration to ALL clips
+  onApplyTextToAllClips?: () => void;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -112,6 +128,9 @@ export default function VideoCanvas({
   onRemoveMultiOverlay,
   onAddTextLayer,
   onAddSubtitleLayer,
+  allClips = [],
+  onSelectClipById,
+  onApplyTextToAllClips,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -150,6 +169,44 @@ export default function VideoCanvas({
   }, [renderedUrl]);
 
   const showRenderedVideo = previewMode === "rendered" && !!renderedUrl;
+
+  // ─── Sequential Play All Mode ──────────────────────────────────────────
+  // Auto-cycle through allClips in order, switching every clip.durationSec
+  const [playAllActive, setPlayAllActive] = useState(false);
+  const playAllTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!playAllActive || showRenderedVideo || allClips.length === 0 || !onSelectClipById) {
+      if (playAllTimerRef.current) {
+        clearTimeout(playAllTimerRef.current);
+        playAllTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Find current clip index
+    const currentIdx = allClips.findIndex((c) => c.id === selectedClip?.id);
+    const idx = currentIdx >= 0 ? currentIdx : 0;
+    const currentClip = allClips[idx];
+    const durationMs = Math.max(1000, currentClip.durationSec * 1000);
+
+    playAllTimerRef.current = setTimeout(() => {
+      const nextIdx = (idx + 1) % allClips.length; // loop
+      onSelectClipById(allClips[nextIdx].id);
+    }, durationMs);
+
+    return () => {
+      if (playAllTimerRef.current) {
+        clearTimeout(playAllTimerRef.current);
+        playAllTimerRef.current = null;
+      }
+    };
+  }, [playAllActive, selectedClip?.id, allClips, showRenderedVideo, onSelectClipById]);
+
+  // Stop play-all when switching to rendered mode
+  useEffect(() => {
+    if (showRenderedVideo) setPlayAllActive(false);
+  }, [showRenderedVideo]);
 
   // Observe canvas size for coord conversion
   useEffect(() => {
@@ -633,9 +690,48 @@ export default function VideoCanvas({
         </div>
       </div>
 
+      {/* Play All controls — only in Edit mode with multiple clips */}
+      {!showRenderedVideo && allClips.length > 1 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-pink-200 bg-pink-50/40 p-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-pink-700">
+            🎬 Preview Sequential:
+          </span>
+          <button
+            onClick={() => setPlayAllActive((a) => !a)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+              playAllActive
+                ? "bg-pink-600 text-white hover:bg-pink-700"
+                : "border border-pink-400 bg-white text-pink-600 hover:bg-pink-100"
+            }`}
+            title="Auto-cycle semua clip seperti hasil render (preview gabungan)"
+          >
+            {playAllActive ? <Pause size={11} /> : <Play size={11} />}
+            {playAllActive ? "Pause" : "Play All"}
+          </button>
+          {onSelectClipById && (
+            <button
+              onClick={() => {
+                if (allClips.length === 0) return;
+                const currentIdx = allClips.findIndex((c) => c.id === selectedClip?.id);
+                const nextIdx = ((currentIdx >= 0 ? currentIdx : -1) + 1) % allClips.length;
+                onSelectClipById(allClips[nextIdx].id);
+              }}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-1 text-[11px] font-medium text-txt-secondary hover:border-pink-400 hover:text-pink-600"
+              title="Loncat ke clip berikutnya"
+            >
+              <SkipForward size={11} /> Next
+            </button>
+          )}
+          <span className="text-[10px] text-txt-muted">
+            Clip {(allClips.findIndex((c) => c.id === selectedClip?.id) >= 0 ? allClips.findIndex((c) => c.id === selectedClip?.id) : 0) + 1} / {allClips.length}
+            {playAllActive && <span className="ml-1 text-pink-600">· auto-switch</span>}
+          </span>
+        </div>
+      )}
+
       {/* Quick-add action bar — only in Edit mode */}
       {!showRenderedVideo && (
-      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-secondary/50 p-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-secondary/50 p-2">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-txt-muted">Tambah Layer:</span>
 
         <button
@@ -676,6 +772,16 @@ export default function VideoCanvas({
         >
           <Plus size={11} /> <Subtitles size={11} /> Subtitle
         </button>
+
+        {selectedClip?.textOverlay && onApplyTextToAllClips && allClips.length > 1 && (
+          <button
+            onClick={onApplyTextToAllClips}
+            className="inline-flex items-center gap-1 rounded-full border border-pink-300 bg-white px-2.5 py-1 text-[10px] font-semibold text-pink-600 hover:bg-pink-50"
+            title={`Salin text "${selectedClip.textOverlay.slice(0, 30)}..." ke ${allClips.length} clip`}
+          >
+            <Copy size={10} /> Apply ke semua clip
+          </button>
+        )}
 
         {multiOverlays.length > 0 && (
           <span className="ml-auto rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">

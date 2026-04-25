@@ -137,6 +137,46 @@ export default function TiktokEditPage() {
   const [articlePickerOpen, setArticlePickerOpen] = useState(false);
   const [applyingArticle, setApplyingArticle] = useState(false);
 
+  // Apply current clip's text/style to all other clips (bulk update)
+  const applyTextToAllClips = useCallback(async () => {
+    if (!video) return;
+    const sourceClip = video.clips.find((c) => c.id === selectedClipId);
+    if (!sourceClip?.textOverlay) {
+      showError("Pilih clip yang sudah ada text overlay-nya dulu");
+      return;
+    }
+    const ok = await confirm({
+      message: `Salin text "${sourceClip.textOverlay.slice(0, 60)}..." dan styling-nya ke ${video.clips.length} clip?`,
+      variant: "warning",
+      title: "Apply ke Semua Clip",
+    });
+    if (!ok) return;
+    try {
+      const others = video.clips.filter((c) => c.id !== sourceClip.id);
+      await Promise.all(
+        others.map((c) =>
+          fetch(`/api/tiktok/videos/${videoId}/clips/${c.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              textOverlay: sourceClip.textOverlay,
+              textPosition: sourceClip.textPosition,
+              textColor: sourceClip.textColor,
+              textX: sourceClip.textX,
+              textY: sourceClip.textY,
+              textFontSize: sourceClip.textFontSize,
+              textRotation: sourceClip.textRotation,
+            }),
+          })
+        )
+      );
+      success(`Text + styling diterapkan ke ${others.length + 1} clip`);
+      fetchVideo();
+    } catch {
+      showError("Gagal apply ke semua clip");
+    }
+  }, [video, selectedClipId, videoId, confirm, success, showError]);
+
   const applyArticle = useCallback(async (
     article: { id: string; title: string; slug: string },
     opts: SelectOptions
@@ -808,6 +848,20 @@ export default function TiktokEditPage() {
                 updateSubtitle({ show: !video.subtitleEnabled });
                 setSelectedLayer({ kind: "subtitle" });
               }}
+              allClips={video.clips.map((c) => ({
+                id: c.id,
+                type: c.type,
+                sourceUrl: c.sourceUrl,
+                durationSec: c.durationSec,
+                textOverlay: c.textOverlay,
+                textColor: c.textColor,
+                textX: c.textX,
+                textY: c.textY,
+                textFontSize: c.textFontSize,
+                textRotation: c.textRotation,
+              }))}
+              onSelectClipById={setSelectedClipId}
+              onApplyTextToAllClips={applyTextToAllClips}
             />
 
             {/* Render + Publish buttons — stacked below canvas */}
