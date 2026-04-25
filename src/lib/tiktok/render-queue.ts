@@ -54,6 +54,7 @@ async function processNext(): Promise<void> {
           clips: { orderBy: { order: "asc" } },
           backsong: true,
           overlays: { orderBy: { order: "asc" } },
+          subtitleEntries: { orderBy: { startSec: "asc" } },
         },
       });
       if (!next) break;
@@ -115,6 +116,14 @@ async function processNext(): Promise<void> {
           rotation: o.rotation,
           opacity: o.opacity,
           order: o.order,
+        })),
+        subtitleEntries: next.subtitleEntries.map((s) => ({
+          startSec: s.startSec,
+          endSec: s.endSec,
+          text: s.text,
+          y: s.y,
+          fontSize: s.fontSize,
+          color: s.color,
         })),
       });
 

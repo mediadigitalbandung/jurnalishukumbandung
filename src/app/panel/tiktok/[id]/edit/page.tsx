@@ -58,7 +58,18 @@ import VideoCanvas, { SelectedLayer, OverlayPos, SubtitlePos, ClipData } from ".
 import TimelinePanel, { TimelineLayer } from "./TimelinePanel";
 import LayerInspector from "./LayerInspector";
 import ArticlePicker, { SelectOptions } from "./ArticlePicker";
+import SubtitleManager from "./SubtitleManager";
 import { FileText } from "lucide-react";
+
+interface SubtitleEntry {
+  id: string;
+  startSec: number;
+  endSec: number;
+  text: string;
+  y: number | null;
+  fontSize: number | null;
+  color: string | null;
+}
 
 interface Video {
   id: string;
@@ -136,6 +147,31 @@ export default function TiktokEditPage() {
   // Article picker
   const [articlePickerOpen, setArticlePickerOpen] = useState(false);
   const [applyingArticle, setApplyingArticle] = useState(false);
+
+  // Subtitle entries (video-level, timed, draggable)
+  const [subtitleEntries, setSubtitleEntries] = useState<SubtitleEntry[]>([]);
+  const fetchSubtitleEntries = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tiktok/videos/${videoId}/subtitles`);
+      const json = await res.json();
+      if (json.success) setSubtitleEntries(json.data || []);
+    } catch { /* ignore */ }
+  }, [videoId]);
+
+  const updateSubtitleEntry = useCallback(async (id: string, patch: Partial<SubtitleEntry>) => {
+    setSubtitleEntries((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
+    try {
+      await fetch(`/api/tiktok/videos/${videoId}/subtitles/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch { /* ignore */ }
+  }, [videoId]);
+
+  useEffect(() => {
+    if (videoId) fetchSubtitleEntries();
+  }, [videoId, fetchSubtitleEntries]);
 
   // Apply current clip's text/style to all other clips (bulk update)
   const applyTextToAllClips = useCallback(async () => {
@@ -916,7 +952,19 @@ export default function TiktokEditPage() {
                   if (idx >= 0) moveClip(idx, direction);
                 }}
                 hasOverlay={!!video.overlayImageUrl}
-                subtitleSegments={[]}
+                subtitleSegments={subtitleEntries.map((s) => ({
+                  id: s.id,
+                  start: s.startSec,
+                  end: s.endSec,
+                  text: s.text,
+                }))}
+                onMoveSubtitle={(id, newStartSec) => {
+                  const e = subtitleEntries.find((x) => x.id === id);
+                  if (!e) return;
+                  const dur = e.endSec - e.startSec;
+                  const clamped = Math.max(0, Math.min(totalDuration - dur, newStartSec));
+                  updateSubtitleEntry(id, { startSec: clamped, endSec: clamped + dur });
+                }}
                 layerVisibility={layerVisibility}
                 layerLock={layerLock}
                 onToggleVisibility={(layer) =>
@@ -985,6 +1033,11 @@ export default function TiktokEditPage() {
             onSubtitleChange={updateSubtitle}
             onSubtitlePreviewChange={setSubtitlePreviewText}
           />
+
+          {/* Subtitle Manager — video-level timed subtitles (drag in timeline) */}
+          <div className="rounded-[12px] border border-emerald-200 bg-emerald-50/30 p-3 shadow-card">
+            <SubtitleManager videoId={videoId} totalDuration={totalDuration} onChange={fetchSubtitleEntries} />
+          </div>
 
           {/* Hasil Render (kalau ada) */}
           {video.renderedUrl && (

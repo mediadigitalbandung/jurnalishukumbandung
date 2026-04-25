@@ -34,6 +34,16 @@ export interface MultiOverlayInput {
   order: number;
 }
 
+// Timed subtitle entry (video-level)
+export interface SubtitleEntryInput {
+  startSec: number;
+  endSec: number;
+  text: string;
+  y?: number | null;        // 0-1 normalized vertical position (default 0.85)
+  fontSize?: number | null; // pixels (default 54)
+  color?: string | null;    // hex (default #FFFFFF)
+}
+
 export interface ClipInput {
   id: string;
   order: number;
@@ -68,6 +78,7 @@ export interface RenderSpec {
   title?: string | null;    // Video title (used in lower-third frame)
   customOverlay?: CustomOverlayInput | null; // DEPRECATED: legacy single overlay, used when frameStyle === "custom"
   multiOverlays?: MultiOverlayInput[];        // NEW: multiple overlays applied regardless of frameStyle
+  subtitleEntries?: SubtitleEntryInput[];     // NEW: timed subtitle segments (video-level)
 }
 
 export interface RenderResult {

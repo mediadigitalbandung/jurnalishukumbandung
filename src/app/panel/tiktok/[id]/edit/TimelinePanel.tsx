@@ -12,7 +12,7 @@
  * Click block → select clip atau layer.
  */
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Lock, Unlock, Type, Image as ImageIcon, Subtitles, Video, ChevronUp, ChevronDown } from "lucide-react";
 
 interface Clip {
@@ -25,6 +25,7 @@ interface Clip {
 }
 
 interface SubtitleSeg {
+  id?: string;
   start: number;
   end: number;
   text: string;
@@ -39,8 +40,9 @@ interface Props {
   onMoveClip: (id: string, direction: -1 | 1) => void;
   // Overlay PNG
   hasOverlay: boolean;
-  // Subtitle (current selected clip subtitles only — for visualization)
+  // Subtitle (video-level timed entries; draggable in timeline)
   subtitleSegments: SubtitleSeg[];
+  onMoveSubtitle?: (id: string, newStartSec: number) => void;
   // Layer visibility & lock state (for visual feedback only — backend rendering still uses presence of data)
   layerVisibility: Record<TimelineLayer, boolean>;
   layerLock: Record<TimelineLayer, boolean>;
@@ -71,6 +73,7 @@ export default function TimelinePanel({
   onToggleLock,
   selectedLayer = "none",
   onSelectLayer,
+  onMoveSubtitle,
 }: Props) {
   const totalDuration = useMemo(
     () => clips.reduce((sum, c) => sum + c.durationSec, 0) || 0,
@@ -266,24 +269,20 @@ export default function TimelinePanel({
                   {layerKey === "subtitle" && (
                     <div className="relative h-7">
                       {subtitleSegments.length > 0 ? (
-                        subtitleSegments.map((seg, i) => {
-                          const left = (seg.start / totalDuration) * 100;
-                          const width = ((seg.end - seg.start) / totalDuration) * 100;
-                          return (
-                            <div
-                              key={i}
-                              onClick={() => onSelectLayer("subtitle")}
-                              className={`absolute top-0 flex h-full cursor-pointer items-center overflow-hidden rounded text-[10px] text-white transition-all ${cfg.color} ${isSelected ? "ring-2 ring-white" : "opacity-80 hover:opacity-100"}`}
-                              style={{ left: `${left}%`, width: `${Math.max(2, width)}%`, minWidth: "20px" }}
-                              title={`${seg.start.toFixed(1)}s–${seg.end.toFixed(1)}s · ${seg.text}`}
-                            >
-                              <span className="truncate px-1">{seg.text.slice(0, 12)}</span>
-                            </div>
-                          );
-                        })
+                        subtitleSegments.map((seg, i) => (
+                          <DraggableSubtitleBlock
+                            key={seg.id || i}
+                            seg={seg}
+                            totalDuration={totalDuration}
+                            color={cfg.color}
+                            isSelected={isSelected}
+                            onSelect={() => onSelectLayer("subtitle")}
+                            onMove={onMoveSubtitle}
+                          />
+                        ))
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-[10px] text-txt-muted">
-                          Belum ada subtitle (auto-generate via Whisper di Layer Inspector)
+                          Belum ada subtitle. Tambahkan di panel Subtitle Timeline kanan.
                         </div>
                       )}
                     </div>
@@ -298,9 +297,84 @@ export default function TimelinePanel({
       {/* Help footer */}
       <div className="border-t border-border bg-surface-secondary/30 px-4 py-1.5 text-[10px] text-txt-muted">
         <span className="mr-3">💡 Klik blok untuk select</span>
+        <span className="mr-3">↔ Drag blok subtitle untuk geser timing</span>
         <span className="mr-3">🔒 Lock = prevent edit</span>
-        <span>👁 Hide = sembunyikan dari preview (rendering tetap pakai data DB)</span>
+        <span>👁 Hide = sembunyikan dari preview</span>
       </div>
+    </div>
+  );
+}
+
+function DraggableSubtitleBlock({
+  seg, totalDuration, color, isSelected, onSelect, onMove,
+}: {
+  seg: SubtitleSeg;
+  totalDuration: number;
+  color: string;
+  isSelected: boolean;
+  onSelect: () => void;
+  onMove?: (id: string, newStartSec: number) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [previewStart, setPreviewStart] = useState<number | null>(null);
+  const dragRef = useRef<{ startX: number; origStart: number; trackWidth: number } | null>(null);
+
+  const dur = Math.max(0.1, seg.end - seg.start);
+  const effectiveStart = previewStart ?? seg.start;
+  const left = totalDuration > 0 ? (effectiveStart / totalDuration) * 100 : 0;
+  const width = totalDuration > 0 ? (dur / totalDuration) * 100 : 0;
+  const canDrag = !!seg.id && !!onMove;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    onSelect();
+    if (!canDrag) return;
+    const trackEl = e.currentTarget.parentElement;
+    if (!trackEl) return;
+    const rect = trackEl.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, origStart: seg.start, trackWidth: rect.width };
+    setDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging || !dragRef.current) return;
+    const { startX, origStart, trackWidth } = dragRef.current;
+    const deltaPx = e.clientX - startX;
+    const deltaSec = (deltaPx / trackWidth) * totalDuration;
+    const next = Math.max(0, Math.min(totalDuration - dur, origStart + deltaSec));
+    setPreviewStart(next);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging || !dragRef.current) return;
+    setDragging(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (previewStart !== null && seg.id && onMove) {
+      onMove(seg.id, previewStart);
+    }
+    setPreviewStart(null);
+    dragRef.current = null;
+  };
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      className={`absolute top-0 flex h-full items-center overflow-hidden rounded text-[10px] text-white select-none ${color} ${
+        isSelected ? "ring-2 ring-white" : "opacity-80 hover:opacity-100"
+      } ${canDrag ? (dragging ? "cursor-grabbing shadow-lg z-10" : "cursor-grab") : "cursor-pointer"}`}
+      style={{
+        left: `${left}%`,
+        width: `${Math.max(2, width)}%`,
+        minWidth: "30px",
+        touchAction: "none",
+      }}
+      title={`${effectiveStart.toFixed(1)}s–${(effectiveStart + dur).toFixed(1)}s · ${seg.text}`}
+    >
+      <span className="truncate px-1">{seg.text.slice(0, 18)}</span>
     </div>
   );
 }

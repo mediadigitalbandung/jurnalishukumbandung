@@ -459,6 +459,43 @@ async function applyMultiOverlays(
   await runFfmpeg(args);
 }
 
+/**
+ * Burn timed subtitle entries into video.
+ * Generates per-segment drawtext filter with enable=between(t,start,end) for time-based visibility.
+ */
+async function burnSubtitleEntries(
+  inputPath: string,
+  outputPath: string,
+  entries: Array<{ startSec: number; endSec: number; text: string; y?: number | null; fontSize?: number | null; color?: string | null }>,
+  width: number,
+  height: number
+): Promise<void> {
+  if (entries.length === 0) {
+    await runFfmpeg(["-i", inputPath, "-c", "copy", "-y", outputPath]);
+    return;
+  }
+
+  const filters: string[] = entries.map((e) => {
+    const text = escapeDrawText(e.text.slice(0, 200));
+    const fontSize = e.fontSize || 54;
+    const color = e.color || "#FFFFFF";
+    const yPos = typeof e.y === "number" ? Math.round(e.y * height) : Math.round(0.85 * height);
+    return `drawtext=text='${text}':fontcolor=${color}:fontsize=${fontSize}:box=1:boxcolor=black@0.6:boxborderw=15:x=(w-tw)/2:y=${yPos}-th/2:enable='between(t,${e.startSec.toFixed(3)},${e.endSec.toFixed(3)})'`;
+  });
+
+  const args = [
+    "-i", inputPath,
+    "-vf", filters.join(","),
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-pix_fmt", "yuv420p",
+    "-c:a", "copy",
+    "-y",
+    outputPath,
+  ];
+  await runFfmpeg(args);
+}
+
 /** Get duration of a media file using ffprobe */
 async function probeDuration(path: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -600,12 +637,19 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
       await applyMultiOverlays(framedPath, multiPath, resolvedOverlays, width, height);
     }
 
+    // Step 2d: burn timed subtitle entries (NEW — video-level subtitle with timing)
+    const subtitleInputs = (spec.subtitleEntries || []).slice().sort((a, b) => a.startSec - b.startSec);
+    const subtitledPath = subtitleInputs.length > 0 ? join(workDir, "subtitled.mp4") : multiPath;
+    if (subtitleInputs.length > 0) {
+      await burnSubtitleEntries(multiPath, subtitledPath, subtitleInputs, width, height);
+    }
+
     // Step 3: finalize with backsong + trim
     const outputFilename = `tiktok-${spec.videoId}-${sessionId}.mp4`;
     const outputPath = join(TIKTOK_DIR, outputFilename);
     const backsongPath = spec.backsongUrl ? resolveAssetPath(spec.backsongUrl) : null;
     const finalDuration = await finalizeVideo(
-      multiPath,
+      subtitledPath,
       backsongPath,
       spec.backsongVolume ?? 0.5,
       maxDuration,

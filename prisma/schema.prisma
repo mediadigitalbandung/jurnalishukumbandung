@@ -609,6 +609,7 @@ model TiktokVideo {
   // Assets
   clips          TiktokClip[]
   overlays       TiktokOverlay[] // Multiple PNG overlays — each independently positioned
+  subtitleEntries TiktokSubtitleEntry[] // Timed subtitle segments (video-level, drag-positionable)
   backsong       TiktokBacksong? @relation(fields: [backsongId], references: [id], onDelete: SetNull)
   backsongId     String?
   backsongVolume Float           @default(0.5) // 0.0-1.0
@@ -659,6 +660,24 @@ model TiktokVideo {
   @@index([articleId])
   @@index([createdBy])
   @@map("tiktok_videos")
+}
+
+// TiktokSubtitleEntry — timed subtitle segment, video-level (drag-positionable on timeline)
+model TiktokSubtitleEntry {
+  id        String      @id @default(cuid())
+  video     TiktokVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId   String
+  startSec  Float       // start time in seconds (relative to total video timeline)
+  endSec    Float       // end time in seconds
+  text      String      @db.Text
+  // Optional styling overrides (else use video.subtitleY/FontSize)
+  y         Float?      // 0-1 normalized vertical position
+  fontSize  Int?        // pixels at output resolution
+  color     String?     @default("#FFFFFF")
+  createdAt DateTime    @default(now())
+
+  @@index([videoId, startSec])
+  @@map("tiktok_subtitle_entries")
 }
 
 // TiktokOverlay — multiple PNG overlays per video, each independently positionable
