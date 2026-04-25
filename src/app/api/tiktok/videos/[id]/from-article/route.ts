@@ -15,6 +15,8 @@ const schema = z.object({
   fillHashtags: z.boolean().optional().default(true),
   createFeaturedClip: z.boolean().optional().default(true),
   generateTextOverlays: z.boolean().optional().default(true),
+  // Optional: apply a template's visual identity (frame, PNG overlays, subtitle style, backsong, default text style)
+  templateId: z.string().nullable().optional(),
 });
 
 const SYSTEM_PROMPT =
@@ -187,6 +189,68 @@ ATURAN:
     result.textOverlaysGenerated = textsApplied;
     result.aiSnippets = aiSnippets;
     result.clipsCreated = createdClipsCount;
+
+    // Apply template (if provided) — copies frame, PNG overlays, subtitle style, backsong, default text style.
+    // Done LAST so it overrides article-derived defaults where templates have opinions.
+    if (data.templateId) {
+      const tpl = await prisma.tiktokTemplate.findUnique({
+        where: { id: data.templateId },
+        include: { overlays: true },
+      });
+      if (tpl) {
+        await prisma.tiktokVideo.update({
+          where: { id: params.id },
+          data: {
+            frameStyle: tpl.frameStyle,
+            breakingText: tpl.breakingText,
+            subtitleEnabled: tpl.subtitleEnabled,
+            subtitleY: tpl.subtitleY,
+            subtitleFontSize: tpl.subtitleFontSize,
+            backsongId: tpl.backsongId ?? undefined,
+            backsongVolume: tpl.backsongVolume,
+          },
+        });
+
+        // Replace PNG overlays with template's
+        await prisma.tiktokOverlay.deleteMany({ where: { videoId: params.id } });
+        if (tpl.overlays.length > 0) {
+          await prisma.tiktokOverlay.createMany({
+            data: tpl.overlays.map((o) => ({
+              videoId: params.id,
+              imageUrl: o.imageUrl,
+              x: o.x,
+              y: o.y,
+              scale: o.scale,
+              rotation: o.rotation,
+              opacity: o.opacity,
+              order: o.order,
+              label: o.label,
+            })),
+          });
+        }
+
+        // Apply default text style to all clips (including AI-generated text overlays)
+        await prisma.tiktokClip.updateMany({
+          where: { videoId: params.id },
+          data: {
+            textColor: tpl.defaultTextColor,
+            textPosition: tpl.defaultTextPosition,
+            textFontSize: tpl.defaultTextFontSize,
+            textRotation: tpl.defaultTextRotation,
+            textX: tpl.defaultTextX,
+            textY: tpl.defaultTextY,
+          },
+        });
+
+        await prisma.tiktokTemplate.update({
+          where: { id: tpl.id },
+          data: { usedCount: { increment: 1 }, lastUsedAt: new Date() },
+        });
+
+        result.templateApplied = tpl.name;
+        result.templateOverlaysCopied = tpl.overlays.length;
+      }
+    }
 
     return successResponse(result);
   } catch (error) {

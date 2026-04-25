@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, X, FileText, Calendar, Loader2, Sparkles, Check } from "lucide-react";
+import { Search, X, FileText, Calendar, Loader2, Sparkles, Check, LayoutTemplate } from "lucide-react";
 
 interface ArticleResult {
   id: string;
@@ -25,6 +25,14 @@ export interface SelectOptions {
   fillHashtags: boolean;
   createFeaturedClip: boolean;
   generateTextOverlays: boolean;
+  templateId?: string | null;
+}
+
+interface TemplateOption {
+  id: string;
+  name: string;
+  frameStyle: string;
+  overlays: { id: string }[];
 }
 
 export default function ArticlePicker({ open, onClose, onSelect }: Props) {
@@ -43,7 +51,18 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
     fillHashtags: true,
     createFeaturedClip: true,
     generateTextOverlays: true,
+    templateId: null,
   });
+
+  // Templates available
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/tiktok/templates")
+      .then((r) => r.json())
+      .then((j) => { if (j.success) setTemplates(j.data || []); })
+      .catch(() => { /* ignore */ });
+  }, [open]);
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) {
@@ -237,6 +256,30 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
         {/* Generation options */}
         {selectedArticle && (
           <div className="border-t border-border bg-surface-secondary/40 px-5 py-3">
+            {/* Template selector */}
+            {templates.length > 0 && (
+              <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-2">
+                <label className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                  <LayoutTemplate size={11} /> Pakai Template (opsional)
+                </label>
+                <select
+                  value={opts.templateId || ""}
+                  onChange={(e) => setOpts({ ...opts, templateId: e.target.value || null })}
+                  className="input w-full text-xs"
+                >
+                  <option value="">— Tanpa template (default) —</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} {t.overlays.length > 0 ? `(🖼${t.overlays.length})` : ""} {t.frameStyle !== "none" ? `· 🎞${t.frameStyle}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] text-indigo-600">
+                  Template = frame, PNG overlay, subtitle style, backsong. Foto/video/text tetap dari artikel.
+                </p>
+              </div>
+            )}
+
             <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-txt-muted">
               <Sparkles size={12} /> Auto-Generate
             </p>

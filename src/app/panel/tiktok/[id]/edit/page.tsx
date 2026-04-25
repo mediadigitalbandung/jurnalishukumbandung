@@ -59,6 +59,7 @@ import TimelinePanel, { TimelineLayer } from "./TimelinePanel";
 import LayerInspector from "./LayerInspector";
 import ArticlePicker, { SelectOptions } from "./ArticlePicker";
 import SubtitleManager from "./SubtitleManager";
+import TemplateManager from "./TemplateManager";
 import { FileText } from "lucide-react";
 
 interface SubtitleEntry {
@@ -996,9 +997,20 @@ export default function TiktokEditPage() {
         </div>
 
         {/* ═══════════════════════════════════════════════════
-            KOLOM KANAN — Layer Inspector + Backsong + Caption (3/12)
+            KOLOM KANAN — Template + Layer Inspector + Backsong + Caption (3/12)
             ═══════════════════════════════════════════════════ */}
         <div className="space-y-4 lg:col-span-3">
+          {/* Template Manager — save/apply reusable preset */}
+          <div className="rounded-[12px] border border-indigo-200 bg-indigo-50/30 p-3 shadow-card">
+            <TemplateManager
+              videoId={videoId}
+              onApplied={async () => {
+                await fetchVideo();
+                await fetchMultiOverlays();
+              }}
+            />
+          </div>
+
           {/* Layer Inspector — context-sensitive editing panel */}
           <LayerInspector
             selected={selectedLayer}

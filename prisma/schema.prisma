@@ -680,6 +680,71 @@ model TiktokSubtitleEntry {
   @@map("tiktok_subtitle_entries")
 }
 
+// TiktokTemplate — reusable preset of frame style, overlays, subtitle config, default text style.
+// Apply to any video to copy the visual identity (logo position, frame, subtitle style, backsong, etc.)
+// without copying clips/subtitle entries (those are per-video content).
+model TiktokTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  thumbnailUrl String? // Optional preview image
+  // Frame
+  frameStyle   String  @default("none")
+  breakingText String? @db.Text
+  // Subtitle defaults
+  subtitleEnabled  Boolean @default(true)
+  subtitleY        Float   @default(0.85)
+  subtitleFontSize Int     @default(54)
+  subtitleColor    String? @default("#FFFFFF")
+  // Default text overlay style (applied to article-generated text overlays)
+  defaultTextColor    String? @default("#FFFFFF")
+  defaultTextX        Float?
+  defaultTextY        Float?
+  defaultTextFontSize Int?    @default(54)
+  defaultTextRotation Int?    @default(0)
+  defaultTextPosition String? @default("bottom")
+  // Backsong reference (template stores choice; volume too)
+  backsong       TiktokBacksong? @relation(fields: [backsongId], references: [id], onDelete: SetNull)
+  backsongId     String?
+  backsongVolume Float           @default(0.3)
+  // Default clip duration (image)
+  defaultImageDurationSec Float @default(3)
+  defaultKenBurns         Boolean @default(true)
+  // PNG overlays — full styling captured
+  overlays    TiktokTemplateOverlay[]
+  // Stats
+  usedCount   Int      @default(0)
+  lastUsedAt  DateTime?
+  isActive    Boolean  @default(true)
+  // Meta
+  createdBy     String
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive, lastUsedAt])
+  @@map("tiktok_templates")
+}
+
+// TiktokTemplateOverlay — PNG overlays inside a template (positions captured)
+model TiktokTemplateOverlay {
+  id         String         @id @default(cuid())
+  template   TiktokTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId String
+  imageUrl   String
+  x          Float          @default(0.5)
+  y          Float          @default(0.5)
+  scale      Float          @default(1.0)
+  rotation   Float          @default(0)
+  opacity    Float          @default(1.0)
+  order      Int            @default(0)
+  label      String?
+  createdAt  DateTime       @default(now())
+
+  @@index([templateId, order])
+  @@map("tiktok_template_overlays")
+}
+
 // TiktokOverlay — multiple PNG overlays per video, each independently positionable
 model TiktokOverlay {
   id        String      @id @default(cuid())
@@ -744,7 +809,8 @@ model TiktokBacksong {
   uploadedBy  String
   createdAt   DateTime @default(now())
 
-  videos TiktokVideo[]
+  videos    TiktokVideo[]
+  templates TiktokTemplate[]
 
   @@index([isActive, mood])
   @@map("tiktok_backsongs")
