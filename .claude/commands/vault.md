@@ -55,6 +55,26 @@ ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/export-daily-dig
 # atau --last-7-days untuk batch 7 hari
 ```
 
+### narasumber [--min-mentions=N]
+Pull `Source` table (narasumber dari artikel) → markdown konsolidasi di `02-Narasumber/`.
+Source dengan nama mirip otomatis di-merge jadi 1 file.
+```bash
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/export-narasumber.js"
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/export-narasumber.js --min-mentions=3"
+```
+
+### Via Panel UI (paling mudah)
+Buka `/panel/vault` di admin panel. Klik tombol Run untuk action apapun. Tidak perlu SSH.
+
+### Cron Otomatis
+Tiap 23:00 WIB cron jalan otomatis:
+- daily-log (hari ini)
+- export-sidang --upcoming
+- sync-keywords pull
+- Auto-commit + push (kalau credentials setup)
+
+Edit cron via `crontab -e` di VPS. Script: `/var/www/jhb/scripts/obsidian/cron-sync.sh`. Log: `/var/log/jhb-vault-cron.log`.
+
 ### status
 Cek status sync — apa yang beda antara DB dan vault.
 ```bash
