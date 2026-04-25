@@ -106,22 +106,28 @@ export async function renderWithHyperframes(spec: RenderSpec): Promise<RenderRes
     await writeFile(compositionPath, html, "utf8");
 
     // 2. Render via hyperframes CLI
-    //    Args reference: hyperframes render <composition> --output <output.mp4> [--fps N]
+    //    Reference: hyperframes render <DIR> --output <output.mp4> --fps <N>
+    //    DIR must contain index.html (the composition root)
     const fps = spec.outputFps || 30;
-    await runHyperframes(
+    const renderStart = Date.now();
+    const { stdout, stderr } = await runHyperframes(
       [
         "render",
-        compositionPath,
+        workDir,                       // DIR containing index.html
         "--output", outputPath,
         "--fps", String(fps),
+        "--quiet",                      // less verbose output
       ],
       workDir
     );
+    const renderTimeMs = Date.now() - renderStart;
+    console.log(`[HYPERFRAMES] Rendered in ${(renderTimeMs / 1000).toFixed(1)}s`);
+    if (stderr.trim()) console.warn(`[HYPERFRAMES] stderr: ${stderr.slice(-500)}`);
 
     // 3. Verify output
     const stats = await stat(outputPath);
     if (stats.size < 1024) {
-      throw new Error(`Output file terlalu kecil (${stats.size} bytes) — render mungkin gagal`);
+      throw new Error(`Output file terlalu kecil (${stats.size} bytes) — render mungkin gagal. stderr: ${stderr.slice(-300)}`);
     }
 
     // Cleanup intermediate composition file (keep output)
