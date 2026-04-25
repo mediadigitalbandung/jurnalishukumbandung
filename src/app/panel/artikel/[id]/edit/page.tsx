@@ -1959,7 +1959,16 @@ export default function EditArticlePage() {
       {/* Export buttons */}
       {title && content && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-txt-muted uppercase tracking-wider">Export:</span>
+          <span className="text-xs font-semibold text-txt-muted uppercase tracking-wider">Aksi:</span>
+          <a
+            href={`/panel/tiktok/auto?articleId=${articleId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-[12px] bg-gradient-to-r from-purple-100 to-pink-100 px-3 py-1.5 text-xs font-semibold text-pink-700 hover:from-purple-200 hover:to-pink-200"
+            title="Buat video TikTok otomatis dari artikel ini (cuma butuh upload foto/video)"
+          >
+            🎬 Buat TikTok Otomatis
+          </a>
           <button
             onClick={handleExportPdf}
             className="btn-ghost flex items-center gap-1.5 rounded-[12px] px-3 py-1.5 text-xs font-medium text-txt-secondary hover:text-txt-primary"

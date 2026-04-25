@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Film,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
 interface TiktokVideo {
@@ -172,23 +173,33 @@ export default function TiktokDashboardPage() {
           >
             <SettingsIcon size={14} /> Settings
           </Link>
+          <Link
+            href="/panel/tiktok/auto"
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:from-purple-700 hover:to-pink-700"
+          >
+            <Sparkles size={14} /> Buat Otomatis
+          </Link>
           <button
             onClick={createNew}
             disabled={creating}
-            className="inline-flex items-center gap-1.5 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-pink-600 bg-white px-4 py-2 text-sm font-semibold text-pink-600 hover:bg-pink-50 disabled:opacity-50"
           >
             {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            Buat Video Baru
+            Buat Manual
           </button>
         </div>
       </div>
 
       {/* Quick info */}
-      <div className="mb-4 rounded-[12px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+      <div className="mb-4 rounded-[12px] border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-4 text-sm text-purple-900">
         <div className="flex items-start gap-2">
-          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+          <Sparkles size={16} className="mt-0.5 flex-shrink-0 text-purple-600" />
           <div>
-            <p className="font-semibold">Cara kerja:</p>
+            <p className="font-semibold">🚀 Mode Otomatis (rekomendasi):</p>
+            <p className="mt-1 text-xs">
+              Klik <strong>Buat Otomatis</strong> → cukup pilih artikel + upload foto/video. Sistem auto-handle: durasi, frame style, backsong, subtitle AI, caption AI, render. <strong>3 klik selesai</strong>.
+            </p>
+            <p className="mt-2 font-semibold">Atau Mode Manual (full control):</p>
             <ol className="mt-1 list-decimal pl-5 space-y-0.5 text-xs">
               <li>Buat project → upload clip (video + foto) & pilih backsong</li>
               <li>Atur urutan, durasi, text overlay per clip</li>
