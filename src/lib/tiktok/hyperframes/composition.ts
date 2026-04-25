@@ -345,11 +345,13 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
 
     <script>
       (function() {
+        const compId = "tiktok-${spec.videoId}";
         const tl = gsap.timeline({ paused: true });
         ${gsapTimelineCode}
         ${subtitleAnims}
-        // Expose timeline so hyperframes can seek frame-accurately
-        window.__hf_timeline__ = tl;
+        // Register timeline for hyperframes seek (frame-accurate render)
+        window.__timelines = window.__timelines || {};
+        window.__timelines[compId] = tl;
         tl.play();
       })();
     </script>

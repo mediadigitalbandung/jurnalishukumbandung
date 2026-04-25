@@ -38,7 +38,9 @@ const TEMP_DIR = join(TIKTOK_DIR, "hf-temp");
 // Configurable via env vars; defaults match expected VPS setup
 const NODE22_BIN = process.env.HYPERFRAMES_NODE_BIN || "/root/.nvm/versions/node/v22.22.2/bin/node";
 const HYPERFRAMES_PROJECT = process.env.HYPERFRAMES_PROJECT_DIR || "/var/www/jhb-hyperframes";
-const CHROMIUM_BIN = process.env.HYPERFRAMES_CHROMIUM || "/snap/bin/chromium";
+// Hyperframes manages its own Chrome download via @puppeteer/browsers — leave undefined to let it auto-detect.
+// Set HYPERFRAMES_CHROMIUM env var to override (e.g., /opt/puppeteer-chrome/chrome/linux-148.x.x/chrome-linux64/chrome)
+const CHROMIUM_BIN = process.env.HYPERFRAMES_CHROMIUM || "";
 
 /**
  * Run hyperframes render via subprocess.
@@ -53,7 +55,7 @@ function runHyperframes(args: string[], cwd: string, timeoutMs = 600000): Promis
       cwd,
       env: {
         ...process.env,
-        PUPPETEER_EXECUTABLE_PATH: CHROMIUM_BIN,
+        ...(CHROMIUM_BIN ? { PUPPETEER_EXECUTABLE_PATH: CHROMIUM_BIN } : {}),
         // Disable telemetry
         DO_NOT_TRACK: "1",
       },
