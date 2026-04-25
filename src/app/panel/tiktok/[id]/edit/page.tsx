@@ -55,6 +55,7 @@ interface Backsong {
 }
 
 import VideoCanvas, { SelectedLayer, OverlayPos, SubtitlePos, ClipData } from "./VideoCanvas";
+import TimelinePanel, { TimelineLayer } from "./TimelinePanel";
 import LayerInspector from "./LayerInspector";
 
 interface Video {
@@ -119,6 +120,14 @@ export default function TiktokEditPage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<SelectedLayer>({ kind: "none" });
   const [subtitlePreviewText, setSubtitlePreviewText] = useState("Contoh subtitle — akan auto-generate dari audio");
+
+  // Timeline layer visibility & lock (UI-only state, doesn't affect render)
+  const [layerVisibility, setLayerVisibility] = useState<Record<TimelineLayer, boolean>>({
+    background: true, text: true, overlay: true, subtitle: true,
+  });
+  const [layerLock, setLayerLock] = useState<Record<TimelineLayer, boolean>>({
+    background: false, text: false, overlay: false, subtitle: false,
+  });
 
   const fetchVideo = useCallback(async () => {
     try {
@@ -652,6 +661,58 @@ export default function TiktokEditPage() {
                   <><Send size={14} /> Publish TikTok</>
                 )}
               </button>
+            </div>
+
+            {/* ─── TIMELINE PANEL ─── */}
+            <div className="mt-4 border-t border-border pt-4">
+              <TimelinePanel
+                clips={video.clips.map((c) => ({
+                  id: c.id,
+                  order: c.order,
+                  type: c.type,
+                  durationSec: c.durationSec,
+                  textOverlay: c.textOverlay,
+                  sourceUrl: c.sourceUrl,
+                }))}
+                selectedClipId={selectedClipId}
+                onSelectClip={(id) => {
+                  setSelectedClipId(id);
+                  // Auto-select text layer if clip has text
+                  const c = video.clips.find((cc) => cc.id === id);
+                  if (c?.textOverlay) setSelectedLayer({ kind: "text", clipId: id });
+                }}
+                onMoveClip={(id, direction) => {
+                  const idx = video.clips.findIndex((c) => c.id === id);
+                  if (idx >= 0) moveClip(idx, direction);
+                }}
+                hasOverlay={!!video.overlayImageUrl}
+                subtitleSegments={[]}
+                layerVisibility={layerVisibility}
+                layerLock={layerLock}
+                onToggleVisibility={(layer) =>
+                  setLayerVisibility((prev) => ({ ...prev, [layer]: !prev[layer] }))
+                }
+                onToggleLock={(layer) =>
+                  setLayerLock((prev) => ({ ...prev, [layer]: !prev[layer] }))
+                }
+                selectedLayer={
+                  selectedLayer.kind === "text" ? "text"
+                  : selectedLayer.kind === "overlay" ? "overlay"
+                  : selectedLayer.kind === "subtitle" ? "subtitle"
+                  : "none"
+                }
+                onSelectLayer={(layer) => {
+                  if (layer === "background") {
+                    setSelectedLayer({ kind: "none" });
+                  } else if (layer === "text" && selectedClipId) {
+                    setSelectedLayer({ kind: "text", clipId: selectedClipId });
+                  } else if (layer === "overlay") {
+                    setSelectedLayer({ kind: "overlay" });
+                  } else if (layer === "subtitle") {
+                    setSelectedLayer({ kind: "subtitle" });
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
