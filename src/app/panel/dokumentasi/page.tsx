@@ -547,6 +547,20 @@ function FiturTab({ settings, has, loading }: { settings: SettingsMap; has: (k: 
       ],
     },
     {
+      category: "TikTok Video Auto-Content",
+      items: [
+        { name: "Editor video TikTok", status: true, detail: "Drag-drop clip + foto + backsong, drag text overlay free position, subtitle timeline" },
+        { name: "Render engine FFmpeg", status: true, detail: "Default — cepat (~30s/video), composite via libavfilter (concat + drawtext + ken burns + xfade)" },
+        { name: "Render engine HyperFrames", status: true, detail: "Premium — HTML+CSS+GSAP via headless Chrome (Node 22 + puppeteer-managed Chrome). Animasi text kinetic, transisi premium. Render 60-90s/video." },
+        { name: "Frame templates (5 style)", status: true, detail: "ticker-news (LIVE bar), breaking-news (red banner), lower-third (branded card), brand-green (top JHB bar), minimal (watermark)" },
+        { name: "AI subtitle timeline", status: true, detail: "Generate subtitle 3-15 segment dari artikel terkait, target durasi 15s-2min" },
+        { name: "AI caption + hashtag", status: true, detail: "Auto-generate caption TikTok-style + 8-12 hashtag dari artikel" },
+        { name: "Backsong library", status: true, detail: "Upload audio, kategori mood (serius/dramatis/santai/urgent), auto-fade out 1s" },
+        { name: "Multi overlay PNG", status: true, detail: "Tambah PNG decals (logo, sticker) dengan posisi/scale/rotation/opacity custom" },
+        { name: "Auto-publish TikTok", status: has("tiktok_access_token") || false, detail: "Upload ke TikTok Inbox via Content Posting API (butuh OAuth approval Meta)" },
+      ],
+    },
+    {
       category: "Monitoring & Analytics",
       items: [
         { name: "Dashboard statistik", status: true, detail: "Artikel, views, pending review, trend mingguan" },
