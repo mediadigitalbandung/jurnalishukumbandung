@@ -62,6 +62,8 @@ export interface ClipInput {
   textRotation?: number | null; // degrees
   transition?: Transition | null;
   kenBurns?: boolean;
+  offsetX?: number;        // -1 to 1; horizontal letterbox offset
+  offsetY?: number;        // -1 to 1; vertical letterbox offset
 }
 
 export interface RenderSpec {

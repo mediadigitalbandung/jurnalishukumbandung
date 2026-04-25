@@ -46,6 +46,8 @@ interface Clip {
   kenBurns: boolean;
   isPlaceholder?: boolean;
   slotLabel?: string | null;
+  offsetX?: number;
+  offsetY?: number;
 }
 
 interface Backsong {
@@ -602,6 +604,7 @@ export default function TiktokEditPage() {
   const overlaySaveTimer = useRef<NodeJS.Timeout | null>(null);
   const clipTextSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const subtitleSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const clipOffsetSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced text position update (while dragging text overlay on canvas)
   const updateTextPosition = (clipId: string, xPct: number, yPct: number) => {
@@ -613,6 +616,19 @@ export default function TiktokEditPage() {
     if (clipTextSaveTimer.current) clearTimeout(clipTextSaveTimer.current);
     clipTextSaveTimer.current = setTimeout(() => {
       updateClip(clipId, { textX: xPct, textY: yPct });
+    }, 400);
+  };
+
+  // Debounced clip offset update (drag photo/video to reposition within letterbox)
+  const updateClipOffset = (clipId: string, offsetX: number, offsetY: number) => {
+    if (!video) return;
+    setVideo({
+      ...video,
+      clips: video.clips.map((c) => c.id === clipId ? { ...c, offsetX, offsetY } : c),
+    });
+    if (clipOffsetSaveTimer.current) clearTimeout(clipOffsetSaveTimer.current);
+    clipOffsetSaveTimer.current = setTimeout(() => {
+      updateClip(clipId, { offsetX, offsetY } as Partial<Clip>);
     }, 400);
   };
 
@@ -1019,6 +1035,7 @@ export default function TiktokEditPage() {
               }))}
               onSelectClipById={setSelectedClipId}
               onApplyTextToAllClips={applyTextToAllClips}
+              onClipOffsetChange={updateClipOffset}
             />
 
             {/* Render + Publish buttons — stacked below canvas */}

@@ -82,6 +82,8 @@ async function processNext(): Promise<void> {
         textRotation: c.textRotation,
         transition: (c.transition || null) as Transition | null,
         kenBurns: c.kenBurns,
+        offsetX: c.offsetX,
+        offsetY: c.offsetY,
       }));
 
       const settings = await prisma.tiktokSettings.findFirst();

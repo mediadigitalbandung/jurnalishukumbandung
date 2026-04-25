@@ -812,6 +812,12 @@ model TiktokClip {
   transition   String? @default("none") // none|fade|slide|zoom
   kenBurns     Boolean @default(false) // Zoom pan untuk foto
 
+  // Visual offset within canvas frame (for repositioning letterboxed media).
+  // -1.0 = far left/top edge, 0 = centered (default), 1.0 = far right/bottom edge.
+  // FFmpeg shifts pad placement by offset * (canvas_dim - media_dim).
+  offsetX  Float @default(0)
+  offsetY  Float @default(0)
+
   // Slot/template integration
   isPlaceholder  Boolean @default(false) // true = empty slot waiting for upload (sourceUrl is empty/sentinel)
   slotLabel      String? // optional human label from template slot

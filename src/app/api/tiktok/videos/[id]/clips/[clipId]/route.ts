@@ -25,6 +25,8 @@ const updateClipSchema = z.object({
   textRotation: z.number().int().min(-180).max(180).nullable().optional(),
   transition: z.enum(["none", "fade", "slide", "zoom"]).nullable().optional(),
   kenBurns: z.boolean().optional(),
+  offsetX: z.number().min(-1).max(1).optional(),
+  offsetY: z.number().min(-1).max(1).optional(),
 });
 
 /** PUT /api/tiktok/videos/:id/clips/:clipId — edit clip */
@@ -57,6 +59,8 @@ export async function PUT(
         ...(data.textRotation !== undefined && { textRotation: data.textRotation }),
         ...(data.transition !== undefined && { transition: data.transition }),
         ...(data.kenBurns !== undefined && { kenBurns: data.kenBurns }),
+        ...(data.offsetX !== undefined && { offsetX: data.offsetX }),
+        ...(data.offsetY !== undefined && { offsetY: data.offsetY }),
       },
     });
     return successResponse(updated);

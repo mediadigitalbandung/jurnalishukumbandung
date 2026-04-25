@@ -28,6 +28,8 @@ export interface ClipData {
   textY: number | null;   // 0-100 (%)
   textFontSize: number | null;
   textRotation: number | null;
+  offsetX?: number;       // -1..1 horizontal letterbox offset
+  offsetY?: number;       // -1..1 vertical letterbox offset
 }
 
 export interface OverlayPos {
@@ -103,6 +105,8 @@ interface Props {
   onSelectClipById?: (clipId: string) => void;
   // Apply current text/duration to ALL clips
   onApplyTextToAllClips?: () => void;
+  // Drag-reposition: shift photo/video within letterbox (offsetX/Y -1..1)
+  onClipOffsetChange?: (clipId: string, offsetX: number, offsetY: number) => void;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -131,11 +135,60 @@ export default function VideoCanvas({
   allClips = [],
   onSelectClipById,
   onApplyTextToAllClips,
+  onClipOffsetChange,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiOverlayInputRef = useRef<HTMLInputElement>(null);
   const [addingMultiOverlay, setAddingMultiOverlay] = useState(false);
+
+  // Clip drag-reposition state (drag photo/video within letterbox)
+  const [clipDragging, setClipDragging] = useState(false);
+  const clipDragRef = useRef<{
+    startX: number; startY: number;
+    origOffsetX: number; origOffsetY: number;
+    canvasW: number; canvasH: number;
+  } | null>(null);
+
+  const onClipDragStart = (e: React.PointerEvent) => {
+    if (!selectedClip || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    clipDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origOffsetX: typeof selectedClip.offsetX === "number" ? selectedClip.offsetX : 0,
+      origOffsetY: typeof selectedClip.offsetY === "number" ? selectedClip.offsetY : 0,
+      canvasW: rect.width,
+      canvasH: rect.height,
+    };
+    setClipDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const onClipDragMove = (e: React.PointerEvent) => {
+    if (!clipDragging || !clipDragRef.current || !selectedClip) return;
+    const { startX, startY, origOffsetX, origOffsetY, canvasW, canvasH } = clipDragRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    // Drag of half canvas dimension == ±1 offset (full letterbox shift)
+    const newOffsetX = Math.max(-1, Math.min(1, origOffsetX + (dx / (canvasW / 2))));
+    const newOffsetY = Math.max(-1, Math.min(1, origOffsetY + (dy / (canvasH / 2))));
+    onClipOffsetChange?.(selectedClip.id, newOffsetX, newOffsetY);
+  };
+
+  const onClipDragEnd = (e: React.PointerEvent) => {
+    if (!clipDragging) return;
+    setClipDragging(false);
+    clipDragRef.current = null;
+    try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+  };
+
+  // Compute object-position from offset (-1..1 maps to 0%..100%, center is 50%)
+  const clipOffsetX = selectedClip?.offsetX ?? 0;
+  const clipOffsetY = selectedClip?.offsetY ?? 0;
+  const objectPosition = `${((clipOffsetX + 1) * 50).toFixed(1)}% ${((clipOffsetY + 1) * 50).toFixed(1)}%`;
 
   const onMultiOverlayFileSelected = async (files: FileList | null) => {
     if (!files || files.length === 0 || !onAddMultiOverlay) return;
@@ -457,21 +510,36 @@ export default function VideoCanvas({
             selectedClip.type === "video" ? (
               // object-contain = letterbox kalau aspect ratio beda dari 9:16
               // (matches FFmpeg renderer: scale + pad with black)
+              // Draggable: shift photo/video within letterbox to reposition
               <video
                 key={selectedClip.sourceUrl}
                 src={selectedClip.sourceUrl}
-                className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+                className={`absolute inset-0 h-full w-full object-contain select-none ${clipDragging ? "cursor-grabbing" : "cursor-grab"}`}
+                style={{ objectPosition, touchAction: "none" }}
                 muted
                 loop
                 autoPlay
                 playsInline
+                draggable={false}
+                onPointerDown={onClipDragStart}
+                onPointerMove={onClipDragMove}
+                onPointerUp={onClipDragEnd}
+                onPointerCancel={onClipDragEnd}
+                title="Drag untuk geser posisi foto/video di dalam frame"
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={selectedClip.sourceUrl}
                 alt="Preview"
-                className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+                className={`absolute inset-0 h-full w-full object-contain select-none ${clipDragging ? "cursor-grabbing" : "cursor-grab"}`}
+                style={{ objectPosition, touchAction: "none" }}
+                draggable={false}
+                onPointerDown={onClipDragStart}
+                onPointerMove={onClipDragMove}
+                onPointerUp={onClipDragEnd}
+                onPointerCancel={onClipDragEnd}
+                title="Drag untuk geser posisi foto di dalam frame"
               />
             )
           ) : (

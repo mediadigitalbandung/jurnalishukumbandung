@@ -80,6 +80,16 @@ async function normalizeClip(
   // Build video filter chain
   const filters: string[] = [];
 
+  // Apply per-clip offset for letterbox repositioning.
+  // offsetX/Y range -1..1 (percentage of free space in letterbox dimension).
+  // pad x/y default centered: (ow-iw)/2; offset shifts by offset * (ow-iw)/2 from center.
+  // Final: padX = (ow-iw)/2 * (1 + offsetX), padY = (oh-ih)/2 * (1 + offsetY)
+  const ox = typeof clip.offsetX === "number" ? Math.max(-1, Math.min(1, clip.offsetX)) : 0;
+  const oy = typeof clip.offsetY === "number" ? Math.max(-1, Math.min(1, clip.offsetY)) : 0;
+  const padX = `(ow-iw)/2*(1+${ox.toFixed(3)})`;
+  const padY = `(oh-ih)/2*(1+${oy.toFixed(3)})`;
+  const padFilter = `pad=${width}:${height}:${padX}:${padY}:color=black`;
+
   if (isImage) {
     // Scale image to fit 9:16, pad with black if needed
     // Optionally Ken Burns (slow zoom)
@@ -88,13 +98,13 @@ async function normalizeClip(
       const frames = Math.ceil(duration * fps);
       filters.push(
         `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`,
+        padFilter,
         `zoompan=z='min(zoom+0.0015,1.15)':d=${frames}:s=${width}x${height}:fps=${fps}`
       );
     } else {
       filters.push(
         `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`,
+        padFilter,
         `fps=${fps}`
       );
     }
@@ -102,7 +112,7 @@ async function normalizeClip(
     // Video: scale + pad to 9:16 (keep original without cropping to preserve content)
     filters.push(
       `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-      `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`,
+      padFilter,
       `fps=${fps}`
     );
   }
