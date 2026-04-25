@@ -60,6 +60,7 @@ import LayerInspector from "./LayerInspector";
 import ArticlePicker, { SelectOptions } from "./ArticlePicker";
 import SubtitleManager from "./SubtitleManager";
 import TemplateManager from "./TemplateManager";
+import ResetPanel from "./ResetPanel";
 import { FileText } from "lucide-react";
 
 interface SubtitleEntry {
@@ -837,6 +838,16 @@ export default function TiktokEditPage() {
               />
             )}
           </div>
+
+          {/* Reset Konten — bulk delete operations */}
+          <ResetPanel
+            videoId={videoId}
+            onReset={async () => {
+              await fetchVideo();
+              await fetchMultiOverlays();
+              await fetchSubtitleEntries();
+            }}
+          />
         </div>
 
         {/* ═══════════════════════════════════════════════════
