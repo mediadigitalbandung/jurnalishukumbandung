@@ -63,3 +63,9 @@ www/
 # Uploaded files
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Playwright / testing artifacts
+playwright-report/
+test-results/
+tests/perf/reports/
+.env.test

@@ -10,6 +10,11 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "test:perf": "node --experimental-strip-types tests/perf/lighthouse.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -44,6 +49,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/bcryptjs": "^2.4.6",
@@ -52,12 +58,15 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.0",
+    "chrome-launcher": "^1.2.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
     "jsdom": "^29.0.1",
+    "lighthouse": "^13.1.0",
     "postcss": "^8.4.0",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.5.0",
     "vitest": "^4.1.2"
   }
