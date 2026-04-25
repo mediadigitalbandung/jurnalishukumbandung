@@ -1054,6 +1054,17 @@ export default function TiktokEditPage() {
                 )}
               </button>
 
+              {/* HyperFrames preview — opens composition HTML in new tab to inspect layout/animation before render */}
+              <a
+                href={`/api/tiktok/videos/${videoId}/hyperframes-preview`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-white px-3 py-2 text-xs font-medium text-txt-secondary hover:border-pink-400 hover:text-pink-600"
+                title="Preview komposisi HTML+GSAP di browser baru (untuk render engine HyperFrames)"
+              >
+                Preview HTML
+              </a>
+
               <button
                 onClick={triggerPublish}
                 disabled={!canPublish || publishing}

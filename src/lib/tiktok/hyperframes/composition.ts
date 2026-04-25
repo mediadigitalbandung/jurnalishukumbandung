@@ -4,44 +4,22 @@
  * Translates TiktokVideo data (clips + subtitles + overlays + backsong) into
  * a complete HTML composition file consumable by hyperframes CLI.
  *
- * Output structure (single root composition for full video):
- *   <html>
- *     <head>
- *       - GSAP from CDN
- *       - inline CSS (TikTok 9:16 styles)
- *     </head>
- *     <body>
- *       <div id="stage" data-composition-id="tiktok" data-start="0"
- *            data-duration="N" data-width="1080" data-height="1920"
- *            data-track-index="0">
- *         <!-- Per-clip element with absolute positioning + GSAP-driven enter/exit -->
- *         <video|img class="clip-X" data-start="..." data-duration="..." data-track-index="0" />
- *         <!-- Per-clip text overlay -->
- *         <div class="text-overlay-X" data-start="..." data-duration="..." data-track-index="1">{text}</div>
- *         <!-- Subtitle entries (absolute timing) -->
- *         <div class="subtitle subtitle-Y" data-start="..." data-duration="..." data-track-index="2">{text}</div>
- *         <!-- Multi-overlays -->
- *         <img class="overlay overlay-Z" data-start="0" data-duration="N" data-track-index="3" />
- *         <!-- Backsong audio -->
- *         <audio data-start="0" data-duration="N" data-track-index="10" data-volume="0.5" src="..." />
- *
- *         <!-- GSAP timeline drives all the visual transitions, kinetic text, etc -->
- *         <script>...</script>
- *       </div>
- *     </body>
- *   </html>
- *
- * Reference: https://github.com/heygen-com/hyperframes
+ * Follows hyperframes contract (https://github.com/heygen-com/hyperframes):
+ * - Top-level container has data-composition-id, data-start, data-duration, data-width, data-height
+ * - Video elements: muted + playsinline, separate <audio> for sound
+ * - Use data-track-index (NOT data-layer)
+ * - Use data-duration (NOT data-end)
+ * - Timeline registered via window.__timelines["compId"]
+ * - GSAP timeline starts paused, framework controls playback
+ * - No animation of display/visibility — only opacity/transforms
+ * - Centering CSS via wrapper divs (not on animated elements directly)
  */
 
 import type { ClipInput, MultiOverlayInput, RenderSpec, SubtitleEntryInput } from "../types";
 
 const GSAP_CDN = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js";
 
-/** Resolve relative path / public URL to a path Chrome can fetch.
- *  When rendering from CLI, hyperframes serves the composition dir via http,
- *  so we need ABSOLUTE URLs (production domain) so assets resolve.
- */
+/** Resolve relative path / public URL to absolute URL Chrome can fetch */
 function toAbsoluteUrl(urlOrPath: string): string {
   if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) return urlOrPath;
   const base = (process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com").replace(/\/$/, "");
@@ -49,7 +27,6 @@ function toAbsoluteUrl(urlOrPath: string): string {
   return `${base}/${urlOrPath}`;
 }
 
-/** Escape HTML for safe insertion into innerHTML / attribute values */
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -59,23 +36,23 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Compute final duration for the composition (sum of clip durations, capped at maxDurationSec) */
 function computeDuration(clips: ClipInput[], maxDurationSec = 60): number {
   const total = clips.reduce((sum, c) => sum + c.durationSec, 0);
   return Math.min(total, maxDurationSec);
 }
 
-/** Convert pixel-position (textX/textY 0-100% of canvas) to CSS top/left percentages. */
-function pixelPositionStyle(
+/**
+ * Position style for text overlay element.
+ * NOTE: returns absolute positioning ON A WRAPPER element, so GSAP can transform inner element freely.
+ */
+function pixelWrapperPositionStyle(
   textX: number | null | undefined,
   textY: number | null | undefined,
   textPosition: string | null | undefined
 ): string {
-  // Pixel-precise wins
   if (typeof textX === "number" && typeof textY === "number") {
     return `top: ${textY}%; left: ${textX}%; transform: translate(-50%, -50%);`;
   }
-  // 9-grid presets
   const pos = textPosition || "bottom";
   switch (pos) {
     case "top":          return "top: 8%; left: 50%; transform: translateX(-50%);";
@@ -91,23 +68,15 @@ function pixelPositionStyle(
   }
 }
 
-/**
- * Build the HTML composition file.
- *
- * Layout philosophy: each clip is a <video> or <img> stacked at z-index 1.
- * Text overlays z-index 2-3. Subtitles z-index 5. Multi-overlays z-index 10.
- * GSAP timeline drives entry/exit (fade, slide, zoom transitions).
- */
 export function buildHyperframesComposition(spec: RenderSpec): string {
   const width = spec.outputWidth || 1080;
   const height = spec.outputHeight || 1920;
-  const fps = spec.outputFps || 30;
   const maxDuration = spec.maxDurationSec || 60;
 
   const clips = [...spec.clips].sort((a, b) => a.order - b.order);
   const totalDuration = computeDuration(clips, maxDuration);
 
-  // Compute clip start times sequentially (each clip plays right after the previous)
+  // Sequential timing per clip
   let cursor = 0;
   const clipsWithTiming = clips.map((c) => {
     const start = cursor;
@@ -116,139 +85,139 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
     return { ...c, _start: start, _duration: duration };
   });
 
-  const subtitleEntries = spec.subtitleEntries || [];
-  const multiOverlays = spec.multiOverlays || [];
+  const subtitleEntries: SubtitleEntryInput[] = spec.subtitleEntries || [];
+  const multiOverlays: MultiOverlayInput[] = spec.multiOverlays || [];
   const backsongUrl = spec.backsongUrl ? toAbsoluteUrl(spec.backsongUrl) : null;
   const backsongVolume = spec.backsongVolume ?? 0.5;
+  const compId = `tiktok-${spec.videoId}`;
 
-  // ─── Build clip elements ────────────────────────────────────
+  // ─── Clip elements (videos + images) ─────────────────────────
+  // Each clip is wrapped in a positioned div so GSAP can animate the inner without conflicting CSS transform
   const clipElements = clipsWithTiming
     .map((c, idx) => {
       const src = toAbsoluteUrl(c.sourceUrl);
       const trimStart = c.trimStart && c.trimStart > 0 ? c.trimStart : 0;
       if (c.type === "video") {
-        return `<video class="clip clip-${idx}" id="clip-${idx}"
-          src="${escapeHtml(src)}"
+        return `<div class="clip-wrap" id="clip-wrap-${idx}"
           data-start="${c._start}"
           data-duration="${c._duration}"
-          data-media-start="${trimStart}"
-          data-track-index="0"
-          muted></video>`;
+          data-track-index="0">
+          <video class="clip clip-video clip-${idx}" id="clip-${idx}"
+            src="${escapeHtml(src)}"
+            data-media-start="${trimStart}"
+            muted playsinline></video>
+        </div>`;
       }
-      // image
       const kenBurnsClass = c.kenBurns ? "ken-burns" : "";
-      return `<img class="clip clip-img clip-${idx} ${kenBurnsClass}" id="clip-${idx}"
-        src="${escapeHtml(src)}"
+      return `<div class="clip-wrap" id="clip-wrap-${idx}"
         data-start="${c._start}"
         data-duration="${c._duration}"
-        data-track-index="0"
-        alt="" />`;
+        data-track-index="0">
+        <img class="clip clip-img clip-${idx} ${kenBurnsClass}" id="clip-${idx}"
+          src="${escapeHtml(src)}"
+          alt="" />
+      </div>`;
     })
     .join("\n      ");
 
-  // ─── Per-clip text overlay ──────────────────────────────────
+  // ─── Per-clip text overlay (wrapper for positioning, inner span for animation) ───
   const textOverlayElements = clipsWithTiming
     .filter((c) => c.textOverlay && c.textOverlay.trim())
     .map((c, idx) => {
       const text = escapeHtml((c.textOverlay || "").trim().slice(0, 240));
       const color = c.textColor || "#FFFFFF";
       const fontSize = c.textFontSize || 54;
-      const positionStyle = pixelPositionStyle(c.textX, c.textY, c.textPosition);
-      const rotation = c.textRotation || 0;
-      return `<div class="text-overlay text-overlay-${idx}"
+      const wrapperStyle = pixelWrapperPositionStyle(c.textX, c.textY, c.textPosition);
+      return `<div class="text-overlay-wrap text-overlay-wrap-${idx}"
         data-start="${c._start}"
         data-duration="${c._duration}"
-        data-track-index="1"
-        style="${positionStyle} color: ${color}; font-size: ${fontSize}px; transform-origin: center; ${rotation !== 0 ? `transform: ${positionStyle.includes("translate") ? "" : ""}rotate(${rotation}deg);` : ""}"
-      >${text}</div>`;
+        data-track-index="${1 + idx}"
+        style="${wrapperStyle}">
+        <div class="text-overlay text-overlay-${idx}" style="color: ${color}; font-size: ${fontSize}px;">${text}</div>
+      </div>`;
     })
     .join("\n      ");
 
-  // ─── Subtitle entries (absolute timing) ─────────────────────
+  // ─── Subtitle entries (independent timing) ───────────────────
   const subtitleElements = subtitleEntries
     .map((s, idx) => {
       const text = escapeHtml(s.text.trim().slice(0, 240));
       const color = s.color || "#FFFFFF";
       const fontSize = s.fontSize || 54;
       const yPercent = typeof s.y === "number" ? s.y * 100 : 85;
-      const duration = s.endSec - s.startSec;
-      return `<div class="subtitle subtitle-${idx}"
+      const duration = Math.max(0.1, s.endSec - s.startSec);
+      return `<div class="subtitle-wrap subtitle-wrap-${idx}"
         data-start="${s.startSec}"
         data-duration="${duration}"
-        data-track-index="5"
-        style="top: ${yPercent}%; color: ${color}; font-size: ${fontSize}px;"
-      >${text}</div>`;
+        data-track-index="${50 + idx}"
+        style="top: ${yPercent}%;">
+        <div class="subtitle subtitle-${idx}" style="color: ${color}; font-size: ${fontSize}px;">${text}</div>
+      </div>`;
     })
     .join("\n      ");
 
-  // ─── Multi-overlays (PNG / image overlays positioned via x,y normalized 0-1) ───────
+  // ─── Multi-overlays (PNG decals positioned via x,y normalized 0-1) ─────────
   const overlayElements = multiOverlays
-    .map((o: MultiOverlayInput, idx) => {
+    .map((o, idx) => {
       const src = toAbsoluteUrl(o.imageUrl);
       const xPercent = (o.x || 0.5) * 100;
       const yPercent = (o.y || 0.5) * 100;
       const scale = o.scale || 1;
       const rotation = o.rotation || 0;
       const opacity = typeof o.opacity === "number" ? o.opacity : 1;
-      // Width: scale × 30% of canvas
       const widthPercent = scale * 30;
       return `<img class="overlay overlay-${idx}"
         src="${escapeHtml(src)}"
         data-start="0"
         data-duration="${totalDuration}"
-        data-track-index="${10 + idx}"
+        data-track-index="${100 + idx}"
         style="top: ${yPercent}%; left: ${xPercent}%; width: ${widthPercent}%; transform: translate(-50%, -50%) rotate(${rotation}deg); opacity: ${opacity};"
         alt="" />`;
     })
     .join("\n      ");
 
-  // ─── Backsong audio ─────────────────────────────────────────
+  // ─── Backsong audio (separate <audio> per hyperframes contract) ───────────
   const audioElement = backsongUrl
-    ? `<audio src="${escapeHtml(backsongUrl)}" data-start="0" data-duration="${totalDuration}" data-track-index="20" data-volume="${backsongVolume}"></audio>`
+    ? `<audio src="${escapeHtml(backsongUrl)}" data-start="0" data-duration="${totalDuration}" data-track-index="200" data-volume="${backsongVolume}"></audio>`
     : "";
 
-  // ─── Build GSAP timeline (transitions per clip) ─────────────
-  // For each clip, register an enter/exit animation based on transition type
-  const gsapTimelineCode = clipsWithTiming
+  // ─── GSAP timeline: enter/exit per clip-wrap, kinetic subtitle animation ───
+  // RULES:
+  // - Animate the WRAPPER (clip-wrap) for opacity/x — never the inner clip element
+  // - Subtitle wraps have their own timing window, animate inner span
+  // - Avoid exit animations except on the final segment (per hyperframes contract)
+  const clipAnims = clipsWithTiming
     .map((c, idx) => {
       const transition = c.transition || "none";
       const start = c._start;
-      const dur = c._duration;
-      const enterDuration = 0.4;
-      const exitDuration = 0.4;
-      let lines: string[] = [];
-
-      // Entry animation
+      const enterDuration = 0.45;
+      const lines: string[] = [];
+      // Entry only (transitions handle exit)
       if (transition === "fade") {
-        lines.push(`tl.from("#clip-${idx}", { opacity: 0, duration: ${enterDuration}, ease: "power2.out" }, ${start});`);
+        lines.push(`tl.from("#clip-wrap-${idx}", { opacity: 0, duration: ${enterDuration}, ease: "power2.out" }, ${start});`);
       } else if (transition === "slide") {
-        lines.push(`tl.from("#clip-${idx}", { x: ${width}, duration: ${enterDuration}, ease: "power3.out" }, ${start});`);
+        lines.push(`tl.from("#clip-wrap-${idx}", { x: ${width * 0.6}, opacity: 0, duration: ${enterDuration}, ease: "power3.out" }, ${start});`);
       } else if (transition === "zoom") {
-        lines.push(`tl.from("#clip-${idx}", { scale: 1.3, opacity: 0, duration: ${enterDuration}, ease: "power2.out" }, ${start});`);
+        lines.push(`tl.from("#clip-wrap-${idx}", { scale: 0.85, opacity: 0, duration: ${enterDuration}, ease: "back.out(1.5)" }, ${start});`);
       }
-
-      // Exit animation (only if not last clip — last clip should fade out video naturally)
-      if (idx < clipsWithTiming.length - 1) {
-        const exitStart = start + dur - exitDuration;
-        if (transition === "fade") {
-          lines.push(`tl.to("#clip-${idx}", { opacity: 0, duration: ${exitDuration}, ease: "power2.in" }, ${exitStart});`);
-        }
-      }
-
       return lines.join("\n        ");
     })
     .filter(Boolean)
     .join("\n        ");
 
-  // ─── Subtitle GSAP entry/exit (pop-in pop-out kinetic style) ───
+  // Per-clip text overlay enter (offset 0.1s from clip start so it pops AFTER clip)
+  const textOverlayAnims = clipsWithTiming
+    .filter((c) => c.textOverlay && c.textOverlay.trim())
+    .map((c, idx) => {
+      const start = c._start + 0.15;
+      return `tl.from(".text-overlay-${idx}", { y: 30, opacity: 0, scale: 0.92, duration: 0.5, ease: "back.out(1.7)" }, ${start});`;
+    })
+    .join("\n        ");
+
+  // Subtitle kinetic pop (animate inner span, not wrapper — wrapper is timed by data-duration)
   const subtitleAnims = subtitleEntries
     .map((s, idx) => {
-      const enterDur = 0.25;
-      const exitDur = 0.2;
-      const dur = s.endSec - s.startSec;
-      const exitAt = s.startSec + dur - exitDur;
-      return `tl.from(".subtitle-${idx}", { y: 50, opacity: 0, scale: 0.9, duration: ${enterDur}, ease: "back.out(2)" }, ${s.startSec});
-        tl.to(".subtitle-${idx}", { y: -20, opacity: 0, duration: ${exitDur}, ease: "power2.in" }, ${exitAt});`;
+      return `tl.from(".subtitle-${idx}", { y: 40, opacity: 0, scale: 0.9, duration: 0.3, ease: "back.out(2)" }, ${s.startSec});`;
     })
     .join("\n        ");
 
@@ -270,59 +239,68 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
       overflow: hidden;
     }
 
-    /* Clips fill the stage with object-fit cover (no letterbox, true vertical) */
-    .clip {
+    /* Clip wrappers fill the stage */
+    .clip-wrap {
       position: absolute;
       top: 0; left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
       z-index: 1;
     }
+    .clip {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
 
-    /* Ken Burns: slow scale-up over clip duration */
+    /* Ken Burns: slow scale-up animation (CSS-driven, NOT GSAP — plays per-clip lifetime) */
     .ken-burns {
-      animation: ken-burns-zoom var(--clip-duration, 5s) linear forwards;
+      animation: ken-burns-zoom 8s linear forwards;
     }
     @keyframes ken-burns-zoom {
-      0% { transform: scale(1.0); }
-      100% { transform: scale(1.15); }
+      0%   { transform: scale(1.0); }
+      100% { transform: scale(1.18); }
     }
 
-    /* Text overlay (per-clip) */
-    .text-overlay {
+    /* Text overlay wrapper holds position; inner div is what GSAP animates */
+    .text-overlay-wrap {
       position: absolute;
       z-index: 5;
+      max-width: 90%;
+    }
+    .text-overlay {
       font-weight: 800;
       text-align: center;
       padding: 12px 24px;
       background: rgba(0, 0, 0, 0.55);
-      border-radius: 8px;
-      max-width: 90%;
+      border-radius: 10px;
       line-height: 1.2;
       letter-spacing: -0.01em;
       text-shadow: 0 2px 12px rgba(0,0,0,0.7);
     }
 
-    /* Subtitle (kinetic-style) */
-    .subtitle {
+    /* Subtitle (kinetic-style) — wrapper centered, inner animates */
+    .subtitle-wrap {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
       z-index: 8;
+      max-width: 88%;
+      width: max-content;
+    }
+    .subtitle {
       font-weight: 900;
       text-align: center;
-      padding: 16px 32px;
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 12px;
-      max-width: 88%;
+      padding: 18px 36px;
+      background: rgba(0, 0, 0, 0.75);
+      border-radius: 14px;
       line-height: 1.15;
       letter-spacing: -0.02em;
       text-shadow: 0 4px 20px rgba(0,0,0,0.8);
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
 
-    /* Multi-overlays (PNG images placed anywhere) */
+    /* PNG overlays (decals) */
     .overlay {
       position: absolute;
       pointer-events: none;
@@ -331,12 +309,13 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
 </head>
 <body>
   <div id="stage"
-       data-composition-id="tiktok-${spec.videoId}"
+       data-composition-id="${compId}"
        data-start="0"
        data-duration="${totalDuration}"
        data-width="${width}"
        data-height="${height}"
        data-track-index="0">
+
       ${clipElements}
       ${textOverlayElements}
       ${subtitleElements}
@@ -345,14 +324,13 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
 
     <script>
       (function() {
-        const compId = "tiktok-${spec.videoId}";
         const tl = gsap.timeline({ paused: true });
-        ${gsapTimelineCode}
+        ${clipAnims}
+        ${textOverlayAnims}
         ${subtitleAnims}
-        // Register timeline for hyperframes seek (frame-accurate render)
+        // Register timeline so hyperframes can seek frame-accurately
         window.__timelines = window.__timelines || {};
-        window.__timelines[compId] = tl;
-        tl.play();
+        window.__timelines[${JSON.stringify(compId)}] = tl;
       })();
     </script>
   </div>
