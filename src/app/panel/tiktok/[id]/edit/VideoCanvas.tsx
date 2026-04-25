@@ -283,48 +283,50 @@ export default function VideoCanvas({
 
   return (
     <div className={canvasWrapperClass}>
+      {/* Mode segmented control — prominent header (only when rendered exists) */}
+      {renderedUrl && (
+        <div className={`mb-3 flex items-center justify-center ${fullscreen ? "" : ""}`}>
+          <div className={`inline-flex rounded-full border-2 p-1 ${fullscreen ? "border-white/30 bg-black/60" : "border-pink-200 bg-pink-50/50"}`}>
+            <button
+              onClick={() => setPreviewMode("edit")}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
+                !showRenderedVideo
+                  ? "bg-pink-600 text-white shadow-md"
+                  : fullscreen ? "text-white/70 hover:text-white" : "text-pink-700 hover:bg-pink-100"
+              }`}
+              title="Edit mode — drag overlay, text, subtitle"
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
+              onClick={() => setPreviewMode("rendered")}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
+                showRenderedVideo
+                  ? "bg-pink-600 text-white shadow-md"
+                  : fullscreen ? "text-white/70 hover:text-white" : "text-pink-700 hover:bg-pink-100"
+              }`}
+              title="Hasil Render Final — semua clip+overlay sudah jadi 1"
+            >
+              <Film size={13} /> Hasil Render
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2">
           <p className={`text-xs font-semibold ${fullscreen ? "text-white" : "text-txt-secondary"}`}>
             {showRenderedVideo ? (
-              <>🎞️ <span className="text-pink-600">Hasil Render Final</span> · semua clip + overlay</>
+              <>🎞️ <span className="text-pink-600">Final</span> · semua clip + overlay sudah ter-merge</>
             ) : selectedClip ? (
               <>
-                Clip <span className="text-pink-600">#{selectedClip.id.slice(-4)}</span> · edit mode
+                ✏️ Edit · clip <span className="text-pink-600">#{selectedClip.id.slice(-4)}</span>
               </>
             ) : (
-              "Pilih clip atau render video dulu"
+              "Pilih clip dari sidebar untuk mulai edit"
             )}
           </p>
-
-          {/* Mode toggle — only show if rendered video exists */}
-          {renderedUrl && (
-            <div className={`inline-flex rounded-full border ${fullscreen ? "border-white/20 bg-black/40" : "border-border bg-surface-secondary"} p-0.5`}>
-              <button
-                onClick={() => setPreviewMode("rendered")}
-                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${
-                  showRenderedVideo
-                    ? "bg-pink-600 text-white"
-                    : fullscreen ? "text-white/60 hover:text-white" : "text-txt-muted hover:text-txt-primary"
-                }`}
-                title="Tampilkan hasil render final (semua clip+overlay sudah jadi 1)"
-              >
-                <Film size={10} /> Final
-              </button>
-              <button
-                onClick={() => setPreviewMode("edit")}
-                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${
-                  !showRenderedVideo
-                    ? "bg-pink-600 text-white"
-                    : fullscreen ? "text-white/60 hover:text-white" : "text-txt-muted hover:text-txt-primary"
-                }`}
-                title="Edit mode — drag overlay/text per clip"
-              >
-                <Pencil size={10} /> Edit
-              </button>
-            </div>
-          )}
         </div>
         <div className={`flex items-center gap-1 ${fullscreen ? "text-white/70" : "text-txt-muted"}`}>
           <button
@@ -629,7 +631,8 @@ export default function VideoCanvas({
         </div>
       </div>
 
-      {/* Quick-add action bar — prominent buttons for adding new layers */}
+      {/* Quick-add action bar — only in Edit mode */}
+      {!showRenderedVideo && (
       <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-secondary/50 p-2">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-txt-muted">Tambah Layer:</span>
 
@@ -678,8 +681,10 @@ export default function VideoCanvas({
           </span>
         )}
       </div>
+      )}
 
-      {/* Bottom layers legend */}
+      {/* Bottom layers legend — only in Edit mode */}
+      {!showRenderedVideo && (
       <div className="mt-3 flex flex-wrap items-center gap-2 px-1 text-[11px]">
         <LayerChip
           icon={Type}
@@ -732,6 +737,7 @@ export default function VideoCanvas({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
