@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2, Loader2, Subtitles, Clock } from "lucide-react";
+import { Plus, Trash2, Loader2, Subtitles, Clock, Sparkles, AlertCircle } from "lucide-react";
 
 interface SubtitleEntry {
   id: string;
@@ -23,6 +23,10 @@ export default function SubtitleManager({ videoId, totalDuration, onChange }: Pr
   const [entries, setEntries] = useState<SubtitleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [showGenForm, setShowGenForm] = useState(false);
+  const [genCount, setGenCount] = useState<number | "auto">("auto");
+  const [genError, setGenError] = useState<string | null>(null);
 
   // Add form
   const [newText, setNewText] = useState("");
@@ -93,11 +97,103 @@ export default function SubtitleManager({ videoId, totalDuration, onChange }: Pr
     } catch { /* ignore */ }
   };
 
+  // Generate sequence of subtitle text via AI from linked article
+  const generateSequence = async () => {
+    if (entries.length > 0) {
+      const ok = confirm(
+        `Sudah ada ${entries.length} subtitle. Generate akan HAPUS semua dan ganti dengan sequence baru. Lanjut?`
+      );
+      if (!ok) return;
+    }
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const body: Record<string, unknown> = { replace: true };
+      if (genCount !== "auto") body.count = genCount;
+      const res = await fetch(`/api/tiktok/videos/${videoId}/generate-text-segments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      setShowGenForm(false);
+      load();
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : "Gagal generate");
+    }
+    setGenerating(false);
+  };
+
   return (
     <div className="space-y-3">
-      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700">
-        <Subtitles size={12} /> Subtitle Timeline ({entries.length})
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700">
+          <Subtitles size={12} /> Subtitle Timeline ({entries.length})
+        </h3>
+        <button
+          onClick={() => setShowGenForm((s) => !s)}
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
+          title="Generate sequence dari artikel terkait via AI"
+        >
+          <Sparkles size={10} />
+          AI Generate
+        </button>
+      </div>
+
+      {/* AI Generate form */}
+      {showGenForm && (
+        <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 p-3">
+          <p className="mb-2 text-[11px] text-emerald-900 leading-relaxed">
+            AI akan pecah artikel terkait jadi <strong>beberapa text overlay timed</strong> yang muncul beruntun di video, total {totalDuration.toFixed(0)}s.
+          </p>
+          <div className="mb-2">
+            <label className="mb-1 block text-[10px] font-semibold text-emerald-900">Jumlah Segment</label>
+            <select
+              value={genCount}
+              onChange={(e) => setGenCount(e.target.value === "auto" ? "auto" : parseInt(e.target.value))}
+              className="input w-full text-xs"
+              disabled={generating}
+            >
+              <option value="auto">Auto (sesuai durasi)</option>
+              <option value={3}>3 segment</option>
+              <option value={5}>5 segment</option>
+              <option value={6}>6 segment</option>
+              <option value={8}>8 segment</option>
+              <option value={10}>10 segment</option>
+              <option value={12}>12 segment</option>
+            </select>
+          </div>
+          {genError && (
+            <div className="mb-2 flex items-start gap-1.5 rounded bg-red-100 p-1.5 text-[10px] text-red-800">
+              <AlertCircle size={11} className="shrink-0 mt-0.5" />
+              <span className="break-words">{genError}</span>
+            </div>
+          )}
+          <div className="flex gap-1.5">
+            <button
+              onClick={generateSequence}
+              disabled={generating}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+              {generating ? "Generating (10-30s)..." : "Generate"}
+            </button>
+            <button
+              onClick={() => setShowGenForm(false)}
+              disabled={generating}
+              className="rounded-full border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+            >
+              Batal
+            </button>
+          </div>
+          <p className="mt-1.5 text-[9px] text-emerald-700">
+            ⚠️ Video harus sudah di-link ke artikel. Generate akan replace existing subtitles.
+          </p>
+        </div>
+      )}
 
       {/* Add form */}
       <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2">
