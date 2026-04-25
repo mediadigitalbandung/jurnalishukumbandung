@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 // ImageUploader removed — images now inserted inline via RichTextEditor
 import { stripHtml, downloadTextFile, exportArticlePdf } from "@/lib/export-utils";
+import LoadTestPanel from "./LoadTestPanel";
 
 const RichTextEditor = dynamic(
   () => import("@/components/editor/RichTextEditor"),
@@ -2158,6 +2159,11 @@ export default function EditArticlePage() {
                 ))}
               </select>
             </div>
+
+            {/* Load Test Pengunjung — capacity check sebelum boost via sosmed */}
+            {EDITOR_ROLES.includes(userRole) && articleId && currentStatus === "PUBLISHED" && (
+              <LoadTestPanel articleId={articleId} articleStatus={currentStatus} />
+            )}
             {/* Pilih Penulis — only for admin/editor */}
             {EDITOR_ROLES.includes(userRole) && (
               <div className="rounded-[12px] border border-border bg-surface p-6">

@@ -79,12 +79,15 @@ export async function GET(
       reviewerName = reviewer?.name || null;
     }
 
-    // Increment view count for published articles
+    // Increment view count for published articles, skip for load test traffic
     if (article.status === "PUBLISHED") {
-      await prisma.article.update({
-        where: { id: params.id },
-        data: { viewCount: { increment: 1 } },
-      });
+      const isLoadTest = request.headers.get("x-load-test") === "1";
+      if (!isLoadTest) {
+        await prisma.article.update({
+          where: { id: params.id },
+          data: { viewCount: { increment: 1 } },
+        });
+      }
     }
 
     return successResponse({ ...article, reviewerName });

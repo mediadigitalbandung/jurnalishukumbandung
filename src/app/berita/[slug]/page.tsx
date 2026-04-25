@@ -267,12 +267,17 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
     }
   }
 
-  // Increment view count only for published articles
+  // Increment view count only for published articles, skip for load test traffic
+  // (Load test pakai header X-Load-Test → tidak nge-inflate viewCount)
   if (isPublished) {
-    await prisma.article.update({
-      where: { slug: params.slug },
-      data: { viewCount: { increment: 1 } },
-    });
+    const { headers } = await import("next/headers");
+    const isLoadTest = headers().get("x-load-test") === "1";
+    if (!isLoadTest) {
+      await prisma.article.update({
+        where: { slug: params.slug },
+        data: { viewCount: { increment: 1 } },
+      });
+    }
   }
 
   // Status label mapping for non-published preview
