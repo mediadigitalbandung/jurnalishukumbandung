@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle } from "lucide-react";
+import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle, Film, Pencil } from "lucide-react";
 
 // ─── Public types ──────────────────────────────────────────────────────
 
@@ -64,6 +64,8 @@ interface Props {
   onUploadOverlay: (file: File) => Promise<void>;
   onRemoveOverlay: () => void;
   uploadingOverlay?: boolean;
+  // Final rendered video URL — when set, user can toggle between edit mode and rendered preview
+  renderedUrl?: string | null;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ export default function VideoCanvas({
   onUploadOverlay,
   onRemoveOverlay,
   uploadingOverlay = false,
+  renderedUrl = null,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +96,17 @@ export default function VideoCanvas({
   // Zoom state: percentage scale of canvas vs base size (100% = fills container)
   const [zoom, setZoom] = useState(100);
   const [fullscreen, setFullscreen] = useState(false);
+
+  // Preview mode: "rendered" shows final video; "edit" shows per-clip + draggable layers
+  // Default to "rendered" if rendered video exists, else "edit"
+  const [previewMode, setPreviewMode] = useState<"rendered" | "edit">(renderedUrl ? "rendered" : "edit");
+
+  // When renderedUrl arrives or changes, snap to rendered mode
+  useEffect(() => {
+    if (renderedUrl) setPreviewMode("rendered");
+  }, [renderedUrl]);
+
+  const showRenderedVideo = previewMode === "rendered" && !!renderedUrl;
 
   // Observe canvas size for coord conversion
   useEffect(() => {
@@ -228,15 +242,47 @@ export default function VideoCanvas({
     <div className={canvasWrapperClass}>
       {/* Toolbar */}
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <p className={`text-xs font-semibold ${fullscreen ? "text-white" : "text-txt-secondary"}`}>
-          {selectedClip ? (
-            <>
-              Clip <span className="text-pink-600">#{selectedClip.id.slice(-4)}</span> · klik layer untuk edit
-            </>
-          ) : (
-            "Pilih clip dari sidebar kiri untuk mulai edit"
+        <div className="flex items-center gap-2">
+          <p className={`text-xs font-semibold ${fullscreen ? "text-white" : "text-txt-secondary"}`}>
+            {showRenderedVideo ? (
+              <>🎞️ <span className="text-pink-600">Hasil Render Final</span> · semua clip + overlay</>
+            ) : selectedClip ? (
+              <>
+                Clip <span className="text-pink-600">#{selectedClip.id.slice(-4)}</span> · edit mode
+              </>
+            ) : (
+              "Pilih clip atau render video dulu"
+            )}
+          </p>
+
+          {/* Mode toggle — only show if rendered video exists */}
+          {renderedUrl && (
+            <div className={`inline-flex rounded-full border ${fullscreen ? "border-white/20 bg-black/40" : "border-border bg-surface-secondary"} p-0.5`}>
+              <button
+                onClick={() => setPreviewMode("rendered")}
+                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                  showRenderedVideo
+                    ? "bg-pink-600 text-white"
+                    : fullscreen ? "text-white/60 hover:text-white" : "text-txt-muted hover:text-txt-primary"
+                }`}
+                title="Tampilkan hasil render final (semua clip+overlay sudah jadi 1)"
+              >
+                <Film size={10} /> Final
+              </button>
+              <button
+                onClick={() => setPreviewMode("edit")}
+                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                  !showRenderedVideo
+                    ? "bg-pink-600 text-white"
+                    : fullscreen ? "text-white/60 hover:text-white" : "text-txt-muted hover:text-txt-primary"
+                }`}
+                title="Edit mode — drag overlay/text per clip"
+              >
+                <Pencil size={10} /> Edit
+              </button>
+            </div>
           )}
-        </p>
+        </div>
         <div className={`flex items-center gap-1 ${fullscreen ? "text-white/70" : "text-txt-muted"}`}>
           <button
             onClick={zoomOut}
@@ -294,8 +340,18 @@ export default function VideoCanvas({
             if (e.target === e.currentTarget) onSelectLayer({ kind: "none" });
           }}
         >
-          {/* Background clip */}
-          {selectedClip ? (
+          {/* Background — rendered video (final preview) OR per-clip preview */}
+          {showRenderedVideo ? (
+            <video
+              key={renderedUrl}
+              src={renderedUrl!}
+              className="absolute inset-0 h-full w-full object-contain bg-black"
+              controls
+              loop
+              playsInline
+              preload="metadata"
+            />
+          ) : selectedClip ? (
             selectedClip.type === "video" ? (
               <video
                 key={selectedClip.sourceUrl}
@@ -317,7 +373,7 @@ export default function VideoCanvas({
           ) : (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-white/40">
               <Eye size={40} className="mb-2" />
-              <p className="text-xs">Upload clip & pilih untuk preview</p>
+              <p className="text-xs">Upload clip & render untuk preview final</p>
             </div>
           )}
 
@@ -329,8 +385,8 @@ export default function VideoCanvas({
             </>
           )}
 
-          {/* Text overlay layer */}
-          {selectedClip?.textOverlay && (
+          {/* Text overlay layer — hide in Final mode (already burned into video) */}
+          {!showRenderedVideo && selectedClip?.textOverlay && (
             <div
               onPointerDown={(e) => {
                 e.stopPropagation();
@@ -364,8 +420,8 @@ export default function VideoCanvas({
             </div>
           )}
 
-          {/* Custom PNG overlay layer */}
-          {overlayUrl && canvasSize.w > 0 && (
+          {/* Custom PNG overlay layer — hide in Final mode */}
+          {!showRenderedVideo && overlayUrl && canvasSize.w > 0 && (
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
@@ -425,8 +481,8 @@ export default function VideoCanvas({
             </div>
           )}
 
-          {/* Subtitle layer */}
-          {subtitlePos.show && (
+          {/* Subtitle layer — hide in Final mode */}
+          {!showRenderedVideo && subtitlePos.show && (
             <div
               onPointerDown={(e) => {
                 e.stopPropagation();

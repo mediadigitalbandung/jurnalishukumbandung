@@ -632,6 +632,7 @@ export default function TiktokEditPage() {
               onUploadOverlay={uploadOverlay}
               onRemoveOverlay={removeOverlay}
               uploadingOverlay={uploadingOverlay}
+              renderedUrl={video.renderStatus === "rendered" ? video.renderedUrl : null}
             />
 
             {/* Render + Publish buttons — stacked below canvas */}
