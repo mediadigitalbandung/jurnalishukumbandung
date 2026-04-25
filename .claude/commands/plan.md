@@ -1,163 +1,157 @@
-# Plan — Arsitek & Perencana Task
+# Plan — Master Orchestrator & Arsitek Task
 
-Analisis task dari user, pecah jadi langkah-langkah spesifik, identifikasi semua file yang terdampak, dan tentukan skill mana yang dibutuhkan.
+Entry point untuk semua task kompleks. Analisis, pecah jadi sub-tasks, tentukan agent chain.
 
 ## Input
 
-User akan memberikan deskripsi task. Bisa berupa:
-- Fitur baru ("tambah fitur bookmark")
-- Bug fix ("halaman artikel error 500")
-- Perubahan UI ("ubah warna header")
-- Refactor ("pisahkan komponen X")
-- Atau task lainnya
+$ARGUMENTS — deskripsi task dari user.
 
-Jika user memberikan argumen: $ARGUMENTS — gunakan itu sebagai task description.
+## Agent Ecosystem Map
 
-## Langkah-langkah
+```
+MASTER ORCHESTRATORS
+├── /plan       ← kamu ada di sini
+├── /deploy     ← gate akhir semua task
+├── /monitor    ← health check & diagnosis
+└── /review     ← quality gate (spawn security + quality paralel)
+
+DOMAIN ORCHESTRATORS
+├── /fix        → /fix-build | /fix-runtime
+├── /seo        → /seo-meta | /seo-schema | /seo-index (paralel)
+├── /perf       → /db-query | /perf-bundle (paralel)
+├── /social     → /social-ig | /social-fb | /social-caption (paralel)
+└── /content    → /keyword → /seo-meta → /social
+
+SPECIALISTS (tidak punya sub-agent)
+├── DB Layer:    /db-migrate  /db-query
+├── API Layer:   /api-new
+├── Frontend:    /code  /panel  /style
+├── SEO:         /seo-meta  /seo-schema  /seo-index
+├── Quality:     /review-security  /review-quality
+├── Fix:         /fix-build  /fix-runtime
+├── Perf:        /perf-bundle
+├── Infra:       /vps  /git-clean
+├── Content:     /keyword  /clean
+└── Social:      /social-ig  /social-fb  /social-caption  /social-template
+```
+
+## Chain Templates
+
+### New Feature (kompleks)
+```
+/plan → /db-migrate (jika perlu schema baru)
+      → /api-new (jika perlu endpoint baru)
+      → PARALEL: /code + /panel (jika ada UI publik + admin)
+      → /style (jika ada perubahan visual)
+      → /seo (jika ada halaman publik baru — paralel: meta+schema+index)
+      → /review (paralel: security + quality)
+      → /test
+      → /deploy
+```
+
+### Bug Fix
+```
+/fix → /fix-build ATAU /fix-runtime (berdasarkan error type)
+     → /test
+     → /deploy
+```
+
+### SEO Improvement
+```
+/seo → PARALEL: /seo-meta + /seo-schema + /seo-index
+     → /review-quality
+     → /deploy
+     → /seo-index ping (submit ke GSC)
+```
+
+### Performance Optimization
+```
+/perf → PARALEL: /db-query + /perf-bundle
+      → /test (build + bundle size check)
+      → /review-quality
+      → /deploy
+```
+
+### Content Creation
+```
+/content → /keyword (cek coverage gap)
+         → tulis artikel
+         → /seo-meta (generate metadata)
+         → /social (draft post untuk semua platform)
+```
+
+### UI/Styling Change
+```
+/style → /review-quality (design system compliance)
+       → /deploy
+```
+
+## Langkah-langkah Plan
 
 ### 1. Pahami Task
 
-Baca ulang permintaan user. Identifikasi:
-- **Apa** yang diminta (fitur/fix/style/refactor)
-- **Kenapa** (konteks bisnis jika ada)
-- **Scope** — apakah ini perubahan kecil (1-2 file) atau besar (multi-file)
+Baca $ARGUMENTS. Identifikasi:
+- **Type**: fitur baru / bug fix / optimasi / konten / infra
+- **Scope**: berapa file terdampak? (kecil: 1-3, sedang: 4-10, besar: 10+)
+- **Urgency**: blocking production? atau improvement?
 
-Jika task tidak jelas, TANYA user untuk klarifikasi sebelum lanjut.
+Jika kurang jelas → TANYA user sebelum lanjut.
 
 ### 2. Scan Codebase
 
-Berdasarkan task, scan file-file yang relevan. Referensi struktur proyek:
-
+Baca file-file yang relevan berdasarkan task. Jangan asumsikan isi file — baca dulu:
 ```
-prisma/schema.prisma        — Database schema (cek jika task melibatkan data baru)
-src/app/page.tsx             — Homepage
-src/app/layout.tsx           — Root layout
-src/app/globals.css          — Global styles & CSS utilities
-tailwind.config.ts           — Tailwind color system & design tokens
-src/lib/auth.ts              — NextAuth config & role helpers
-src/lib/prisma.ts            — Prisma client singleton
-src/lib/api-utils.ts         — API helpers (auth guard, error handling)
-src/lib/roles.ts             — Role definitions & permission matrix
-src/lib/utils.ts             — Utility functions (slugify, date format, dll)
-src/lib/seo-utils.ts         — SEO helpers
-src/lib/notifications.ts     — Notification helpers
-src/components/layout/       — Header, Footer, Sidebar, NewsTicker, PublicNav
-src/components/artikel/      — ArticleCard, CopyProtection, CommentSection
-src/components/ui/           — Reusable UI components
-src/components/ads/          — Ad components (BannerAd, SidebarAd)
-src/app/api/                 — Semua API routes
-src/app/panel/               — Semua halaman admin panel
-src/app/(public)/            — Halaman publik (berita, kategori, dll)
+prisma/schema.prisma        — untuk task yang involve data
+src/app/layout.tsx          — untuk global changes
+src/lib/api-utils.ts        — untuk API patterns
+src/lib/seo-utils.ts        — untuk SEO tasks
+src/app/api/[area]/         — untuk API changes
+src/app/panel/[page]/       — untuk panel changes
 ```
 
-Untuk setiap area yang terdampak:
-- **Baca file** yang relevan (jangan tebak — baca dulu!)
-- Catat **line numbers** yang perlu diubah
-- Catat **dependencies** antar file
+### 3. Pilih Chain Template
 
-### 3. Identifikasi Dampak
+Pilih chain template dari daftar di atas, atau buat custom chain.
 
-Analisis ripple effect dari perubahan:
+Tentukan agent mana yang:
+- Bisa dijalankan **PARALEL** (tidak saling bergantung)
+- Harus **SEQUENTIAL** (A harus selesai sebelum B)
 
-- **Database**: Apakah perlu model/field baru di `prisma/schema.prisma`?
-- **API**: Apakah perlu endpoint baru atau modifikasi di `src/app/api/`?
-- **UI Public**: Apakah ada perubahan di halaman publik?
-- **UI Panel**: Apakah ada perubahan di admin panel?
-- **Auth/Role**: Apakah ada implikasi permission?
-- **SEO**: Apakah perubahan ini mempengaruhi SEO?
-- **Styling**: Apakah perlu perubahan CSS/Tailwind?
-
-### 4. Buat Plan Terstruktur
-
-Output plan dalam format berikut:
+### 4. Output Plan
 
 ```
 ## Plan: [Judul Task]
 
 ### Ringkasan
-[1-2 kalimat apa yang akan dilakukan dan kenapa]
+[1-2 kalimat]
 
-### File yang Terdampak
-| # | File | Aksi | Detail |
-|---|------|------|--------|
-| 1 | path/to/file.ts | EDIT/CREATE/DELETE | Apa yang diubah |
-| 2 | ... | ... | ... |
+### Agent Chain
+[chain diagram dengan PARALEL/SEQUENTIAL notation]
 
-### Langkah Implementasi
-1. **[Langkah 1]** — Deskripsi spesifik
-   - File: `path/to/file`
-   - Apa yang dilakukan: ...
-   - Skill: `/db-migrate` atau `/code` atau `/api-new` dll
+### File Terdampak
+| # | File | Aksi | Agent |
+|---|------|------|-------|
+| 1 | ... | CREATE/EDIT | /code |
 
-2. **[Langkah 2]** — ...
+### Risiko
+- [hal yang perlu diwaspadai]
 
-### Urutan Skill
-[Skill mana yang dipanggil dan urutannya]
-Contoh: `/db-migrate` → `/api-new` → `/code` → `/review` → `/deploy`
-
-### Risiko & Catatan
-- [Hal yang perlu diwaspadai]
-- [Breaking changes jika ada]
-- [Migrasi data jika perlu]
+### Estimasi
+- Scope: kecil/sedang/besar
+- Agent hops: X
 ```
 
-### 5. Konfirmasi dengan User
+### 5. Konfirmasi
 
-Setelah plan selesai, tanya user:
+Setelah plan selesai:
+> **Plan siap. Eksekusi sekarang atau ada yang perlu diubah?**
 
-> **Plan sudah siap. Mau langsung eksekusi atau ada yang perlu diubah?**
-
-Jangan langsung eksekusi — tunggu konfirmasi user. Setelah user approve, sarankan skill pertama yang harus dijalankan.
+Jika user approve → jalankan agent pertama di chain.
 
 ## Aturan
 
-- JANGAN langsung coding. Skill ini HANYA untuk planning.
-- SELALU baca file sebelum memasukkan ke plan — jangan asumsikan isi file.
-- Jika task kecil (1-2 file, perubahan minor), plan boleh singkat. Jangan over-engineer planning untuk task sederhana.
-- Jika task besar, pecah jadi fase-fase yang bisa di-deploy incremental.
-- Pertimbangkan design system: GoTo green (#00AA13), rounded-[12px], shadow-card, light mode.
-- Panel admin harus senior-friendly: teks besar, spacing lega.
-- Public pages pakai server components + Prisma direct query.
-- Panel pages pakai client components + fetch API routes.
-
-## Contoh Output
-
-```
-## Plan: Fitur Bookmark Artikel
-
-### Ringkasan
-Tambah fitur bookmark agar pembaca bisa menyimpan artikel favorit.
-Menggunakan localStorage (tanpa login) untuk MVP.
-
-### File yang Terdampak
-| # | File | Aksi | Detail |
-|---|------|------|--------|
-| 1 | src/components/artikel/BookmarkButton.tsx | CREATE | Komponen tombol bookmark |
-| 2 | src/app/berita/[slug]/page.tsx | EDIT | Tambah BookmarkButton di artikel |
-| 3 | src/app/bookmark/page.tsx | CREATE | Halaman list bookmark user |
-| 4 | src/components/layout/PublicNav.tsx | EDIT | Tambah link ke halaman bookmark |
-
-### Langkah Implementasi
-1. **Buat BookmarkButton component** — Toggle bookmark via localStorage
-   - File: `src/components/artikel/BookmarkButton.tsx`
-   - Skill: `/code`
-
-2. **Integrasikan di halaman artikel** — Taruh di bawah judul
-   - File: `src/app/berita/[slug]/page.tsx`
-   - Skill: `/code`
-
-3. **Buat halaman bookmark** — List semua artikel yang di-bookmark
-   - File: `src/app/bookmark/page.tsx`
-   - Skill: `/code`
-
-4. **Tambah navigasi** — Link "Bookmark" di navbar
-   - File: `src/components/layout/PublicNav.tsx`
-   - Skill: `/code`
-
-### Urutan Skill
-`/code` (step 1-4) → `/review` → `/deploy`
-
-### Risiko & Catatan
-- localStorage tidak sync antar device
-- Jika nanti mau sync, perlu model DB + API (fase 2)
-```
+- JANGAN langsung coding di skill ini — hanya planning
+- SELALU baca file sebelum include di plan
+- Untuk task kecil (1-2 file): plan boleh singkat, langsung ke `/code`
+- Untuk task besar: pecah jadi fase yang bisa di-deploy incremental
+- Pertimbangkan apakah bisa parallel — hemat waktu

@@ -1,4 +1,5 @@
 {
+  "showInlineTitle": true,
   "promptDelete": true,
   "alwaysUpdateLinks": true,
   "newFileLocation": "folder",
@@ -8,7 +9,7 @@
   "newLinkFormat": "shortest",
   "showLineNumber": false,
   "spellcheck": true,
-  "spellcheckLanguages": ["id-ID"],
+  "spellcheckLanguages": null,
   "useTab": false,
   "tabSize": 2
 }

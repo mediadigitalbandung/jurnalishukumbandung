@@ -90,6 +90,9 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
   const backsongUrl = spec.backsongUrl ? toAbsoluteUrl(spec.backsongUrl) : null;
   const backsongVolume = spec.backsongVolume ?? 0.5;
   const compId = `tiktok-${spec.videoId}`;
+  const frameStyle = spec.frameStyle || "none";
+  const breakingText = (spec.breakingText || "BREAKING NEWS").trim().slice(0, 100);
+  const titleText = (spec.title || "JURNALIS HUKUM BANDUNG").trim().slice(0, 80);
 
   // ─── Clip elements (videos + images) ─────────────────────────
   // Each clip is wrapped in a positioned div so GSAP can animate the inner without conflicting CSS transform
@@ -221,6 +224,77 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
     })
     .join("\n        ");
 
+  // ─── Frame style overlays (branded layers per template) ───────────────────────
+  // Each frame style adds branded UI elements on top of the video. Z-index 300+ to be on top of subs.
+  const frameElements = (() => {
+    if (frameStyle === "ticker-news") {
+      return `
+      <div class="frame-ticker" data-start="0" data-duration="${totalDuration}" data-track-index="300">
+        <div class="frame-ticker-bar">
+          <span class="frame-ticker-label">LIVE</span>
+          <span class="frame-ticker-text">${escapeHtml(titleText.toUpperCase())} • ${escapeHtml(titleText.toUpperCase())} •</span>
+        </div>
+      </div>`;
+    }
+    if (frameStyle === "breaking-news") {
+      return `
+      <div class="frame-breaking" data-start="0" data-duration="${totalDuration}" data-track-index="300">
+        <div class="frame-breaking-banner">${escapeHtml(breakingText.toUpperCase())}</div>
+        <div class="frame-breaking-title">${escapeHtml(titleText.toUpperCase())}</div>
+      </div>`;
+    }
+    if (frameStyle === "lower-third") {
+      return `
+      <div class="frame-lower-third" data-start="0" data-duration="${totalDuration}" data-track-index="300">
+        <div class="frame-lower-third-card">
+          <div class="frame-lt-bar"></div>
+          <div class="frame-lt-text">
+            <div class="frame-lt-title">${escapeHtml(titleText)}</div>
+            <div class="frame-lt-source">JURNALIS HUKUM BANDUNG</div>
+          </div>
+        </div>
+      </div>`;
+    }
+    if (frameStyle === "brand-green") {
+      return `
+      <div class="frame-brand" data-start="0" data-duration="${totalDuration}" data-track-index="300">
+        <div class="frame-brand-top"><span class="frame-brand-dot"></span> JHB · jurnalishukumbandung.com</div>
+      </div>`;
+    }
+    if (frameStyle === "minimal") {
+      return `
+      <div class="frame-minimal" data-start="0" data-duration="${totalDuration}" data-track-index="300">
+        <div class="frame-minimal-watermark">@jurnalishukumbandung</div>
+      </div>`;
+    }
+    return "";
+  })();
+
+  // Frame entry animations (subtle, attention-grabbing)
+  const frameAnims = (() => {
+    if (frameStyle === "ticker-news") {
+      // Slide ticker text from right to left, looped via repeat
+      const cycleSec = 12;
+      const repeats = Math.max(1, Math.ceil(totalDuration / cycleSec));
+      return `tl.from(".frame-ticker-bar", { y: 100, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.2);
+        tl.fromTo(".frame-ticker-text", { x: ${width} }, { x: -${width * 1.5}, duration: ${cycleSec}, ease: "none", repeat: ${repeats - 1} }, 0.5);`;
+    }
+    if (frameStyle === "breaking-news") {
+      return `tl.from(".frame-breaking-banner", { x: -${width}, duration: 0.7, ease: "power4.out" }, 0.1);
+        tl.from(".frame-breaking-title", { y: 60, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.4);`;
+    }
+    if (frameStyle === "lower-third") {
+      return `tl.from(".frame-lower-third-card", { x: -500, opacity: 0, duration: 0.7, ease: "power4.out" }, 0.3);`;
+    }
+    if (frameStyle === "brand-green") {
+      return `tl.from(".frame-brand-top", { y: -60, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.2);`;
+    }
+    if (frameStyle === "minimal") {
+      return `tl.from(".frame-minimal-watermark", { opacity: 0, duration: 0.8, ease: "power2.out" }, 1.0);`;
+    }
+    return "";
+  })();
+
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -305,6 +379,77 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
       position: absolute;
       pointer-events: none;
     }
+
+    /* ───── FRAME STYLES ─────────────────────────────────────── */
+
+    /* ticker-news: red bottom bar with scrolling headline */
+    .frame-ticker { position: absolute; bottom: 0; left: 0; right: 0; height: 110px; z-index: 300; pointer-events: none; }
+    .frame-ticker-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 90px;
+      background: linear-gradient(90deg, #c00, #d00 50%, #b00);
+      display: flex; align-items: center; overflow: hidden;
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.5);
+    }
+    .frame-ticker-label {
+      flex-shrink: 0; padding: 6px 32px;
+      background: #fff; color: #c00;
+      font-weight: 900; font-size: 32px; letter-spacing: 2px;
+      margin-right: 24px;
+    }
+    .frame-ticker-text {
+      color: #fff; font-weight: 800; font-size: 38px;
+      white-space: nowrap; letter-spacing: 0.02em;
+    }
+
+    /* breaking-news: red banner top + bold title */
+    .frame-breaking { position: absolute; top: 80px; left: 0; right: 0; z-index: 300; pointer-events: none; }
+    .frame-breaking-banner {
+      display: inline-block;
+      background: #d00; color: #fff;
+      padding: 16px 48px; margin-left: 60px;
+      font-weight: 900; font-size: 56px; letter-spacing: 3px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .frame-breaking-title {
+      margin: 24px 60px 0;
+      color: #fff; font-weight: 900; font-size: 64px; line-height: 1.1;
+      max-width: 90%;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.9);
+    }
+
+    /* lower-third: branded card bottom-left */
+    .frame-lower-third { position: absolute; bottom: 200px; left: 0; right: 0; z-index: 300; pointer-events: none; }
+    .frame-lower-third-card {
+      display: flex; align-items: stretch;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+      margin: 0 60px; max-width: 88%;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      border-radius: 0 12px 12px 0;
+    }
+    .frame-lt-bar { width: 14px; background: #00aa13; }
+    .frame-lt-text { padding: 24px 32px; flex: 1; }
+    .frame-lt-title { color: #fff; font-weight: 800; font-size: 44px; line-height: 1.15; }
+    .frame-lt-source { color: #00aa13; font-weight: 700; font-size: 24px; letter-spacing: 2px; margin-top: 8px; }
+
+    /* brand-green: top bar with brand */
+    .frame-brand { position: absolute; top: 0; left: 0; right: 0; z-index: 300; pointer-events: none; }
+    .frame-brand-top {
+      background: linear-gradient(90deg, #00aa13, #00cc18);
+      color: #fff; font-weight: 800; font-size: 32px;
+      padding: 24px 48px; letter-spacing: 1px;
+      display: flex; align-items: center;
+      box-shadow: 0 4px 16px rgba(0,170,19,0.5);
+    }
+    .frame-brand-dot { display: inline-block; width: 14px; height: 14px; background: #fff; border-radius: 50%; margin-right: 12px; }
+
+    /* minimal: subtle watermark bottom-right */
+    .frame-minimal { position: absolute; inset: 0; z-index: 300; pointer-events: none; }
+    .frame-minimal-watermark {
+      position: absolute; bottom: 40px; right: 40px;
+      color: rgba(255,255,255,0.7); font-weight: 700; font-size: 28px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      letter-spacing: 0.05em;
+    }
   </style>
 </head>
 <body>
@@ -320,6 +465,7 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
       ${textOverlayElements}
       ${subtitleElements}
       ${overlayElements}
+      ${frameElements}
       ${audioElement}
 
     <script>
@@ -328,6 +474,7 @@ export function buildHyperframesComposition(spec: RenderSpec): string {
         ${clipAnims}
         ${textOverlayAnims}
         ${subtitleAnims}
+        ${frameAnims}
         // Register timeline so hyperframes can seek frame-accurately
         window.__timelines = window.__timelines || {};
         window.__timelines[${JSON.stringify(compId)}] = tl;

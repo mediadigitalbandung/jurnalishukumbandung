@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "Bash(npx prisma:*)",
+      "Bash(docker --version)",
+      "Bash(npx prasha:*)",
+      "Bash(node:*)",
+      "Bash(npx next:*)",
+      "Bash(git push:*)",
+      "Bash(grep -E \"NEXT_PUBLIC_APP_URL|UPLOAD_DIR\" .env*)"
+    ]
+  },
+  "mcpServers": {
+    "qwen-executor": {
+      "command": "C:\\Users\\Owen\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+      "args": [
+        "C:\\Users\\Owen\\.claude\\mcp-servers\\qwen_executor_mcp.py"
+      ],
+      "env": {
+        "OPENROUTER_API_KEY": "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",
+        "OPENROUTER_MODEL": "qwen/qwen3.6-plus:free"
+      }
+    }
+  }
+}

@@ -1524,20 +1524,50 @@ export default function EditArticlePage() {
 
     return (
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6">
-          <button
-            onClick={() => router.push("/panel/artikel")}
-            className="mb-1 flex items-center gap-1 text-xs text-txt-secondary hover:text-txt-primary"
-          >
-            <ArrowLeft size={14} /> Kembali ke Daftar Artikel
-          </button>
-          <h1 className="text-lg sm:text-2xl font-bold text-txt-primary">
-            Review Artikel
-          </h1>
-          <p className="text-sm text-txt-secondary">
-            Status: <span className="font-medium text-gold">{statusLabel[currentStatus] || currentStatus}</span>
-            {" | "}Penulis: <span className="font-medium">{articleAuthorName}</span>
-          </p>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <button
+              onClick={() => router.push("/panel/artikel")}
+              className="mb-1 flex items-center gap-1 text-xs text-txt-secondary hover:text-txt-primary"
+            >
+              <ArrowLeft size={14} /> Kembali ke Daftar Artikel
+            </button>
+            <h1 className="text-lg sm:text-2xl font-bold text-txt-primary">
+              {["PUBLISHED", "APPROVED"].includes(currentStatus) ? "Edit Artikel" : "Review Artikel"}
+            </h1>
+            <p className="text-sm text-txt-secondary">
+              Status: <span className="font-medium text-gold">{statusLabel[currentStatus] || currentStatus}</span>
+              {" | "}Penulis: <span className="font-medium">{articleAuthorName}</span>
+            </p>
+          </div>
+          {["PUBLISHED", "APPROVED"].includes(currentStatus) && (
+            <button
+              onClick={async () => {
+                setSaving(true);
+                setError("");
+                try {
+                  const res = await fetch(`/api/articles/${articleId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title, content, excerpt: excerpt ? excerpt.slice(0, 500) : undefined, categoryId, featuredImage, seoTitle, seoDescription, tags: tags.split(",").map(t => t.trim()).filter(Boolean) }),
+                  });
+                  if (res.ok) {
+                    clearAutosave();
+                    success("Artikel berhasil disimpan");
+                  } else {
+                    const json = await res.json();
+                    setError(json.error || "Gagal menyimpan");
+                  }
+                } catch { setError("Terjadi kesalahan"); }
+                setSaving(false);
+              }}
+              disabled={saving}
+              className="btn-primary flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Simpan Perubahan
+            </button>
+          )}
         </div>
 
         {error && (
@@ -1714,7 +1744,7 @@ export default function EditArticlePage() {
         </div>
 
         {/* Editable article content — editor can edit like journalist */}
-        {currentStatus === "IN_REVIEW" && isAssignedEditor ? (
+        {(currentStatus === "IN_REVIEW" && isAssignedEditor) || ["PUBLISHED", "APPROVED"].includes(currentStatus) ? (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Main content — 2/3 */}
             <div className="lg:col-span-2 space-y-4">

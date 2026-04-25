@@ -883,3 +883,46 @@ model TiktokSettings {
 
   @@map("tiktok_settings")
 }
+
+// ───── Load Test (Capacity validation per artikel) ─────
+// Editor jalanin sebelum boost artikel via sosmed untuk pastiin halaman tahan beban.
+// Bukan view inflation: requests pakai header X-Load-Test → viewCount tidak naik.
+model LoadTestRun {
+  id              String   @id @default(cuid())
+  articleId       String
+  articleSlug     String   // snapshot supaya tetap accessible kalau artikel dihapus
+  articleTitle    String   // snapshot
+  initiatedBy     String   // user.id
+  initiatedByName String
+
+  // Test parameters
+  concurrency     Int
+  totalRequests   Int
+
+  // Status
+  status          String   @default("running") // "running" | "completed" | "failed"
+  errorReason     String?
+
+  // Aggregated metrics
+  successCount    Int      @default(0)
+  errorCount      Int      @default(0)
+  avgMs           Float?
+  p50Ms           Float?
+  p95Ms           Float?
+  p99Ms           Float?
+  maxMs           Float?
+  minMs           Float?
+  // JSON: { "200": 489, "500": 11 }
+  statusCodes     Json?
+  // JSON: [{count: 3, message: "timeout"}]
+  errorMessages   Json?
+  totalDurationMs Int?
+
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([articleId])
+  @@index([initiatedBy])
+  @@index([startedAt])
+  @@map("load_test_runs")
+}

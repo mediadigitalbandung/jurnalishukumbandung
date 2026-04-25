@@ -1,84 +1,85 @@
-# Perf — Performance Optimizer
+# Perf — Performance Orchestrator
 
-Analisis dan optimasi performa aplikasi.
+Audit dan optimasi performa. Delegasikan ke specialist berdasarkan area bottleneck.
 
 ## Input
 
-$ARGUMENTS — area spesifik yang lambat, atau "general" untuk audit keseluruhan.
+$ARGUMENTS — area spesifik: "db", "bundle", "homepage", "api", atau "general" untuk full audit.
 
-## Langkah-langkah
+## Sub-Agents yang Dikelola
 
-### 1. Identifikasi Area
+| Sub-Agent | Tugas |
+|---|---|
+| `/db-query` | N+1 queries, missing indexes, pagination, Promise.all |
+| `/perf-bundle` | Bundle size, lazy loading, rendering strategy, Core Web Vitals |
 
-Tentukan fokus:
-- Halaman tertentu yang lambat?
-- API endpoint yang slow?
-- Build time terlalu lama?
-- Bundle size terlalu besar?
-- Database query lambat?
+## Routing Logic
 
-### 2. Audit Performa
+**Identifikasi bottleneck dulu:**
 
-**Database & Prisma:**
-- Cek N+1 queries (nested include yang tidak perlu)
-- Cek missing indexes di `schema.prisma`
-- Cek `findMany` tanpa limit/pagination
-- Cek `select` — hanya query field yang dibutuhkan, bukan semua
-- Cek query di loop (harusnya batch)
+| Gejala | Delegate ke |
+|---|---|
+| Halaman/API lambat respond | `/db-query` |
+| First Load JS besar (> 100kB) | `/perf-bundle` |
+| Build output warning bundle besar | `/perf-bundle` |
+| Gambar lambat load | `/perf-bundle` |
+| Homepage lambat di mobile | Keduanya — paralel |
+| "General" atau tidak tahu | Keduanya — paralel |
 
-**Next.js Rendering:**
-- Cek rendering strategy per halaman:
-  - Homepage: ISR (revalidate 60s) ✓
-  - Artikel: SSR atau ISR
-  - Panel: Client-side (CSR)
-- Cek `dynamic = "force-dynamic"` — hanya jika benar-benar perlu
-- Cek unnecessary re-renders di client components
-- Cek `useEffect` dependency arrays
+## Spawn Pattern
 
-**Bundle & Assets:**
-- Cek import besar yang bisa di-lazy load
-- Cek `next/dynamic` untuk komponen berat (editor, chart)
-- Cek image optimization (`next/image` dengan proper sizes)
-- Cek third-party scripts yang blocking
+### Full Performance Audit
 
-**API Routes:**
-- Cek response time (estimasi dari query complexity)
-- Cek caching opportunities (revalidate, stale-while-revalidate)
-- Cek payload size — jangan kirim data yang tidak dipakai client
-
-### 3. Implementasi Optimasi
-
-Terapkan perbaikan berdasarkan temuan. Prioritas:
-1. **Database indexes** — impact besar, risiko rendah
-2. **Query optimization** — select specific fields
-3. **Lazy loading** — komponen berat
-4. **Caching** — ISR atau API cache headers
-5. **Image optimization** — sizes, priority, lazy
-
-### 4. Verifikasi
-
-```bash
-npx next build
+**Spawn 2 sub-agent PARALEL:**
+```
+PARALEL:
+├── /db-query    → audit semua query, indexes, N+1
+└── /perf-bundle → audit bundle size, images, rendering strategy
 ```
 
-Cek build output — perhatikan:
-- First Load JS per route (target: < 100kB per page)
-- Static vs Dynamic routes
-- Build warnings
+Kumpulkan hasil → buat performance report gabungan → prioritaskan fixes.
 
-### 5. Selesai
+### Targeted
 
-Laporkan:
-- Bottleneck yang ditemukan
-- Optimasi yang diterapkan
-- Estimasi improvement
+- `perf db` → spawn `/db-query` saja
+- `perf bundle` atau `perf frontend` → spawn `/perf-bundle` saja
+- `perf homepage` → spawn keduanya tapi fokus ke homepage
 
-Sarankan: **"Performa dioptimasi. Jalankan `/deploy` untuk deploy."**
+## Consolidated Report Format
+
+```
+## Performance Report
+
+### 🗄️ Database (by /db-query)
+- N+1 queries ditemukan: X
+- Missing indexes: X
+- Queries dioptimasi: X
+- Est. improvement: X ms
+
+### 📦 Bundle (by /perf-bundle)
+- Routes > 100kB: X
+- Dynamic imports ditambah: X
+- Images dioptimasi: X
+- Rendering strategy diubah: X
+
+### 🎯 Core Web Vitals (estimasi)
+- LCP: sebelum X → sesudah X
+- CLS: sebelum X → sesudah X
+```
+
+## Setelah Optimasi
+
+```
+SEQUENTIAL:
+→ npx next build (verifikasi tidak ada error baru + lihat bundle size)
+→ /review-quality (cek tidak ada regression)
+→ /deploy
+```
 
 ## Aturan
 
 - Jangan ubah behavior/fitur — hanya optimasi
-- Test build setelah optimasi — jangan break things
-- Prioritaskan optimasi yang high-impact & low-risk
-- Jangan premature optimize — fokus pada bottleneck yang terukur
+- Test build setelah setiap optimasi
+- Prioritaskan high-impact & low-risk
+- Jangan premature optimize — ukur dulu sebelum optimasi
 - Jangan hapus `force-dynamic` tanpa pahami konsekuensinya

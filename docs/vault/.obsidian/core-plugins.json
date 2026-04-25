@@ -23,5 +23,11 @@
   "file-recovery": true,
   "publish": false,
   "sync": false,
-  "bookmarks": true
+  "bookmarks": true,
+  "footnotes": false,
+  "daily-notes": true,
+  "slash-command": false,
+  "editor-status": true,
+  "bases": true,
+  "webviewer": false
 }
