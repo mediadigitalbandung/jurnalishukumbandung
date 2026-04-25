@@ -83,26 +83,41 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       data: updates,
     });
 
-    // Create featured image clip (if no clips yet & article has featured image)
+    // Create featured image clip (insert as FIRST clip, even if other clips exist)
+    // Skip only if the same image URL is already a clip (avoid duplicate).
     let createdClipsCount = 0;
-    if (data.createFeaturedClip && article.featuredImage && video.clips.length === 0) {
-      // Resolve featured image URL — could be relative or absolute
-      const imageUrl = article.featuredImage.startsWith("http")
-        ? article.featuredImage
-        : article.featuredImage;
+    if (data.createFeaturedClip && article.featuredImage) {
+      const imageUrl = article.featuredImage;
+      const alreadyExists = video.clips.some((c) => c.sourceUrl === imageUrl);
 
-      await prisma.tiktokClip.create({
-        data: {
-          videoId: params.id,
-          order: 0,
-          type: "image",
-          sourceUrl: imageUrl,
-          durationSec: 5,
-          kenBurns: true, // Subtle zoom for static image
-        },
-      });
-      createdClipsCount = 1;
-      result.clipCreated = true;
+      if (!alreadyExists) {
+        // Push existing clips down by 1 to make room at order 0
+        if (video.clips.length > 0) {
+          await prisma.$transaction(
+            video.clips.map((c) =>
+              prisma.tiktokClip.update({
+                where: { id: c.id },
+                data: { order: c.order + 1 },
+              })
+            )
+          );
+        }
+
+        await prisma.tiktokClip.create({
+          data: {
+            videoId: params.id,
+            order: 0,
+            type: "image",
+            sourceUrl: imageUrl,
+            durationSec: 5,
+            kenBurns: true, // Subtle zoom for static image
+          },
+        });
+        createdClipsCount = 1;
+        result.clipCreated = true;
+      } else {
+        result.clipSkipped = "featured image sudah ada di clip list";
+      }
     }
 
     // Generate AI text overlays per clip
