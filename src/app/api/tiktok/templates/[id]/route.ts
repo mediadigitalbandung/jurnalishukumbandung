@@ -12,6 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       where: { id: params.id },
       include: {
         overlays: { orderBy: { order: "asc" } },
+        slots: { orderBy: { order: "asc" } },
         backsong: { select: { id: true, name: true } },
       },
     });

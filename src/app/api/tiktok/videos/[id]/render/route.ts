@@ -16,6 +16,19 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     if (!video) throw new ApiError("Video tidak ditemukan", 404);
     if (video._count.clips === 0) throw new ApiError("Tambahkan minimal 1 clip dulu", 400);
 
+    // Block render if any required placeholder slot is still empty
+    const placeholders = await prisma.tiktokClip.findMany({
+      where: { videoId: params.id, isPlaceholder: true },
+      select: { order: true, type: true, slotLabel: true },
+      orderBy: { order: "asc" },
+    });
+    if (placeholders.length > 0) {
+      const list = placeholders
+        .map((p) => `slot #${p.order + 1} (${p.type}${p.slotLabel ? `: ${p.slotLabel}` : ""})`)
+        .join(", ");
+      throw new ApiError(`Masih ada ${placeholders.length} slot kosong: ${list}. Upload dulu sebelum render.`, 400);
+    }
+
     await enqueueRender(params.id);
 
     return successResponse({ message: "Render dimulai (background). Refresh untuk cek status." });

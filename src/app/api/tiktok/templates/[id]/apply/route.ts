@@ -15,6 +15,8 @@ const schema = z.object({
   applyTextStyleToClips: z.boolean().optional().default(true),
   // If true, deletes existing PNG overlays before adding template's
   replaceOverlays: z.boolean().optional().default(true),
+  // If true, creates placeholder clips from template slots (replaces existing clips)
+  applySlotStructure: z.boolean().optional().default(false),
 });
 
 /**
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const template = await prisma.tiktokTemplate.findUnique({
       where: { id: params.id },
-      include: { overlays: true },
+      include: { overlays: true, slots: { orderBy: { order: "asc" } } },
     });
     if (!template) throw new ApiError("Template tidak ditemukan", 404);
 
@@ -111,6 +113,34 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       clipsRestyled = video.clips.length;
     }
 
+    // Apply slot structure → create placeholder clips for any slot user hasn't filled yet.
+    // Replaces existing clips entirely so the structure matches.
+    let placeholdersCreated = 0;
+    if (data.applySlotStructure && template.slots.length > 0) {
+      await prisma.tiktokClip.deleteMany({ where: { videoId: data.videoId } });
+      await prisma.tiktokClip.createMany({
+        data: template.slots.map((s) => ({
+          videoId: data.videoId,
+          order: s.order,
+          type: s.type,
+          sourceUrl: "", // empty = placeholder
+          durationSec: s.durationSec,
+          isPlaceholder: true,
+          slotLabel: s.label,
+          templateSlotId: s.id,
+          // Apply default text style from template
+          textColor: template.defaultTextColor,
+          textPosition: template.defaultTextPosition,
+          textFontSize: template.defaultTextFontSize,
+          textRotation: template.defaultTextRotation,
+          textX: template.defaultTextX,
+          textY: template.defaultTextY,
+          kenBurns: s.type === "image" ? template.defaultKenBurns : false,
+        })),
+      });
+      placeholdersCreated = template.slots.length;
+    }
+
     // Bump usage stats
     await prisma.tiktokTemplate.update({
       where: { id: params.id },
@@ -122,6 +152,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       templateName: template.name,
       overlaysCopied: data.applyOverlays ? template.overlays.length : 0,
       clipsRestyled,
+      placeholdersCreated,
     });
   } catch (error) {
     return errorResponse(error);

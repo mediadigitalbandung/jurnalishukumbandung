@@ -712,6 +712,8 @@ model TiktokTemplate {
   defaultKenBurns         Boolean @default(true)
   // PNG overlays — full styling captured
   overlays    TiktokTemplateOverlay[]
+  // Slot structure — defines required clip sequence (e.g. foto, video, video, foto, foto)
+  slots       TiktokTemplateSlot[]
   // Stats
   usedCount   Int      @default(0)
   lastUsedAt  DateTime?
@@ -724,6 +726,25 @@ model TiktokTemplate {
 
   @@index([isActive, lastUsedAt])
   @@map("tiktok_templates")
+}
+
+// TiktokTemplateSlot — defines required clip sequence in a template.
+// E.g. slot 0=image, slot 1=video, slot 2=video, slot 3=image, slot 4=image.
+// Apply template → creates placeholder clips that user must fill before render.
+model TiktokTemplateSlot {
+  id          String         @id @default(cuid())
+  template    TiktokTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId  String
+  order       Int
+  type        String         // "image" | "video"
+  durationSec Float          // expected slot duration
+  label       String?        // e.g. "Hero shot", "B-roll", "Outro"
+  required    Boolean        @default(true)
+  // Whether this slot can be auto-filled from article featured image (only for image type)
+  acceptsFeaturedImage Boolean @default(false)
+
+  @@index([templateId, order])
+  @@map("tiktok_template_slots")
 }
 
 // TiktokTemplateOverlay — PNG overlays inside a template (positions captured)
@@ -790,6 +811,11 @@ model TiktokClip {
   subtitles    Json?   // [{start: 0, end: 2.5, text: "Hello"}, ...]
   transition   String? @default("none") // none|fade|slide|zoom
   kenBurns     Boolean @default(false) // Zoom pan untuk foto
+
+  // Slot/template integration
+  isPlaceholder  Boolean @default(false) // true = empty slot waiting for upload (sourceUrl is empty/sentinel)
+  slotLabel      String? // optional human label from template slot
+  templateSlotId String? // reference to TiktokTemplateSlot.id this fills (loose ref, no FK)
 
   createdAt DateTime @default(now())
 

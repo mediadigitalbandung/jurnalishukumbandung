@@ -17,6 +17,8 @@ const schema = z.object({
   generateTextOverlays: z.boolean().optional().default(true),
   // Optional: apply a template's visual identity (frame, PNG overlays, subtitle style, backsong, default text style)
   templateId: z.string().nullable().optional(),
+  // If true (with templateId), creates placeholder clips from template slots before article fill
+  applyTemplateSlots: z.boolean().optional().default(false),
 });
 
 const SYSTEM_PROMPT =
@@ -85,38 +87,85 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       data: updates,
     });
 
-    // Create featured image clip (insert as FIRST clip, even if other clips exist)
-    // Skip only if the same image URL is already a clip (avoid duplicate).
+    // STEP 1: Apply template slot structure FIRST if requested (creates placeholder clips)
+    if (data.templateId && data.applyTemplateSlots) {
+      const tplForSlots = await prisma.tiktokTemplate.findUnique({
+        where: { id: data.templateId },
+        include: { slots: { orderBy: { order: "asc" } } },
+      });
+      if (tplForSlots && tplForSlots.slots.length > 0) {
+        await prisma.tiktokClip.deleteMany({ where: { videoId: params.id } });
+        await prisma.tiktokClip.createMany({
+          data: tplForSlots.slots.map((s) => ({
+            videoId: params.id,
+            order: s.order,
+            type: s.type,
+            sourceUrl: "",
+            durationSec: s.durationSec,
+            isPlaceholder: true,
+            slotLabel: s.label,
+            templateSlotId: s.id,
+            textColor: tplForSlots.defaultTextColor,
+            textPosition: tplForSlots.defaultTextPosition,
+            textFontSize: tplForSlots.defaultTextFontSize,
+            textRotation: tplForSlots.defaultTextRotation,
+            textX: tplForSlots.defaultTextX,
+            textY: tplForSlots.defaultTextY,
+            kenBurns: s.type === "image" ? tplForSlots.defaultKenBurns : false,
+          })),
+        });
+        result.placeholdersCreated = tplForSlots.slots.length;
+      }
+    }
+
+    // STEP 2: Fill featured image into first matching slot/clip
+    // Reload clips to see the post-slot state
     let createdClipsCount = 0;
     if (data.createFeaturedClip && article.featuredImage) {
       const imageUrl = article.featuredImage;
-      const alreadyExists = video.clips.some((c) => c.sourceUrl === imageUrl);
+      const currentClips = await prisma.tiktokClip.findMany({
+        where: { videoId: params.id },
+        orderBy: { order: "asc" },
+      });
+      const alreadyExists = currentClips.some((c) => c.sourceUrl === imageUrl);
 
       if (!alreadyExists) {
-        // Push existing clips down by 1 to make room at order 0
-        if (video.clips.length > 0) {
-          await prisma.$transaction(
-            video.clips.map((c) =>
-              prisma.tiktokClip.update({
-                where: { id: c.id },
-                data: { order: c.order + 1 },
-              })
-            )
-          );
+        // Find first empty image placeholder to fill
+        const targetPlaceholder = currentClips.find((c) => c.isPlaceholder && c.type === "image");
+        if (targetPlaceholder) {
+          await prisma.tiktokClip.update({
+            where: { id: targetPlaceholder.id },
+            data: { sourceUrl: imageUrl, isPlaceholder: false },
+          });
+          result.featuredImageFilledSlot = targetPlaceholder.order;
+        } else {
+          // No matching placeholder — insert at front like before (only when no placeholders exist)
+          const hasAnyPlaceholder = currentClips.some((c) => c.isPlaceholder);
+          if (!hasAnyPlaceholder) {
+            if (currentClips.length > 0) {
+              await prisma.$transaction(
+                currentClips.map((c) =>
+                  prisma.tiktokClip.update({
+                    where: { id: c.id },
+                    data: { order: c.order + 1 },
+                  })
+                )
+              );
+            }
+            await prisma.tiktokClip.create({
+              data: {
+                videoId: params.id,
+                order: 0,
+                type: "image",
+                sourceUrl: imageUrl,
+                durationSec: 5,
+                kenBurns: true,
+              },
+            });
+            createdClipsCount = 1;
+            result.clipCreated = true;
+          }
         }
-
-        await prisma.tiktokClip.create({
-          data: {
-            videoId: params.id,
-            order: 0,
-            type: "image",
-            sourceUrl: imageUrl,
-            durationSec: 5,
-            kenBurns: true, // Subtle zoom for static image
-          },
-        });
-        createdClipsCount = 1;
-        result.clipCreated = true;
       } else {
         result.clipSkipped = "featured image sudah ada di clip list";
       }

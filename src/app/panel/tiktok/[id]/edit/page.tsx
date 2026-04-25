@@ -44,6 +44,8 @@ interface Clip {
   textRotation: number | null;
   transition: string | null;
   kenBurns: boolean;
+  isPlaceholder?: boolean;
+  slotLabel?: string | null;
 }
 
 interface Backsong {
@@ -296,6 +298,50 @@ export default function TiktokEditPage() {
 
   const totalDuration = video?.clips.reduce((sum, c) => sum + c.durationSec, 0) || 0;
   const MAX_DURATION = 60;
+
+  // Slot status helpers
+  const placeholderClips = video?.clips.filter((c) => c.isPlaceholder) || [];
+  const filledClips = video?.clips.filter((c) => !c.isPlaceholder) || [];
+  const hasSlots = placeholderClips.length + filledClips.length > 0 && (video?.clips.some((c) => c.isPlaceholder !== undefined) || false);
+
+  // Upload file into a placeholder clip slot (replaces sourceUrl + clears placeholder flag)
+  const uploadToPlaceholder = async (clipId: string, file: File) => {
+    const expectedClip = video?.clips.find((c) => c.id === clipId);
+    if (!expectedClip) return;
+    const fileType = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+    if (!fileType) {
+      showError("File harus video atau foto");
+      return;
+    }
+    if (fileType !== expectedClip.type) {
+      showError(`Slot ini butuh ${expectedClip.type}, bukan ${fileType}`);
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("kind", fileType);
+      const up = await fetch("/api/tiktok/upload", { method: "POST", body: fd });
+      const upJson = await up.json();
+      if (!up.ok || !upJson.success) throw new Error(upJson.error || "Upload gagal");
+      const url = upJson.data?.url;
+      if (!url) throw new Error("Upload tidak return URL");
+
+      const res = await fetch(`/api/tiktok/videos/${videoId}/clips/${clipId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceUrl: url }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Gagal save");
+      success(`Slot terisi: ${file.name.slice(0, 30)}`);
+      fetchVideo();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Error");
+    }
+    setUploading(false);
+  };
 
   const handleFilePick = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -816,6 +862,11 @@ export default function TiktokEditPage() {
                 {video.clips.length} · {totalDuration.toFixed(1)}s
               </span>
             </h2>
+            {placeholderClips.length > 0 && (
+              <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800">
+                <span className="font-semibold">⚠️ {filledClips.length}/{video.clips.length} slot terisi</span> — upload {placeholderClips.length} slot kosong sebelum render.
+              </div>
+            )}
             {video.clips.length === 0 ? (
               <p className="py-6 text-center text-xs text-txt-muted">Belum ada clip</p>
             ) : (
@@ -844,6 +895,7 @@ export default function TiktokEditPage() {
                     }}
                     onMove={moveClip}
                     onDelete={() => deleteClip(clip.id)}
+                    onUploadPlaceholder={uploadToPlaceholder}
                     onDragStart={() => setDraggedClipIdx(i)}
                     onDragOverThis={() => {
                       if (draggedClipIdx !== null && draggedClipIdx !== i) setDragOverClipIdx(i);
@@ -1265,7 +1317,7 @@ export default function TiktokEditPage() {
 
 function ClipThumb({
   clip, index, total, active, isDragging, isDragOver,
-  onSelect, onMove, onDelete,
+  onSelect, onMove, onDelete, onUploadPlaceholder,
   onDragStart, onDragOverThis, onDragLeaveThis, onDropThis, onDragEnd,
 }: {
   clip: Clip;
@@ -1277,15 +1329,18 @@ function ClipThumb({
   onSelect: () => void;
   onMove: (i: number, dir: -1 | 1) => void;
   onDelete: () => void;
+  onUploadPlaceholder?: (clipId: string, file: File) => void;
   onDragStart?: () => void;
   onDragOverThis?: () => void;
   onDragLeaveThis?: () => void;
   onDropThis?: () => void;
   onDragEnd?: () => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isPlaceholder = !!clip.isPlaceholder;
   return (
     <div
-      draggable
+      draggable={!isPlaceholder}
       onClick={onSelect}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
@@ -1305,16 +1360,16 @@ function ClipThumb({
         onDropThis?.();
       }}
       onDragEnd={() => onDragEnd?.()}
-      className={`group relative flex cursor-grab gap-2 rounded-lg border p-2 transition-all active:cursor-grabbing ${
+      className={`group relative flex gap-2 rounded-lg border p-2 transition-all ${isPlaceholder ? "cursor-pointer border-dashed border-amber-400 bg-amber-50/60 hover:bg-amber-50" : "cursor-grab active:cursor-grabbing"} ${
         isDragging
           ? "opacity-30 border-pink-400 scale-[0.98]"
           : isDragOver
           ? "border-pink-600 bg-pink-100 ring-2 ring-pink-600/40 shadow-md"
           : active
-          ? "border-pink-600 bg-pink-50 ring-2 ring-pink-600/20"
-          : "border-border bg-surface hover:border-pink-300 hover:bg-pink-50/30"
+          ? (isPlaceholder ? "border-amber-600 bg-amber-100 ring-2 ring-amber-600/30" : "border-pink-600 bg-pink-50 ring-2 ring-pink-600/20")
+          : (isPlaceholder ? "" : "border-border bg-surface hover:border-pink-300 hover:bg-pink-50/30")
       }`}
-      title="Drag untuk reorder, klik untuk pilih"
+      title={isPlaceholder ? `Slot kosong — klik upload ${clip.type}` : "Drag untuk reorder, klik untuk pilih"}
     >
       {/* Drop indicator line on top */}
       {isDragOver && (
@@ -1334,7 +1389,12 @@ function ClipThumb({
         className="relative flex-shrink-0 overflow-hidden rounded bg-black pointer-events-none"
         style={{ width: 48, height: 64 }}
       >
-        {clip.type === "video" ? (
+        {isPlaceholder ? (
+          <div className="flex h-full w-full flex-col items-center justify-center bg-amber-100 text-amber-700">
+            <Upload size={16} />
+            <span className="mt-0.5 text-[8px] font-bold uppercase">{clip.type}</span>
+          </div>
+        ) : clip.type === "video" ? (
           <video
             src={clip.sourceUrl}
             className="h-full w-full object-cover"
@@ -1352,17 +1412,45 @@ function ClipThumb({
             draggable={false}
           />
         )}
-        {active && (
+        {active && !isPlaceholder && (
           <div className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-pink-600 ring-2 ring-white" />
         )}
       </div>
 
+      {/* Hidden file input for placeholder upload */}
+      {isPlaceholder && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept={clip.type === "video" ? "video/*" : "image/*"}
+          className="hidden"
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f && onUploadPlaceholder) onUploadPlaceholder(clip.id, f);
+            if (e.target) e.target.value = "";
+          }}
+        />
+      )}
+
       {/* Info */}
       <div className="flex flex-1 flex-col justify-between min-w-0">
         <div>
-          <p className="text-[11px] font-semibold text-txt-primary">#{index + 1} · {clip.type}</p>
-          <p className="text-[10px] text-txt-muted">{clip.durationSec.toFixed(1)}s</p>
-          {clip.textOverlay && (
+          <p className={`text-[11px] font-semibold ${isPlaceholder ? "text-amber-700" : "text-txt-primary"}`}>
+            #{index + 1} · {clip.type}
+            {isPlaceholder && <span className="ml-1 text-[9px] uppercase font-bold text-amber-600">[KOSONG]</span>}
+          </p>
+          <p className={`text-[10px] ${isPlaceholder ? "text-amber-600" : "text-txt-muted"}`}>
+            {clip.slotLabel ? `${clip.slotLabel} · ` : ""}{clip.durationSec.toFixed(1)}s
+          </p>
+          {isPlaceholder ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+              className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700"
+            >
+              <Upload size={10} /> Upload {clip.type}
+            </button>
+          ) : clip.textOverlay && (
             <p className="truncate text-[10px] text-pink-600">📝 {clip.textOverlay}</p>
           )}
         </div>

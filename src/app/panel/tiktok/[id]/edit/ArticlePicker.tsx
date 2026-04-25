@@ -26,6 +26,7 @@ export interface SelectOptions {
   createFeaturedClip: boolean;
   generateTextOverlays: boolean;
   templateId?: string | null;
+  applyTemplateSlots?: boolean;
 }
 
 interface TemplateOption {
@@ -33,6 +34,7 @@ interface TemplateOption {
   name: string;
   frameStyle: string;
   overlays: { id: string }[];
+  slots?: { id: string; type: string }[];
 }
 
 export default function ArticlePicker({ open, onClose, onSelect }: Props) {
@@ -52,6 +54,7 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
     createFeaturedClip: true,
     generateTextOverlays: true,
     templateId: null,
+    applyTemplateSlots: false,
   });
 
   // Templates available
@@ -264,18 +267,41 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
                 </label>
                 <select
                   value={opts.templateId || ""}
-                  onChange={(e) => setOpts({ ...opts, templateId: e.target.value || null })}
+                  onChange={(e) => setOpts({ ...opts, templateId: e.target.value || null, applyTemplateSlots: false })}
                   className="input w-full text-xs"
                 >
                   <option value="">— Tanpa template (default) —</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} {t.overlays.length > 0 ? `(🖼${t.overlays.length})` : ""} {t.frameStyle !== "none" ? `· 🎞${t.frameStyle}` : ""}
-                    </option>
-                  ))}
+                  {templates.map((t) => {
+                    const slotCount = t.slots?.length || 0;
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                        {slotCount > 0 ? ` 📋${slotCount}slot` : ""}
+                        {t.overlays.length > 0 ? ` 🖼${t.overlays.length}` : ""}
+                        {t.frameStyle !== "none" ? ` 🎞${t.frameStyle}` : ""}
+                      </option>
+                    );
+                  })}
                 </select>
+                {/* Apply slot structure toggle — visible only if template has slots */}
+                {opts.templateId && (templates.find((t) => t.id === opts.templateId)?.slots?.length || 0) > 0 && (
+                  <label className="mt-2 flex cursor-pointer items-start gap-2 rounded border border-amber-300 bg-amber-50 p-1.5">
+                    <input
+                      type="checkbox"
+                      checked={!!opts.applyTemplateSlots}
+                      onChange={(e) => setOpts({ ...opts, applyTemplateSlots: e.target.checked })}
+                      className="mt-0.5 accent-amber-600"
+                    />
+                    <div className="flex-1 text-[10px]">
+                      <p className="font-semibold text-amber-800">Apply Slot Structure</p>
+                      <p className="text-amber-700">
+                        ⚠️ HAPUS clip existing, bikin slot kosong sesuai template (foto/video/dst). Featured image artikel auto-isi slot foto pertama.
+                      </p>
+                    </div>
+                  </label>
+                )}
                 <p className="mt-1 text-[10px] text-indigo-600">
-                  Template = frame, PNG overlay, subtitle style, backsong. Foto/video/text tetap dari artikel.
+                  Template = frame, PNG overlay, subtitle style, backsong. {opts.applyTemplateSlots ? "+ struktur slot." : "Foto/video tetap dari artikel."}
                 </p>
               </div>
             )}

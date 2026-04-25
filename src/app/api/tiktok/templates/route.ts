@@ -13,8 +13,8 @@ export async function GET() {
       where: { isActive: true },
       include: {
         overlays: { orderBy: { order: "asc" } },
+        slots: { orderBy: { order: "asc" } },
         backsong: { select: { id: true, name: true } },
-        _count: undefined,
       },
       orderBy: [{ lastUsedAt: "desc" }, { createdAt: "desc" }],
     });
@@ -46,13 +46,16 @@ export async function POST(req: NextRequest) {
       where: { id: data.videoId },
       include: {
         overlays: { orderBy: { order: "asc" } },
-        clips: { where: { textOverlay: { not: null } }, orderBy: { order: "asc" }, take: 1 },
+        clips: { orderBy: { order: "asc" } },
       },
     });
     if (!video) throw new ApiError("Video tidak ditemukan", 404);
 
     // Sample default text style from first clip with text overlay (if any)
-    const sampleClip = video.clips[0];
+    const sampleClip = video.clips.find((c) => c.textOverlay);
+
+    // Capture slot structure from clips (skip placeholder clips)
+    const realClips = video.clips.filter((c) => !c.isPlaceholder && c.sourceUrl);
 
     const template = await prisma.tiktokTemplate.create({
       data: {
@@ -85,8 +88,19 @@ export async function POST(req: NextRequest) {
             label: o.label,
           })),
         },
+        // First image slot becomes acceptsFeaturedImage (auto-fill from article)
+        slots: {
+          create: realClips.map((c, i) => ({
+            order: i,
+            type: c.type,
+            durationSec: c.durationSec,
+            label: c.slotLabel || null,
+            required: true,
+            acceptsFeaturedImage: c.type === "image" && i === 0,
+          })),
+        },
       },
-      include: { overlays: true },
+      include: { overlays: true, slots: { orderBy: { order: "asc" } } },
     });
 
     return successResponse(template);

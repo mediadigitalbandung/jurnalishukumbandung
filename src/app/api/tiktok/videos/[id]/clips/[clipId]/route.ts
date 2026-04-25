@@ -6,6 +6,9 @@ import { requireAuth, successResponse, errorResponse, ApiError } from "@/lib/api
 export const dynamic = "force-dynamic";
 
 const updateClipSchema = z.object({
+  // Filling placeholder slot — sourceUrl required to clear placeholder
+  sourceUrl: z.string().min(1).optional(),
+  sourceDuration: z.number().nullable().optional(),
   durationSec: z.number().min(0.5).max(60).optional(),
   trimStart: z.number().min(0).nullable().optional(),
   textOverlay: z.string().max(240).nullable().optional(),
@@ -40,6 +43,9 @@ export async function PUT(
     const updated = await prisma.tiktokClip.update({
       where: { id: params.clipId },
       data: {
+        // Uploading source clears placeholder flag
+        ...(data.sourceUrl !== undefined && { sourceUrl: data.sourceUrl, isPlaceholder: false }),
+        ...(data.sourceDuration !== undefined && { sourceDuration: data.sourceDuration }),
         ...(data.durationSec !== undefined && { durationSec: data.durationSec }),
         ...(data.trimStart !== undefined && { trimStart: data.trimStart }),
         ...(data.textOverlay !== undefined && { textOverlay: data.textOverlay }),

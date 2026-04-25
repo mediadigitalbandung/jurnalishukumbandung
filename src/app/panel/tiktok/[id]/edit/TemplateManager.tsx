@@ -15,6 +15,14 @@ interface TemplateOverlay {
   label: string | null;
 }
 
+interface TemplateSlot {
+  id: string;
+  order: number;
+  type: "image" | "video";
+  durationSec: number;
+  label: string | null;
+}
+
 interface Template {
   id: string;
   name: string;
@@ -28,6 +36,7 @@ interface Template {
   backsongId: string | null;
   backsong?: { id: string; name: string } | null;
   overlays: TemplateOverlay[];
+  slots: TemplateSlot[];
   usedCount: number;
   lastUsedAt: string | null;
   createdAt: string;
@@ -86,14 +95,17 @@ export default function TemplateManager({ videoId, onApplied }: Props) {
     setSaving(false);
   };
 
-  const applyTemplate = async (id: string, name: string) => {
-    if (!confirm(`Apply template "${name}"? Akan replace PNG overlays + frame + subtitle style + backsong di video ini.`)) return;
+  const applyTemplate = async (id: string, name: string, applySlotStructure = false) => {
+    const slotMsg = applySlotStructure
+      ? `\n\n⚠️ HATI-HATI: Mode "Slot Structure" akan HAPUS SEMUA clip existing dan bikin slot kosong baru sesuai struktur template (foto/video/dst).`
+      : "";
+    if (!confirm(`Apply template "${name}"? Akan replace PNG overlays + frame + subtitle style + backsong di video ini.${slotMsg}`)) return;
     setApplyingId(id);
     try {
       const res = await fetch(`/api/tiktok/templates/${id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId }),
+        body: JSON.stringify({ videoId, applySlotStructure }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Gagal apply");
@@ -197,24 +209,39 @@ export default function TemplateManager({ videoId, onApplied }: Props) {
                     {t.backsong && <>🎵 {t.backsong.name.slice(0, 12)} · </>}
                     {t.usedCount > 0 && <>✨ {t.usedCount}×</>}
                   </p>
+                  {t.slots.length > 0 && (
+                    <p className="text-[10px] font-mono text-indigo-700">
+                      📋 {t.slots.length} slot: {t.slots.map((s) => s.type === "image" ? "🖼" : "🎬").join("")}
+                    </p>
+                  )}
                   {t.description && (
                     <p className="mt-0.5 line-clamp-2 text-[10px] text-txt-secondary">{t.description}</p>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <button
-                    onClick={() => applyTemplate(t.id, t.name)}
+                    onClick={() => applyTemplate(t.id, t.name, false)}
                     disabled={applyingId === t.id}
                     className="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                    title="Apply ke video ini"
+                    title="Apply style saja (frame, overlay, subtitle, backsong) — clips tidak diubah"
                   >
                     {applyingId === t.id ? (
                       <Loader2 size={9} className="animate-spin" />
                     ) : (
                       <Sparkles size={9} />
                     )}
-                    Apply
+                    Style
                   </button>
+                  {t.slots.length > 0 && (
+                    <button
+                      onClick={() => applyTemplate(t.id, t.name, true)}
+                      disabled={applyingId === t.id}
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                      title="Apply struktur slot — bikin placeholder kosong sesuai template"
+                    >
+                      📋 Slots
+                    </button>
+                  )}
                   <button
                     onClick={() => deleteTemplate(t.id, t.name)}
                     className="rounded p-0.5 text-red-400 hover:bg-red-50 hover:text-red-600"
