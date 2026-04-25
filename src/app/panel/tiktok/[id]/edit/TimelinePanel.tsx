@@ -233,7 +233,7 @@ export default function TimelinePanel({
                             style={{ left: `${left}%`, width: `${width}%`, minWidth: "30px" }}
                             title={clip.textOverlay}
                           >
-                            <span className="truncate px-1">"{clip.textOverlay.slice(0, 18)}"</span>
+                            <span className="truncate px-1">&ldquo;{clip.textOverlay.slice(0, 18)}&rdquo;</span>
                           </div>
                         );
                       })}
