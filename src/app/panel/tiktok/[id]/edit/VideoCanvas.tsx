@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle, Film, Pencil } from "lucide-react";
+import { Upload, Trash2, Eye, Lock, Type, Image as ImageIcon, Subtitles, ZoomIn, ZoomOut, Maximize, Minimize, AlertTriangle, Film, Pencil, Plus, Loader2 } from "lucide-react";
 
 // ─── Public types ──────────────────────────────────────────────────────
 
@@ -50,6 +50,19 @@ export type SelectedLayer =
   | { kind: "overlay" }
   | { kind: "subtitle" };
 
+// Multiple PNG overlay record (mirrors TiktokOverlay DB model)
+export interface MultiOverlay {
+  id: string;
+  imageUrl: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  order: number;
+  label?: string | null;
+}
+
 interface Props {
   selectedClip: ClipData | null;
   overlayUrl: string | null;
@@ -66,6 +79,14 @@ interface Props {
   uploadingOverlay?: boolean;
   // Final rendered video URL — when set, user can toggle between edit mode and rendered preview
   renderedUrl?: string | null;
+  // NEW: Multiple PNG overlays
+  multiOverlays?: MultiOverlay[];
+  onAddMultiOverlay?: (file: File) => Promise<void>;
+  onUpdateMultiOverlay?: (id: string, patch: Partial<MultiOverlay>) => void;
+  onRemoveMultiOverlay?: (id: string) => void;
+  // NEW: Quick action handlers
+  onAddTextLayer?: () => void;       // focuses text edit on selected clip
+  onAddSubtitleLayer?: () => void;   // toggles subtitle on
 }
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -85,9 +106,31 @@ export default function VideoCanvas({
   onRemoveOverlay,
   uploadingOverlay = false,
   renderedUrl = null,
+  multiOverlays = [],
+  onAddMultiOverlay,
+  onUpdateMultiOverlay,
+  onRemoveMultiOverlay,
+  onAddTextLayer,
+  onAddSubtitleLayer,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const multiOverlayInputRef = useRef<HTMLInputElement>(null);
+  const [addingMultiOverlay, setAddingMultiOverlay] = useState(false);
+
+  const onMultiOverlayFileSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !onAddMultiOverlay) return;
+    const file = files[0];
+    if (!file.type.startsWith("image/")) { alert("PNG/JPG saja"); return; }
+    if (file.size > 2 * 1024 * 1024) { alert("Max 2MB"); return; }
+    setAddingMultiOverlay(true);
+    try {
+      await onAddMultiOverlay(file);
+    } finally {
+      setAddingMultiOverlay(false);
+    }
+    if (multiOverlayInputRef.current) multiOverlayInputRef.current.value = "";
+  };
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [overlayImgSize, setOverlayImgSize] = useState({ w: 200, h: 200 });
   const [overlayImgError, setOverlayImgError] = useState<string | null>(null);
@@ -481,6 +524,53 @@ export default function VideoCanvas({
             </div>
           )}
 
+          {/* Multi-overlay layers — render each PNG independently (read-only display + select to remove) */}
+          {!showRenderedVideo && multiOverlays.length > 0 && canvasSize.w > 0 && multiOverlays.map((mo) => {
+            const moDisplayW = 0.3 * canvasSize.w * mo.scale;
+            return (
+              <div
+                key={mo.id}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  left: mo.x * canvasSize.w - moDisplayW / 2,
+                  top: mo.y * canvasSize.h - (moDisplayW * 0.5) / 2,
+                  width: moDisplayW,
+                  transform: `rotate(${mo.rotation}deg)`,
+                  opacity: mo.opacity,
+                  touchAction: "none",
+                }}
+              >
+                <div className="group relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={mo.imageUrl}
+                    alt={mo.label || "Overlay"}
+                    draggable={false}
+                    className="pointer-events-none w-full select-none"
+                  />
+                  <div className="absolute inset-0 cursor-pointer rounded border-2 border-transparent hover:border-purple-400/60" />
+                  {/* Delete button on hover */}
+                  {onRemoveMultiOverlay && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRemoveMultiOverlay(mo.id); }}
+                      className="absolute -right-2 -top-2 hidden h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-700 group-hover:flex"
+                      title={`Hapus ${mo.label || "overlay"}`}
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  )}
+                  {/* Label */}
+                  {mo.label && (
+                    <span className="absolute -bottom-5 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[9px] text-white group-hover:block">
+                      {mo.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
           {/* Subtitle layer — hide in Final mode */}
           {!showRenderedVideo && subtitlePos.show && (
             <div
@@ -537,6 +627,56 @@ export default function VideoCanvas({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Quick-add action bar — prominent buttons for adding new layers */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-secondary/50 p-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-txt-muted">Tambah Layer:</span>
+
+        <button
+          onClick={() => onAddTextLayer?.()}
+          disabled={!selectedClip || !onAddTextLayer}
+          className="inline-flex items-center gap-1 rounded-full border border-pink-300 bg-pink-50 px-3 py-1 text-[11px] font-semibold text-pink-700 hover:border-pink-500 hover:bg-pink-100 disabled:opacity-40"
+          title={selectedClip ? "Tambah text overlay ke clip ini" : "Pilih clip dulu"}
+        >
+          <Plus size={11} /> <Type size={11} /> Text
+        </button>
+
+        <input
+          ref={multiOverlayInputRef}
+          type="file"
+          accept="image/png,image/webp,image/jpeg"
+          onChange={(e) => onMultiOverlayFileSelected(e.target.files)}
+          className="hidden"
+        />
+        <button
+          onClick={() => multiOverlayInputRef.current?.click()}
+          disabled={addingMultiOverlay || !onAddMultiOverlay}
+          className="inline-flex items-center gap-1 rounded-full border border-purple-300 bg-purple-50 px-3 py-1 text-[11px] font-semibold text-purple-700 hover:border-purple-500 hover:bg-purple-100 disabled:opacity-40"
+          title="Upload PNG overlay baru (bisa banyak)"
+        >
+          {addingMultiOverlay ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+          <ImageIcon size={11} /> PNG
+        </button>
+
+        <button
+          onClick={() => onAddSubtitleLayer?.()}
+          disabled={!onAddSubtitleLayer}
+          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold disabled:opacity-40 ${
+            subtitlePos.show
+              ? "border-emerald-500 bg-emerald-100 text-emerald-700"
+              : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-500 hover:bg-emerald-100"
+          }`}
+          title="Toggle subtitle layer"
+        >
+          <Plus size={11} /> <Subtitles size={11} /> Subtitle
+        </button>
+
+        {multiOverlays.length > 0 && (
+          <span className="ml-auto rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+            {multiOverlays.length} PNG overlay aktif
+          </span>
+        )}
       </div>
 
       {/* Bottom layers legend */}

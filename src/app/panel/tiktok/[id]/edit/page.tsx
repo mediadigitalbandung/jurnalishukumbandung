@@ -333,6 +333,78 @@ export default function TiktokEditPage() {
     await saveMeta({ overlayImageUrl: null });
   };
 
+  // ─── Multiple PNG overlays (NEW) ──────────────────────────────────────
+  const [multiOverlays, setMultiOverlays] = useState<Array<{
+    id: string; imageUrl: string; x: number; y: number; scale: number;
+    rotation: number; opacity: number; order: number; label?: string | null;
+  }>>([]);
+
+  const fetchMultiOverlays = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tiktok/videos/${videoId}/overlays`);
+      const json = await res.json();
+      if (json.success) setMultiOverlays(json.data || []);
+    } catch { /* ignore */ }
+  }, [videoId]);
+
+  useEffect(() => {
+    if (videoId) fetchMultiOverlays();
+  }, [videoId, fetchMultiOverlays]);
+
+  const addMultiOverlay = async (file: File) => {
+    try {
+      // Step 1: upload file
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("kind", "image");
+      const up = await fetch("/api/tiktok/upload", { method: "POST", body: fd });
+      const upJson = await up.json();
+      if (!up.ok || !upJson.success) {
+        throw new Error(upJson.error || "Upload gagal");
+      }
+      const uploadedUrl = upJson.data?.url;
+
+      // Step 2: create overlay record (default position center)
+      const createRes = await fetch(`/api/tiktok/videos/${videoId}/overlays`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: uploadedUrl,
+          x: 0.5,
+          y: 0.5,
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          label: file.name.slice(0, 40),
+        }),
+      });
+      const createJson = await createRes.json();
+      if (!createJson.success) throw new Error(createJson.error || "Gagal tambah overlay");
+
+      success(`Overlay "${file.name}" ditambahkan`);
+      fetchMultiOverlays();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Error");
+    }
+  };
+
+  const removeMultiOverlay = async (id: string) => {
+    const ok = await confirm({ message: "Hapus overlay ini?", variant: "danger", title: "Konfirmasi" });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/tiktok/videos/${videoId}/overlays/${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        success("Overlay dihapus");
+        fetchMultiOverlays();
+      } else {
+        showError(json.error || "Gagal hapus");
+      }
+    } catch {
+      showError("Error");
+    }
+  };
+
   // Debounced position update — kalau drag cepat, jangan spam API
   const overlaySaveTimer = useRef<NodeJS.Timeout | null>(null);
   const clipTextSaveTimer = useRef<NodeJS.Timeout | null>(null);
@@ -633,6 +705,18 @@ export default function TiktokEditPage() {
               onRemoveOverlay={removeOverlay}
               uploadingOverlay={uploadingOverlay}
               renderedUrl={video.renderStatus === "rendered" ? video.renderedUrl : null}
+              multiOverlays={multiOverlays}
+              onAddMultiOverlay={addMultiOverlay}
+              onRemoveMultiOverlay={removeMultiOverlay}
+              onAddTextLayer={() => {
+                if (selectedClipId) {
+                  setSelectedLayer({ kind: "text", clipId: selectedClipId });
+                }
+              }}
+              onAddSubtitleLayer={() => {
+                updateSubtitle({ show: !video.subtitleEnabled });
+                setSelectedLayer({ kind: "subtitle" });
+              }}
             />
 
             {/* Render + Publish buttons — stacked below canvas */}
