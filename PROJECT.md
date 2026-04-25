@@ -827,6 +827,54 @@ curl -X POST https://api.cloudflare.com/client/v4/zones/$CF_ZONE/purge_cache \
 
 ---
 
+## 17. Obsidian Vault (Editorial Knowledge Base)
+
+Knowledge base editorial di `docs/vault/` — komplemen DB Prisma untuk konten naratif (kasus, narasumber, pasal, draft, daily log) yang tidak muat di tabel relasional.
+
+**Lokasi**: `docs/vault/` (Git-tracked, sub-folder repo)
+**Setup**: lihat [docs/vault/SETUP.md](docs/vault/SETUP.md)
+**Workflow**: lihat [docs/vault/README.md](docs/vault/README.md)
+
+### Struktur Folder
+
+```
+docs/vault/
+├── 00-Inbox/         # Catatan cepat
+├── 01-Kasus/         # 1 file = 1 kasus hukum
+├── 02-Narasumber/    # Profil narasumber
+├── 03-Hukum/
+│   ├── Pasal/        # KUHP, UU ITE, dll
+│   └── Yurisprudensi/  # Putusan penting
+├── 04-Topik-Riset/   # Topic cluster, keyword, gap analysis
+├── 05-Editorial/
+│   ├── Daily-Log/    # Daily journal (auto-generate)
+│   └── Calendar/     # Editorial calendar + Kanban
+├── 06-Sidang/        # Catatan sidang lapangan
+├── 07-Drafts/        # Draft artikel sebelum push ke DB
+├── 08-Sosmed-Plan/   # Plan konten IG/FB/TikTok
+├── 09-Templates/     # 9 template Templater
+└── 99-Archive/       # Arsip case selesai
+```
+
+### 9 Template Templater (di 09-Templates/)
+- artikel-draft, kasus, narasumber, pasal, yurisprudensi, daily-log, sidang-note, topic-cluster, source-link
+
+### Plugin Wajib (.obsidian/community-plugins.json)
+- Dataview · Templater · Calendar · Periodic Notes · Kanban · Excalidraw · Obsidian Git · Linter · Auto-Link Title
+
+### Integration Scripts (scripts/obsidian/)
+
+| Script | Arah | Fungsi |
+|---|---|---|
+| `export-sidang.js` | DB → Vault | Pull CourtSchedule → markdown |
+| `import-draft.js` | Vault → DB | Push draft .md → POST /api/articles |
+| `sync-keywords.js` | Bidirectional | Sync TargetKeyword ↔ Keywords.md |
+| `export-daily-digest.js` | DB → Vault | Auto daily editorial log |
+
+Slash command: `/vault` (lihat [.claude/commands/vault.md](.claude/commands/vault.md))
+
+---
+
 ## Referensi File Penting
 
 | File | Tujuan |
@@ -841,6 +889,8 @@ curl -X POST https://api.cloudflare.com/client/v4/zones/$CF_ZONE/purge_cache \
 | [tailwind.config.ts](tailwind.config.ts) | Design tokens |
 | [ecosystem.config.js](ecosystem.config.js) | PM2 production |
 | [.github/workflows/deploy.yml](.github/workflows/deploy.yml) | Auto-deploy |
+| [docs/vault/](docs/vault/) | Obsidian editorial vault |
+| [scripts/obsidian/](scripts/obsidian/) | Vault ↔ DB integration scripts |
 
 ---
 

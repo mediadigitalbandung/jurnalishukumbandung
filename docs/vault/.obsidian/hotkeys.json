@@ -1,0 +1,14 @@
+{
+  "templater-obsidian:insert-templater": [
+    { "modifiers": ["Mod"], "key": "T" }
+  ],
+  "daily-notes": [
+    { "modifiers": ["Mod", "Shift"], "key": "T" }
+  ],
+  "graph:open": [
+    { "modifiers": ["Mod"], "key": "G" }
+  ],
+  "backlink:open": [
+    { "modifiers": ["Mod", "Shift"], "key": "B" }
+  ]
+}
