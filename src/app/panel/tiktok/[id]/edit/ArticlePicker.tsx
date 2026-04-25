@@ -30,7 +30,9 @@ export interface SelectOptions {
 export default function ArticlePicker({ open, onClose, onSelect }: Props) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<ArticleResult[]>([]);
+  const [recentArticles, setRecentArticles] = useState<ArticleResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingRecent, setLoadingRecent] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
 
@@ -57,6 +59,19 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
     setLoading(false);
   }, []);
 
+  const loadRecent = useCallback(async () => {
+    setLoadingRecent(true);
+    try {
+      const res = await fetch("/api/articles?status=PUBLISHED&limit=15&sort=publishedAt");
+      const json = await res.json();
+      if (json.success) {
+        const list = json.data?.articles || json.data || [];
+        setRecentArticles(list);
+      }
+    } catch { /* ignore */ }
+    setLoadingRecent(false);
+  }, []);
+
   // Debounced search
   useEffect(() => {
     if (!open) return;
@@ -64,18 +79,23 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
     return () => clearTimeout(t);
   }, [search, open, doSearch]);
 
-  // Reset on open
+  // Reset on open + load recent articles
   useEffect(() => {
     if (open) {
       setSelectedId(null);
       setSearch("");
       setResults([]);
+      loadRecent();
     }
-  }, [open]);
+  }, [open, loadRecent]);
+
+  // Show search results if user typing, else show recent
+  const showingSearch = search.trim().length >= 2;
+  const displayList = showingSearch ? results : recentArticles;
 
   if (!open) return null;
 
-  const selectedArticle = results.find((a) => a.id === selectedId) || null;
+  const selectedArticle = displayList.find((a) => a.id === selectedId) || null;
 
   const handleApply = async () => {
     if (!selectedArticle) return;
@@ -133,20 +153,42 @@ export default function ArticlePicker({ open, onClose, onSelect }: Props) {
 
         {/* Results list */}
         <div className="flex-1 overflow-y-auto">
-          {results.length === 0 && search.length >= 2 && !loading && (
+          {/* Section header */}
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface-secondary/95 px-5 py-2 backdrop-blur">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-txt-muted">
+              {showingSearch ? (
+                <>🔍 Hasil Pencarian &ldquo;{search}&rdquo; ({results.length})</>
+              ) : (
+                <>📰 Artikel Terbaru ({recentArticles.length})</>
+              )}
+            </p>
+            {loadingRecent && !showingSearch && (
+              <Loader2 size={11} className="animate-spin text-pink-500" />
+            )}
+          </div>
+
+          {/* Empty states */}
+          {showingSearch && results.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-txt-muted">
               <FileText size={32} />
               <p className="text-sm">Tidak ada hasil untuk &ldquo;{search}&rdquo;</p>
+              <button
+                onClick={() => setSearch("")}
+                className="text-xs text-pink-600 hover:underline"
+              >
+                Lihat artikel terbaru
+              </button>
             </div>
           )}
-          {results.length === 0 && search.length < 2 && (
+          {!showingSearch && recentArticles.length === 0 && !loadingRecent && (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-txt-muted">
-              <Search size={32} />
-              <p className="text-sm">Ketik judul artikel untuk mulai mencari</p>
+              <FileText size={32} />
+              <p className="text-sm">Belum ada artikel published</p>
             </div>
           )}
+
           <div className="divide-y divide-border">
-            {results.map((article) => {
+            {displayList.map((article) => {
               const isSelected = article.id === selectedId;
               return (
                 <button
