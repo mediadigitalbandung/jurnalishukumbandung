@@ -30,6 +30,19 @@ node scripts/obsidian/export-sidang.js --upcoming 2>&1 | tail -5 >> "$LOG"
 echo "--- Sync keywords pull ---" >> "$LOG"
 node scripts/obsidian/sync-keywords.js pull 2>&1 | tail -3 >> "$LOG"
 
+# SEO tools
+echo "--- GSC sync (28 hari) ---" >> "$LOG"
+node scripts/obsidian/sync-gsc.js 2>&1 | tail -5 >> "$LOG"
+
+echo "--- Track rank (snapshot harian) ---" >> "$LOG"
+node scripts/obsidian/track-rank.js 2>&1 | tail -3 >> "$LOG"
+
+# SEO score weekly only (heavy — 200+ articles), run at Sunday
+if [ "$(date +%u)" = "7" ]; then
+  echo "--- SEO score (weekly) ---" >> "$LOG"
+  node scripts/obsidian/seo-score.js --drafts-only 2>&1 | tail -5 >> "$LOG"
+fi
+
 # 3. Auto-commit kalau ada perubahan
 if ! git diff --quiet docs/vault/ 2>/dev/null || ! git diff --cached --quiet docs/vault/ 2>/dev/null; then
   git config user.email "vault-bot@jurnalishukumbandung.com" 2>/dev/null || true

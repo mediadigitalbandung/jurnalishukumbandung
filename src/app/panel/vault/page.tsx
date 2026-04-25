@@ -19,6 +19,10 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Search,
+  TrendingUp,
+  Award,
+  BarChart3,
 } from "lucide-react";
 
 type SyncAction = {
@@ -102,6 +106,47 @@ const SYNC_ACTIONS: SyncAction[] = [
     icon: Users,
     color: "blue",
     variant: "pull",
+  },
+  // === SEO Tools ===
+  {
+    action: "gsc-sync",
+    label: "Sync GSC Insight (28 hari)",
+    description: "Pull data Google Search Console: top 3, page 1, opportunity, low CTR",
+    icon: Search,
+    color: "purple",
+    variant: "pull",
+  },
+  {
+    action: "gsc-sync-90",
+    label: "Sync GSC Insight (90 hari)",
+    description: "Versi extended — analisis trend lebih panjang",
+    icon: Search,
+    color: "purple",
+    variant: "pull",
+  },
+  {
+    action: "track-rank",
+    label: "Track Rank Keywords",
+    description: "Snapshot harian posisi target keyword + history trend",
+    icon: TrendingUp,
+    color: "green",
+    variant: "generate",
+  },
+  {
+    action: "seo-score",
+    label: "Hitung SEO Score",
+    description: "Score draft (vault) + 200 published artikel berdasarkan 10 kriteria",
+    icon: Award,
+    color: "orange",
+    variant: "generate",
+  },
+  {
+    action: "seo-score-drafts",
+    label: "SEO Score (Draft Only)",
+    description: "Score hanya draft di vault — lebih cepat, tanpa hit DB articles",
+    icon: BarChart3,
+    color: "orange",
+    variant: "generate",
   },
 ];
 

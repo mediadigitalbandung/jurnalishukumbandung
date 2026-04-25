@@ -12,7 +12,10 @@ Script Node.js untuk jembatani Obsidian vault (`docs/vault/`) ↔ JHB Database.
 | [export-daily-digest.js](export-daily-digest.js) | DB → Vault | Auto-generate daily editorial log |
 | [export-narasumber.js](export-narasumber.js) | DB → Vault | Pull `Source` (narasumber) konsolidasi → `02-Narasumber/` |
 | [setup-plugins.js](setup-plugins.js) | Setup | Auto-download 9 community plugin dari GitHub releases + pre-config |
-| [cron-sync.sh](cron-sync.sh) | Wrapper | Cron daily sync wrapper (auto-commit + log) |
+| [sync-gsc.js](sync-gsc.js) | GSC → Vault | Sync Google Search Console insight (top 3, page 1, opportunity, low CTR) |
+| [track-rank.js](track-rank.js) | GSC → Vault | Daily/weekly snapshot posisi target keywords + trend history |
+| [seo-score.js](seo-score.js) | Score | SEO score 10 kriteria untuk drafts (vault) + published (DB) |
+| [cron-sync.sh](cron-sync.sh) | Wrapper | Cron daily sync wrapper (auto-commit + log) — includes GSC + rank + SEO |
 
 ## 🚀 Cara Pakai
 

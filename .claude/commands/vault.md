@@ -63,6 +63,29 @@ ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/export-narasumbe
 ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/export-narasumber.js --min-mentions=3"
 ```
 
+### gsc-sync [--days=N]
+Sync Google Search Console data → `04-Topik-Riset/GSC-Insight.md`.
+Categorize: Top 3, Page 1, **Opportunity** (posisi 11-30 + impresi ≥50), Low CTR, Page 2-3, Deep.
+```bash
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/sync-gsc.js"
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/sync-gsc.js --days=90"
+```
+
+### track-rank
+Daily snapshot posisi target keyword. Append ke `04-Topik-Riset/Rank-History.md` (max 30 snapshot).
+Output: tabel comparison vs snapshot sebelumnya, trend per keyword, raw data.
+```bash
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/track-rank.js"
+```
+
+### seo-score [--drafts-only]
+Hitung SEO score (0-100) berdasarkan 10 kriteria untuk semua draft + 200 published artikel.
+Output: `04-Topik-Riset/SEO-Scores.md` + auto-update frontmatter draft dengan `seo_score`.
+```bash
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/seo-score.js"
+ssh root@145.79.15.99 "cd /var/www/jhb && node scripts/obsidian/seo-score.js --drafts-only"
+```
+
 ### Via Panel UI (paling mudah)
 Buka `/panel/vault` di admin panel. Klik tombol Run untuk action apapun. Tidak perlu SSH.
 

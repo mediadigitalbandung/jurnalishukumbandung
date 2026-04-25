@@ -17,6 +17,11 @@ const ALLOWED_ACTIONS: Record<string, { script: string; label: string; allowedAr
   "daily-log-7days": { script: "export-daily-digest.js", label: "Generate 7-day digest" },
   "narasumber": { script: "export-narasumber.js", label: "Pull narasumber dari Source table" },
   "narasumber-frequent": { script: "export-narasumber.js", label: "Pull narasumber (≥3 mentions)" },
+  "gsc-sync": { script: "sync-gsc.js", label: "Sync GSC Insight (28 hari)" },
+  "gsc-sync-90": { script: "sync-gsc.js", label: "Sync GSC Insight (90 hari)" },
+  "track-rank": { script: "track-rank.js", label: "Track rank target keywords" },
+  "seo-score": { script: "seo-score.js", label: "Calculate SEO score (drafts + published)" },
+  "seo-score-drafts": { script: "seo-score.js", label: "Calculate SEO score (drafts only)" },
 };
 
 const ARG_MAP: Record<string, string[]> = {
@@ -26,6 +31,8 @@ const ARG_MAP: Record<string, string[]> = {
   "keywords-status": ["status"],
   "daily-log-7days": ["--last-7-days"],
   "narasumber-frequent": ["--min-mentions=3"],
+  "gsc-sync-90": ["--days=90"],
+  "seo-score-drafts": ["--drafts-only"],
 };
 
 function runScript(scriptFile: string, args: string[], timeoutMs = 60000): Promise<{ stdout: string; stderr: string; code: number }> {
@@ -70,7 +77,10 @@ export async function POST(req: NextRequest) {
 
     const args = ARG_MAP[action] || [];
     const startedAt = new Date();
-    const result = await runScript(config.script, args, 90000);
+    // SEO scripts can take longer (200 articles ~30s, GSC ~10s)
+    const longRunningActions = new Set(["seo-score", "gsc-sync", "gsc-sync-90", "track-rank"]);
+    const timeout = longRunningActions.has(action) ? 180000 : 90000;
+    const result = await runScript(config.script, args, timeout);
 
     return successResponse({
       action,
