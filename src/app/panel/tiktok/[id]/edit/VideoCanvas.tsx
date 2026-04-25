@@ -398,10 +398,12 @@ export default function VideoCanvas({
             />
           ) : selectedClip ? (
             selectedClip.type === "video" ? (
+              // object-contain = letterbox kalau aspect ratio beda dari 9:16
+              // (matches FFmpeg renderer: scale + pad with black)
               <video
                 key={selectedClip.sourceUrl}
                 src={selectedClip.sourceUrl}
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                className="pointer-events-none absolute inset-0 h-full w-full object-contain"
                 muted
                 loop
                 autoPlay
@@ -412,7 +414,7 @@ export default function VideoCanvas({
               <img
                 src={selectedClip.sourceUrl}
                 alt="Preview"
-                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                className="pointer-events-none absolute inset-0 h-full w-full object-contain"
               />
             )
           ) : (
