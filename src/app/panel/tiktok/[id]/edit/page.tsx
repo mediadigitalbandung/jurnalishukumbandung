@@ -1061,6 +1061,13 @@ export default function TiktokEditPage() {
           )}
         </div>
       </div>
+
+      {/* Article Picker Modal */}
+      <ArticlePicker
+        open={articlePickerOpen}
+        onClose={() => setArticlePickerOpen(false)}
+        onSelect={applyArticle}
+      />
     </div>
   );
 }
@@ -1141,12 +1148,6 @@ function ClipThumb({
         </button>
       </div>
 
-      {/* Article Picker Modal */}
-      <ArticlePicker
-        open={articlePickerOpen}
-        onClose={() => setArticlePickerOpen(false)}
-        onSelect={applyArticle}
-      />
     </div>
   );
 }
