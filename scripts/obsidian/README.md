@@ -11,6 +11,7 @@ Script Node.js untuk jembatani Obsidian vault (`docs/vault/`) ↔ JHB Database.
 | [sync-keywords.js](sync-keywords.js) | Bidirectional | Sync `TargetKeyword` ↔ `04-Topik-Riset/Keywords.md` |
 | [export-daily-digest.js](export-daily-digest.js) | DB → Vault | Auto-generate daily editorial log |
 | [export-narasumber.js](export-narasumber.js) | DB → Vault | Pull `Source` (narasumber) konsolidasi → `02-Narasumber/` |
+| [setup-plugins.js](setup-plugins.js) | Setup | Auto-download 9 community plugin dari GitHub releases + pre-config |
 | [cron-sync.sh](cron-sync.sh) | Wrapper | Cron daily sync wrapper (auto-commit + log) |
 
 ## 🚀 Cara Pakai

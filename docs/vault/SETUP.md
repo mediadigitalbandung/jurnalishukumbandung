@@ -11,11 +11,24 @@ Panduan instalasi dari nol sampai siap dipakai. Total waktu: ~10 menit.
 
 > ⚠️ Pertama buka, Obsidian akan minta enable plugins. Klik "Trust author and enable plugins".
 
-## 2. Install Community Plugins
+## 2. Install Community Plugins (PILIH SALAH SATU)
+
+### 🚀 Cara Cepat (Otomatis, Direkomendasi) — 1 Menit
+
+Jalankan script downloader, semua 9 plugin auto-install + pre-config:
+
+```bash
+cd "<repo-jhb>"
+node scripts/obsidian/setup-plugins.js
+```
+
+Hasil: 9 plugin di-download dari GitHub releases ke `docs/vault/.obsidian/plugins/`, dan di-pre-config (Templater folder, Periodic Notes, Obsidian Git auto-pull). Buka Obsidian setelah ini → semua plugin otomatis aktif.
+
+### 🐢 Cara Manual (Via UI Obsidian)
 
 Obsidian → **Settings (Ctrl+,)** → **Community plugins** → **Turn on community plugins**.
 
-Klik **Browse** dan install plugin berikut (urutkan by importance):
+Klik **Browse** dan install plugin berikut:
 
 | # | Plugin | Author | Fungsi |
 |---|---|---|---|
@@ -30,6 +43,8 @@ Klik **Browse** dan install plugin berikut (urutkan by importance):
 | 9 | **Auto Link Title** | zolrath | Paste URL → fetch judul |
 
 Setelah install semua, **enable** masing-masing plugin di list.
+
+> ⚠️ Catatan: plugin binaries TIDAK di-commit ke Git (~14MB). Setiap kali clone repo baru atau pakai komputer lain, jalankan ulang `node scripts/obsidian/setup-plugins.js`.
 
 ## 3. Konfigurasi Plugin
 
