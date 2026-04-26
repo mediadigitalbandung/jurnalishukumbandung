@@ -85,7 +85,7 @@ type AnalyzeResult = {
     linkCount: number;
     viewCount: number;
     signals: Record<string, boolean>;
-  };
+  } | null;
   relatedArticles: { id: string; slug: string; title: string; score: number; viewCount: number; category: string | null }[];
   totalArticles: number;
   actions: AnalyzeAction[];
@@ -516,23 +516,32 @@ export default function KeywordPushPage() {
               <button onClick={() => setAnalyzeResult(null)} className="text-2xl text-txt-muted hover:text-txt-primary">×</button>
             </div>
 
-            <div className="rounded-[10px] border border-blue-200 bg-blue-50 p-4 mb-4">
-              <h3 className="text-sm font-semibold text-blue-900 mb-2">🏆 Best Article</h3>
-              <p className="text-sm text-txt-primary mb-2">{analyzeResult.bestArticle.title}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <div><strong className="text-blue-900">Score:</strong> {analyzeResult.bestArticle.score}/100</div>
-                <div><strong className="text-blue-900">Word:</strong> {analyzeResult.bestArticle.wordCount}</div>
-                <div><strong className="text-blue-900">KW count:</strong> {analyzeResult.bestArticle.kwCount}</div>
-                <div><strong className="text-blue-900">Density:</strong> {analyzeResult.bestArticle.density}%</div>
+            {analyzeResult.bestArticle ? (
+              <div className="rounded-[10px] border border-blue-200 bg-blue-50 p-4 mb-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">🏆 Best Article</h3>
+                <p className="text-sm text-txt-primary mb-2">{analyzeResult.bestArticle.title}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div><strong className="text-blue-900">Score:</strong> {analyzeResult.bestArticle.score}/100</div>
+                  <div><strong className="text-blue-900">Word:</strong> {analyzeResult.bestArticle.wordCount}</div>
+                  <div><strong className="text-blue-900">KW count:</strong> {analyzeResult.bestArticle.kwCount}</div>
+                  <div><strong className="text-blue-900">Density:</strong> {analyzeResult.bestArticle.density}%</div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 mt-3 text-xs">
+                  {Object.entries(analyzeResult.bestArticle.signals || {}).map(([k, v]) => (
+                    <div key={k} className={v ? "text-goto-green" : "text-red-600"}>
+                      {v ? "✓" : "✗"} {k.replace(/([A-Z])/g, " $1").toLowerCase()}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 mt-3 text-xs">
-                {Object.entries(analyzeResult.bestArticle.signals).map(([k, v]) => (
-                  <div key={k} className={v ? "text-goto-green" : "text-red-600"}>
-                    {v ? "✓" : "✗"} {k.replace(/([A-Z])/g, " $1").toLowerCase()}
-                  </div>
-                ))}
+            ) : (
+              <div className="rounded-[10px] border border-orange-200 bg-orange-50 p-4 mb-4">
+                <h3 className="text-sm font-semibold text-orange-900 mb-2">⚠️ Belum ada artikel relevan</h3>
+                <p className="text-xs text-orange-800">
+                  Tidak ditemukan artikel JHB yang membahas keyword <code>&ldquo;{analyzeResult.keyword}&rdquo;</code>. Lihat Action Plan di bawah untuk rekomendasi.
+                </p>
               </div>
-            </div>
+            )}
 
             <h3 className="text-sm font-semibold text-txt-primary mb-2">🎯 Action Plan ({analyzeResult.actions.length})</h3>
             <div className="space-y-2 mb-4">
@@ -560,9 +569,9 @@ export default function KeywordPushPage() {
               })}
             </div>
 
-            <h3 className="text-sm font-semibold text-txt-primary mb-2">📰 Related Articles ({analyzeResult.relatedArticles.length})</h3>
+            <h3 className="text-sm font-semibold text-txt-primary mb-2">📰 Related Articles ({(analyzeResult.relatedArticles || []).length})</h3>
             <div className="space-y-1 mb-4">
-              {analyzeResult.relatedArticles.slice(0, 5).map((a) => (
+              {(analyzeResult.relatedArticles || []).slice(0, 5).map((a) => (
                 <Link
                   key={a.id}
                   href={`/panel/artikel/${a.id}/edit`}

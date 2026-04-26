@@ -27,8 +27,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const kw = target.keyword;
     const kwLower = kw.toLowerCase();
 
-    // Find all articles that mention the keyword
-    const articles = await prisma.article.findMany({
+    // Find all articles that mention the keyword.
+    // Multi-tier match: full keyword in title/content/tag → fallback to ALL words match
+    let articles = await prisma.article.findMany({
       where: {
         status: "PUBLISHED",
         OR: [
@@ -55,10 +56,49 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       take: 30,
     });
 
+    // Fallback: multi-word match across title+content (≥3 char words, all must match)
     if (articles.length === 0) {
+      const words = kw.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+      if (words.length > 0) {
+        articles = await prisma.article.findMany({
+          where: {
+            status: "PUBLISHED",
+            AND: words.map((w) => ({
+              OR: [
+                { title: { contains: w, mode: "insensitive" as const } },
+                { content: { contains: w, mode: "insensitive" as const } },
+              ],
+            })),
+          },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            seoTitle: true,
+            seoDescription: true,
+            content: true,
+            excerpt: true,
+            featuredImage: true,
+            viewCount: true,
+            publishedAt: true,
+            category: { select: { name: true, slug: true } },
+            tags: { select: { name: true } },
+          },
+          orderBy: { viewCount: "desc" },
+          take: 30,
+        });
+      }
+    }
+
+    if (articles.length === 0) {
+      // Return COMPLETE shape so frontend doesn't crash on missing fields.
       return successResponse({
         keyword: kw,
-        articles: [],
+        currentPosition: target.currentPosition,
+        targetPosition: target.targetPosition,
+        totalArticles: 0,
+        bestArticle: null,
+        relatedArticles: [],
         actions: [
           {
             type: "create-cluster",
