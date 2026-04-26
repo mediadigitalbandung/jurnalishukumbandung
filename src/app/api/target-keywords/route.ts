@@ -16,43 +16,78 @@ export async function GET() {
   }
 }
 
-// POST: bulk create keywords (from research or manual)
-// Body: { keywords: [{ keyword: string, notes?: string }], source?: "manual"|"ai_research" }
+// POST: create keyword(s). Accepts BOTH formats:
+//   - Single:  { keyword: string, notes?: string, source?: string }
+//   - Bulk:    { keywords: [{ keyword: string, notes?: string }], source?: string }
+// Returns created keyword(s) with full record (id, etc) for follow-up updates.
 export async function POST(request: NextRequest) {
   try {
     await requireRole(["SUPER_ADMIN", "EDITOR"]);
     const body = await request.json();
-    const { keywords, source = "manual" } = body as {
-      keywords: { keyword: string; notes?: string }[];
-      source?: string;
-    };
 
-    if (!Array.isArray(keywords) || keywords.length === 0) {
-      throw new ApiError("keywords harus berupa array dan tidak kosong", 400);
+    // Normalize input: support both single + bulk formats
+    type KwInput = { keyword: string; notes?: string };
+    let inputs: KwInput[] = [];
+    const source = (body as { source?: string }).source || "manual";
+
+    if (Array.isArray((body as { keywords?: KwInput[] }).keywords)) {
+      inputs = (body as { keywords: KwInput[] }).keywords;
+    } else if (typeof (body as { keyword?: string }).keyword === "string") {
+      inputs = [{
+        keyword: (body as { keyword: string }).keyword,
+        notes: (body as { notes?: string }).notes,
+      }];
+    } else {
+      throw new ApiError("Body harus { keyword: string } atau { keywords: [...] }", 400);
     }
 
-    let added = 0;
+    if (inputs.length === 0) {
+      throw new ApiError("keyword tidak boleh kosong", 400);
+    }
+
+    const created: Array<{ id: string; keyword: string }> = [];
     const skipped: string[] = [];
 
-    for (const item of keywords) {
+    for (const item of inputs) {
       const kw = item.keyword?.trim().toLowerCase();
-      if (!kw || kw.length < 3 || kw.length > 100) continue;
+      if (!kw || kw.length < 3 || kw.length > 100) {
+        skipped.push(item.keyword || "(empty)");
+        continue;
+      }
 
       try {
-        await prisma.targetKeyword.create({
+        const record = await prisma.targetKeyword.create({
           data: {
             keyword: kw,
             source,
             notes: item.notes?.slice(0, 500) || null,
           },
+          select: { id: true, keyword: true },
         });
-        added++;
+        created.push(record);
       } catch {
         skipped.push(kw);
       }
     }
 
-    return successResponse({ added, skipped }, 201);
+    // For single-keyword mode, also return `data: { id, keyword }` shape that frontend expects.
+    const responseData: {
+      added: number;
+      skipped: string[];
+      created: typeof created;
+      id?: string;
+      keyword?: string;
+    } = {
+      added: created.length,
+      skipped,
+      created,
+    };
+    if (created.length === 1) {
+      responseData.id = created[0].id;
+      responseData.keyword = created[0].keyword;
+    }
+
+    return successResponse(responseData, 201);
   } catch (err) {
     return errorResponse(err);
   }
