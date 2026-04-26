@@ -1342,6 +1342,11 @@ export default function EditArticlePage() {
           </div>
 
           <div className="space-y-4">
+            {/* Load Test Pengunjung — capacity check sebelum boost via sosmed (PUBLISHED only) */}
+            {articleId && currentStatus === "PUBLISHED" && (
+              <LoadTestPanel articleId={articleId} articleStatus={currentStatus} />
+            )}
+
             <div className="rounded-[12px] border border-border bg-surface p-4">
               <label className="mb-2 block text-xs font-medium text-txt-muted uppercase tracking-wider">Kategori</label>
               <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input w-full">
