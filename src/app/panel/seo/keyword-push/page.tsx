@@ -582,9 +582,9 @@ export default function KeywordPushPage() {
         <h3 className="text-sm font-semibold text-blue-900 mb-2">💡 Cara Pakai</h3>
         <ol className="text-xs text-blue-900 space-y-1">
           <li><strong>1. Tambah keyword</strong> — set priority (HIGH untuk yg paling penting) + target posisi</li>
-          <li><strong>2. Klik "Sync GSC Sekarang"</strong> — pull posisi terkini dari Google Search Console</li>
-          <li><strong>3. Klik "Analyze"</strong> per keyword — lihat artikel mana yang bisa dioptimasi + action plan</li>
-          <li><strong>4. Klik "Boost"</strong> — auto submit ke Google Indexing API + purge cache</li>
+          <li><strong>2. Klik &ldquo;Sync GSC Sekarang&rdquo;</strong> — pull posisi terkini dari Google Search Console</li>
+          <li><strong>3. Klik &ldquo;Analyze&rdquo;</strong> per keyword — lihat artikel mana yang bisa dioptimasi + action plan</li>
+          <li><strong>4. Klik &ldquo;Boost&rdquo;</strong> — auto submit ke Google Indexing API + purge cache</li>
           <li><strong>5. Tunggu 3-7 hari</strong> — sync ulang, lihat pergerakan posisi</li>
         </ol>
         <p className="text-xs text-blue-800 mt-2"><strong>Auto-sync</strong>: cron daily. Manual sync kapan saja via tombol di atas.</p>
