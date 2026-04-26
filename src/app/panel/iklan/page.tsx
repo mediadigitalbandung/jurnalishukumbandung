@@ -132,9 +132,18 @@ export default function IklanPage() {
           <h1 className="text-xl sm:text-3xl font-bold text-txt-primary">Kelola Iklan</h1>
           <p className="text-base text-txt-secondary">Atur banner iklan di berbagai posisi</p>
         </div>
-        <Link href="/panel/iklan/baru" className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm font-semibold">
-          <Plus size={16} /> Tambah Iklan
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/panel/iklan/brief"
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:from-purple-700 hover:to-pink-700"
+            title="Workflow brief order → Claude Design → auto-create Ad"
+          >
+            ✨ Buat dari Brief (Claude Design)
+          </Link>
+          <Link href="/panel/iklan/baru" className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm font-semibold">
+            <Plus size={16} /> Tambah Manual
+          </Link>
+        </div>
       </div>
 
       {error && (
