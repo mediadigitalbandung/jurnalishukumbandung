@@ -570,10 +570,42 @@ model TargetKeyword {
   source    String   @default("manual") // "manual" | "ai_research"
   notes     String?  @db.Text // optional reasoning from AI (kenapa keyword ini relevan)
   isActive  Boolean  @default(true)
+  // Push Engine fields
+  priority           String   @default("MEDIUM")  // "HIGH" | "MEDIUM" | "LOW"
+  targetPosition     Int      @default(3)         // target rank (e.g., target top 3)
+  currentPosition    Float?                       // last known position from GSC
+  currentImpressions Int      @default(0)         // last known impressions
+  currentClicks      Int      @default(0)         // last known clicks
+  currentCtr         Float    @default(0)         // last known CTR (0-1)
+  lastSyncedAt       DateTime?                    // last GSC sync
+  bestArticleId      String?                      // best article targeting this keyword
+  bestArticleSlug    String?                      // denormalized for quick access
+  status             String   @default("no-data") // "on-track" | "stagnant" | "needs-push" | "no-data"
+  lastBoostedAt      DateTime?                    // last auto-boost run
+  boostCount         Int      @default(0)         // total auto-boost runs
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  snapshots KeywordRankSnapshot[]
 
   @@index([isActive])
+  @@index([priority])
+  @@index([status])
   @@map("target_keywords")
+}
+
+model KeywordRankSnapshot {
+  id          String   @id @default(cuid())
+  keyword     TargetKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  keywordId   String
+  position    Float?
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  ctr         Float    @default(0)
+  snappedAt   DateTime @default(now())
+
+  @@index([keywordId, snappedAt])
+  @@map("keyword_rank_snapshots")
 }
 
 // DictionaryEntry — kata yang dikecualikan dari AI typo check

@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Award,
   ArrowRight,
+  Target,
 } from "lucide-react";
 
 interface Article {
@@ -364,7 +365,20 @@ export default function SeoMonitorPage() {
   return (
     <div className="space-y-6">
       {/* Sub-page nav cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link
+          href="/panel/seo/keyword-push"
+          className="group flex items-center gap-4 rounded-[12px] border border-border bg-surface p-5 shadow-card hover:border-red-300 hover:shadow-card-hover transition-all"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 group-hover:bg-red-100">
+            <Target size={22} className="text-red-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-txt-primary">Keyword Push</h3>
+            <p className="text-xs text-txt-secondary">Input keyword target, mesin auto-boost ke posisi top</p>
+          </div>
+          <ArrowRight size={16} className="text-txt-muted group-hover:text-red-600 shrink-0" />
+        </Link>
         <Link
           href="/panel/seo/insight"
           className="group flex items-center gap-4 rounded-[12px] border border-border bg-surface p-5 shadow-card hover:border-purple-300 hover:shadow-card-hover transition-all"
