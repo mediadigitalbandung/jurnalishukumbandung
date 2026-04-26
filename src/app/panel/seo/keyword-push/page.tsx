@@ -153,11 +153,24 @@ export default function KeywordPushPage() {
   // Sorotan SEO state
   const [sorotanLoading, setSorotanLoading] = useState<string | null>(null);
   const [sorotanGenerating, setSorotanGenerating] = useState<string | null>(null);
+  const [sorotanGenerateCount, setSorotanGenerateCount] = useState(1);
   const [sorotanData, setSorotanData] = useState<{
     keyword: string;
     keywordId: string;
     total: number;
     sorotanList: { id: string; slug: string; title: string; url: string; relatedCount: number; indexStatus: string | null; createdAt: string }[];
+  } | null>(null);
+
+  // Bulk Sorotan state
+  const [bulkSorotanLoading, setBulkSorotanLoading] = useState(false);
+  const [bulkSorotanModal, setBulkSorotanModal] = useState(false);
+  const [bulkSorotanProgress, setBulkSorotanProgress] = useState<{
+    processed: number;
+    total: number;
+    generated: number;
+    failed: number;
+    currentKeyword?: string;
+    log: string[];
   } | null>(null);
 
   // Long-tail suggester state
@@ -254,19 +267,76 @@ export default function KeywordPushPage() {
     void keyword;
   };
 
-  const generateSorotan = async (keywordId: string) => {
+  const generateSorotan = async (keywordId: string, count = 1) => {
     setSorotanGenerating(keywordId);
     try {
-      const res = await fetch(`/api/seo/keyword-push/generate-sorotan/${keywordId}`, { method: "POST" });
+      const res = await fetch(`/api/seo/keyword-push/generate-sorotan/${keywordId}?count=${count}`, { method: "POST" });
       const json = await res.json();
       if (json.success) {
-        success(`Sorotan SEO berhasil di-generate (${json.data.sorotan.wordCount} kata, ${json.data.sorotan.linkCount} link)`);
-        // Refresh list
+        success(`Generated ${json.data.generated}/${json.data.requested} sorotan${json.data.failed > 0 ? `, ${json.data.failed} gagal` : ""}`);
         const target = data?.keywords.find((k) => k.id === keywordId);
         if (target) await loadSorotanList(keywordId, target.keyword);
       } else showError(json.error || "Generate gagal");
     } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
     setSorotanGenerating(null);
+  };
+
+  const bulkGenerateAllSorotan = async () => {
+    setBulkSorotanLoading(true);
+    setBulkSorotanProgress({ processed: 0, total: 0, generated: 0, failed: 0, log: ["Mulai bulk generate..."] });
+    let offset = 0;
+    let totalGenerated = 0;
+    let totalFailed = 0;
+    let totalProcessed = 0;
+    const allLog: string[] = ["Mulai bulk generate..."];
+
+    while (true) {
+      try {
+        const res = await fetch("/api/seo/keyword-push/bulk-generate-sorotan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "all-active", limit: 5, offset }),
+        });
+        const json = await res.json();
+        if (!json.success) {
+          allLog.push(`✗ Error: ${json.error || "Unknown"}`);
+          setBulkSorotanProgress((p) => p ? { ...p, log: [...allLog] } : null);
+          break;
+        }
+
+        const d = json.data;
+        totalProcessed += d.processed;
+        totalGenerated += d.generated;
+        totalFailed += d.failed;
+
+        for (const r of d.results || []) {
+          allLog.push(r.ok ? `✓ ${r.keyword} → ${r.sorotanSlug}` : `✗ ${r.keyword}: ${r.error}`);
+        }
+
+        setBulkSorotanProgress({
+          processed: totalProcessed,
+          total: d.total,
+          generated: totalGenerated,
+          failed: totalFailed,
+          log: [...allLog].slice(-30),
+        });
+
+        if (d.done) {
+          allLog.push(`=== Selesai: ${totalGenerated} sorotan generated, ${totalFailed} failed ===`);
+          setBulkSorotanProgress((p) => p ? { ...p, log: [...allLog].slice(-30) } : null);
+          success(`Bulk generate selesai: ${totalGenerated} sorotan, ${totalFailed} gagal`);
+          break;
+        }
+        offset = d.nextOffset;
+      } catch (e) {
+        allLog.push(`✗ Network error: ${e instanceof Error ? e.message : "Unknown"}`);
+        setBulkSorotanProgress((p) => p ? { ...p, log: [...allLog].slice(-30) } : null);
+        showError("Bulk generate gagal di tengah jalan");
+        break;
+      }
+    }
+    setBulkSorotanLoading(false);
+    load();
   };
 
   const deleteSorotan = async (keywordId: string, sorotanId: string) => {
@@ -472,11 +542,11 @@ export default function KeywordPushPage() {
       {/* AI Tools Bar */}
       <div className="rounded-[12px] border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 p-4">
         <h3 className="text-sm font-semibold text-purple-900 mb-2">✨ AI Tools — Boost CTR & Content Strategy</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <button
             onClick={loadDisableCandidates}
             disabled={disableLoading}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-3 py-2 text-xs font-medium text-white hover:bg-red-600 disabled:opacity-50"
           >
             {disableLoading ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
             Auto-Disable Generic
@@ -484,13 +554,21 @@ export default function KeywordPushPage() {
           <button
             onClick={loadSuggestions}
             disabled={suggestLoading}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
-            Suggest Long-Tail (AI)
+            Suggest Long-Tail
           </button>
-          <p className="flex items-center justify-center text-xs text-purple-900 px-2 text-center">
-            💡 Klik <Wand2 size={11} className="inline mx-1" /> di tiap keyword → AI optimize snippet
+          <button
+            onClick={() => setBulkSorotanModal(true)}
+            disabled={bulkSorotanLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 col-span-2 md:col-span-1"
+          >
+            {bulkSorotanLoading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+            Bulk Sorotan SEO
+          </button>
+          <p className="flex items-center justify-center text-[11px] text-purple-900 px-2 text-center col-span-2 md:col-span-1">
+            💡 <Wand2 size={11} className="inline mx-1" /> + <FileText size={11} className="inline mx-1" /> per keyword
           </p>
         </div>
       </div>
@@ -1048,16 +1126,35 @@ export default function KeywordPushPage() {
               </ul>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-txt-muted">Jumlah:</span>
+              <select
+                value={sorotanGenerateCount}
+                onChange={(e) => setSorotanGenerateCount(parseInt(e.target.value))}
+                className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs"
+                disabled={sorotanGenerating === sorotanData.keywordId}
+              >
+                <option value={1}>1 sorotan</option>
+                <option value={2}>2 sorotan (~2 menit)</option>
+                <option value={3}>3 sorotan (~3 menit)</option>
+                <option value={5}>5 sorotan (~5 menit)</option>
+              </select>
               <button
-                onClick={() => generateSorotan(sorotanData.keywordId)}
+                onClick={() => generateSorotan(sorotanData.keywordId, sorotanGenerateCount)}
                 disabled={sorotanGenerating === sorotanData.keywordId}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 {sorotanGenerating === sorotanData.keywordId ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                Generate Sorotan SEO Baru
+                Generate {sorotanGenerateCount} Sorotan
               </button>
             </div>
+            {sorotanGenerateCount > 3 && (
+              <div className="rounded-[6px] border border-yellow-200 bg-yellow-50 p-2 mb-3">
+                <p className="text-[11px] text-yellow-800">
+                  ⚠️ Generate &gt; 3 sorotan untuk 1 keyword berisiko duplicate content. Lebih baik <strong>Bulk Sorotan SEO</strong> ke banyak keyword berbeda.
+                </p>
+              </div>
+            )}
 
             <h3 className="text-sm font-semibold text-txt-primary mb-2">📄 Sorotan Existing ({sorotanData.total})</h3>
             {sorotanData.sorotanList.length === 0 ? (
@@ -1090,6 +1187,84 @@ export default function KeywordPushPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Sorotan SEO Modal */}
+      {bulkSorotanModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => !bulkSorotanLoading && setBulkSorotanModal(false)}>
+          <div className="bg-surface rounded-[12px] max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-txt-primary flex items-center gap-2">
+                  <FileText size={20} className="text-emerald-600" /> Bulk Generate Sorotan SEO
+                </h2>
+                <p className="text-sm text-txt-muted">
+                  Generate 1 sorotan SEO untuk SETIAP keyword aktif yang punya bestArticle.
+                </p>
+              </div>
+              {!bulkSorotanLoading && (
+                <button onClick={() => setBulkSorotanModal(false)} className="text-2xl text-txt-muted hover:text-txt-primary">×</button>
+              )}
+            </div>
+
+            <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-4 mb-4">
+              <h3 className="text-sm font-semibold text-emerald-900 mb-2">📋 Cara Kerja Bulk</h3>
+              <ul className="text-xs text-emerald-900 space-y-0.5 list-disc list-inside">
+                <li>Process 5 keyword per batch (untuk timeout safety)</li>
+                <li>Setiap keyword: 1 sorotan unik (angle &ldquo;panduan-lengkap&rdquo; default)</li>
+                <li>Skip keyword yang sudah punya sorotan</li>
+                <li>Total durasi: ±1-2 menit per keyword</li>
+                <li>Jangan tutup tab — UI loop call sampai semua selesai</li>
+              </ul>
+            </div>
+
+            {bulkSorotanProgress ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-txt-primary">
+                    Progress: {bulkSorotanProgress.processed}/{bulkSorotanProgress.total}
+                  </span>
+                  <span className="text-txt-muted">
+                    ✓ {bulkSorotanProgress.generated} · ✗ {bulkSorotanProgress.failed}
+                  </span>
+                </div>
+                <div className="h-2 bg-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all"
+                    style={{ width: `${bulkSorotanProgress.total ? (bulkSorotanProgress.processed / bulkSorotanProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+                <div className="rounded-[6px] border border-border bg-black/5 p-3 max-h-[40vh] overflow-y-auto">
+                  <pre className="text-[11px] text-txt-secondary whitespace-pre-wrap font-mono">
+                    {bulkSorotanProgress.log.join("\n")}
+                  </pre>
+                </div>
+                {!bulkSorotanLoading && (
+                  <button
+                    onClick={() => { setBulkSorotanModal(false); setBulkSorotanProgress(null); }}
+                    className="rounded-full bg-goto-green px-4 py-2 text-sm text-white hover:bg-goto-dark"
+                  >
+                    Selesai
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={bulkGenerateAllSorotan}
+                  disabled={bulkSorotanLoading}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {bulkSorotanLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  Mulai Bulk Generate (Semua Active Keyword)
+                </button>
+                <button onClick={() => setBulkSorotanModal(false)} className="text-sm text-txt-secondary px-3 py-2 rounded-full hover:bg-surface-secondary">
+                  Batal
+                </button>
               </div>
             )}
           </div>
