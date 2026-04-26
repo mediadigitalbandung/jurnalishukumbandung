@@ -92,26 +92,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const updates = new Map<string, string>(); // articleId → new content
 
     for (const orphan of orphans) {
-      // Build keyword candidates from title (skip stopwords)
+      // Build keyword candidates from title + tags + category name
       const titleKeywords = extractKeywords(orphan.title);
-      if (titleKeywords.length === 0) continue;
+      const tagKeywords = orphan.tags.flatMap((t) => extractKeywords(t.name));
+      const allKeywords = Array.from(new Set([...titleKeywords, ...tagKeywords]));
+      if (allKeywords.length === 0) continue;
 
       // Candidate linkers: same category OR share ≥1 tag, and not the orphan itself
       const orphanTagIds = new Set(orphan.tags.map((t) => t.id));
       const candidates = articles.filter((a) => {
         if (a.id === orphan.id) return false;
-        // Already at link cap
         if ((linksAddedByLinker.get(a.id) || 0) >= maxLinksPerLinker) return false;
-        // Same category or shared tag
         const sameCategory = a.categoryId === orphan.categoryId;
         const sharedTag = a.tags.some((t) => orphanTagIds.has(t.id));
         if (!sameCategory && !sharedTag) return false;
-        // Already linked to orphan
-        if (a.content.includes(`/berita/${orphan.slug}`)) return false;
+        const linkerContent = updates.get(a.id) || a.content;
+        if (linkerContent.includes(`/berita/${orphan.slug}`)) return false;
         return true;
       });
 
-      // Sort: prefer same category + shared tags
       candidates.sort((a, b) => {
         const scoreA = (a.categoryId === orphan.categoryId ? 2 : 0) +
                        a.tags.filter((t) => orphanTagIds.has(t.id)).length;
@@ -120,12 +119,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         return scoreB - scoreA;
       });
 
-      // Try to insert link in first eligible candidate
-      for (const linker of candidates.slice(0, 5)) {
+      // Try inline contextual link first (better SEO)
+      let linked = false;
+      for (const linker of candidates.slice(0, 8)) {
         const linkerContent = updates.get(linker.id) || linker.content;
-        const result = insertContextualLink(linkerContent, orphan.slug, orphan.title, titleKeywords);
+        const result = insertContextualLink(linkerContent, orphan.slug, orphan.title, allKeywords);
         if (!result) continue;
-
         updates.set(linker.id, result.newContent);
         linksAddedByLinker.set(linker.id, (linksAddedByLinker.get(linker.id) || 0) + 1);
         changes.push({
@@ -134,7 +133,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           linkerSlug: linker.slug,
           anchorText: result.anchorText,
         });
-        break; // one link per orphan per run
+        linked = true;
+        break;
+      }
+
+      // FALLBACK: append "Baca juga" link at end of TOP candidate (still legitimate SEO signal)
+      if (!linked && candidates.length > 0) {
+        const linker = candidates[0];
+        const linkerContent = updates.get(linker.id) || linker.content;
+        const newContent = appendBacaJuga(linkerContent, orphan.slug, orphan.title);
+        updates.set(linker.id, newContent);
+        linksAddedByLinker.set(linker.id, (linksAddedByLinker.get(linker.id) || 0) + 1);
+        changes.push({
+          orphanSlug: orphan.slug,
+          orphanTitle: orphan.title,
+          linkerSlug: linker.slug,
+          anchorText: `Baca juga: ${orphan.title.slice(0, 60)}`,
+        });
       }
     }
 
@@ -186,8 +201,22 @@ function extractKeywords(title: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length >= 4 && !STOPWORDS.has(w))
-    .slice(0, 6);
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
+    .slice(0, 10);
+}
+
+/**
+ * Append "Baca juga" block at end of last paragraph in linker content.
+ * Lower-quality than inline contextual link but still gives Google signal.
+ */
+function appendBacaJuga(content: string, orphanSlug: string, orphanTitle: string): string {
+  const linkHtml = `\n<p class="baca-juga"><strong>Baca juga:</strong> <a href="/berita/${orphanSlug}" title="${escapeHtml(orphanTitle)}">${escapeHtml(orphanTitle)}</a></p>\n`;
+  // Inject before last </p> if exists, else just append
+  const lastClose = content.lastIndexOf("</p>");
+  if (lastClose >= 0) {
+    return content.slice(0, lastClose + 4) + linkHtml + content.slice(lastClose + 4);
+  }
+  return content + linkHtml;
 }
 
 /**
