@@ -27,11 +27,46 @@ interface BannerAdProps {
   noWrapper?: boolean;
 }
 
-function useAd(adSlot: string) {
+/**
+ * Returns ad only when container is near viewport (IntersectionObserver).
+ * Avoids blocking LCP — below-fold ads don't fetch until user scrolls close.
+ * containerRef needed so observer attaches to the wrapper div.
+ */
+function useAd(adSlot: string, containerRef: React.RefObject<HTMLElement>) {
   const [ad, setAd] = useState<Ad | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
   const tracked = useRef(false);
+  const fetched = useRef(false);
 
+  // Setup IntersectionObserver on mount
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      // SSR or unsupported — fetch immediately
+      setIsVisible(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            obs.disconnect();
+            return;
+          }
+        }
+      },
+      { rootMargin: "300px 0px" } // start fetching ~300px before visible
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [containerRef]);
+
+  // Fetch ad only after visible
+  useEffect(() => {
+    if (!isVisible || fetched.current) return;
+    fetched.current = true;
     tracked.current = false;
     fetch(`/api/ads?slot=${adSlot}`)
       .then((r) => r.json())
@@ -42,7 +77,7 @@ function useAd(adSlot: string) {
         }
       })
       .catch(() => {});
-  }, [adSlot]);
+  }, [isVisible, adSlot]);
 
   useEffect(() => {
     if (ad && !tracked.current) {
@@ -100,31 +135,40 @@ function AdContent({ ad }: { ad: Ad }) {
 
 export default function BannerAd({ size, slot, className = "", noWrapper }: BannerAdProps) {
   const adSlot = slot || (size ? sizeToSlot[size] : "HEADER");
-  const ad = useAd(adSlot);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const ad = useAd(adSlot, containerRef);
 
-  if (!ad) return null;
-
+  // Always render container (so observer can attach + measure layout space).
+  // When ad not yet loaded, render minimal placeholder to avoid CLS.
   if (noWrapper) {
-    return <AdContent ad={ad} />;
+    return (
+      <div ref={containerRef} className="min-h-[1px]">
+        {ad ? <AdContent ad={ad} /> : null}
+      </div>
+    );
   }
 
   return (
-    <div className={className}>
+    <div ref={containerRef} className={className}>
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        <AdContent ad={ad} />
+        {ad ? <AdContent ad={ad} /> : null}
       </div>
     </div>
   );
 }
 
 export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
-  const ad = useAd(slot);
+  const containerRef = useRef<HTMLElement>(null);
+  const ad = useAd(slot, containerRef);
   const safeHtml = useMemo(
     () => (ad?.type === "HTML" && ad.htmlCode ? sanitizeAdHtml(ad.htmlCode) : ""),
     [ad?.type, ad?.htmlCode]
   );
 
-  if (!ad) return null;
+  // Always render container with ref so IntersectionObserver fires
+  if (!ad) {
+    return <div ref={containerRef as React.RefObject<HTMLDivElement>} className="block w-full min-h-[1px]" aria-hidden="true" />;
+  }
 
   const content =
     ad.type === "HTML" && safeHtml ? (
@@ -142,13 +186,14 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
       />
     ) : null;
 
-  if (!content) return null;
+  if (!content) return <div ref={containerRef as React.RefObject<HTMLDivElement>} className="block w-full min-h-[1px]" aria-hidden="true" />;
 
   const wrapperClass = "block w-full h-full rounded-lg overflow-hidden bg-[#0f1210]";
 
   if (ad.targetUrl) {
     return (
       <a
+        ref={containerRef as React.RefObject<HTMLAnchorElement>}
         href={ad.targetUrl}
         target="_blank"
         rel="noopener noreferrer sponsored"
@@ -160,5 +205,5 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
     );
   }
 
-  return <div className={wrapperClass}>{content}</div>;
+  return <div ref={containerRef as React.RefObject<HTMLDivElement>} className={wrapperClass}>{content}</div>;
 }
