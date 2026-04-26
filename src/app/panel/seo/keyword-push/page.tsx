@@ -24,6 +24,8 @@ import {
   Ban,
   Lightbulb,
   Wand2,
+  FileText,
+  Trash2,
 } from "lucide-react";
 
 type Priority = "HIGH" | "MEDIUM" | "LOW";
@@ -148,6 +150,16 @@ export default function KeywordPushPage() {
   } | null>(null);
   const [applyingVariant, setApplyingVariant] = useState<number | null>(null);
 
+  // Sorotan SEO state
+  const [sorotanLoading, setSorotanLoading] = useState<string | null>(null);
+  const [sorotanGenerating, setSorotanGenerating] = useState<string | null>(null);
+  const [sorotanData, setSorotanData] = useState<{
+    keyword: string;
+    keywordId: string;
+    total: number;
+    sorotanList: { id: string; slug: string; title: string; url: string; relatedCount: number; indexStatus: string | null; createdAt: string }[];
+  } | null>(null);
+
   // Long-tail suggester state
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestData, setSuggestData] = useState<{
@@ -227,6 +239,47 @@ export default function KeywordPushPage() {
       } else showError(json.error || "Apply gagal");
     } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
     setApplyingVariant(null);
+  };
+
+  const loadSorotanList = async (keywordId: string, keyword: string) => {
+    setSorotanLoading(keywordId);
+    try {
+      const res = await fetch(`/api/seo/keyword-push/sorotan-list/${keywordId}`);
+      const json = await res.json();
+      if (json.success) {
+        setSorotanData({ ...json.data, keywordId });
+      } else showError(json.error || "Gagal load sorotan");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setSorotanLoading(null);
+    void keyword;
+  };
+
+  const generateSorotan = async (keywordId: string) => {
+    setSorotanGenerating(keywordId);
+    try {
+      const res = await fetch(`/api/seo/keyword-push/generate-sorotan/${keywordId}`, { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        success(`Sorotan SEO berhasil di-generate (${json.data.sorotan.wordCount} kata, ${json.data.sorotan.linkCount} link)`);
+        // Refresh list
+        const target = data?.keywords.find((k) => k.id === keywordId);
+        if (target) await loadSorotanList(keywordId, target.keyword);
+      } else showError(json.error || "Generate gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setSorotanGenerating(null);
+  };
+
+  const deleteSorotan = async (keywordId: string, sorotanId: string) => {
+    if (!confirm("Hapus sorotan ini?")) return;
+    try {
+      const res = await fetch(`/api/seo/keyword-push/sorotan-list/${keywordId}?sorotanId=${sorotanId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        success("Sorotan dihapus");
+        const target = data?.keywords.find((k) => k.id === keywordId);
+        if (target) await loadSorotanList(keywordId, target.keyword);
+      } else showError(json.error || "Hapus gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
   };
 
   const loadSuggestions = async () => {
@@ -652,6 +705,14 @@ export default function KeywordPushPage() {
                       {snippetLoading === k.id ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
                     </button>
                     <button
+                      onClick={() => loadSorotanList(k.id, k.keyword)}
+                      disabled={sorotanLoading === k.id || !k.bestArticleId}
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                      title="Lihat & generate Sorotan SEO landing page untuk keyword ini"
+                    >
+                      {sorotanLoading === k.id ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                    </button>
+                    <button
                       onClick={() => setEditingId(editingId === k.id ? null : k.id)}
                       className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-1.5 text-xs text-txt-muted hover:bg-surface-secondary"
                       title="Edit priority/target"
@@ -955,6 +1016,81 @@ export default function KeywordPushPage() {
                   </button>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sorotan SEO Modal */}
+      {sorotanData && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSorotanData(null)}>
+          <div className="bg-surface rounded-[12px] max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-txt-primary flex items-center gap-2">
+                  <FileText size={20} className="text-emerald-600" /> Sorotan SEO untuk &ldquo;{sorotanData.keyword}&rdquo;
+                </h2>
+                <p className="text-sm text-txt-muted">
+                  Landing page SEO yang link ke artikel terkait, boost ranking keyword ini.
+                </p>
+              </div>
+              <button onClick={() => setSorotanData(null)} className="text-2xl text-txt-muted hover:text-txt-primary">×</button>
+            </div>
+
+            <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-4 mb-4">
+              <h3 className="text-sm font-semibold text-emerald-900 mb-1">✨ Cara Kerja</h3>
+              <ul className="text-xs text-emerald-900 space-y-0.5 list-disc list-inside">
+                <li>AI scan artikel JHB yang relevan dengan keyword ini</li>
+                <li>Generate landing page komprehensif (800-1200 kata)</li>
+                <li>Internal link ke artikel terkait sebagai &ldquo;Sumber&rdquo;</li>
+                <li>Auto-submit ke Google Indexing API</li>
+                <li>Render di <code>/sorotan/[slug]</code> dengan section &ldquo;Artikel Terkait&rdquo; prominent</li>
+              </ul>
+            </div>
+
+            <div className="mb-4">
+              <button
+                onClick={() => generateSorotan(sorotanData.keywordId)}
+                disabled={sorotanGenerating === sorotanData.keywordId}
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {sorotanGenerating === sorotanData.keywordId ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                Generate Sorotan SEO Baru
+              </button>
+            </div>
+
+            <h3 className="text-sm font-semibold text-txt-primary mb-2">📄 Sorotan Existing ({sorotanData.total})</h3>
+            {sorotanData.sorotanList.length === 0 ? (
+              <p className="text-center py-8 text-sm text-txt-muted">Belum ada sorotan. Klik tombol di atas untuk generate.</p>
+            ) : (
+              <div className="space-y-2">
+                {sorotanData.sorotanList.map((s) => (
+                  <div key={s.id} className="rounded-[8px] border border-border bg-surface p-3">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="text-sm font-semibold text-txt-primary line-clamp-2">{s.title}</p>
+                      <div className="flex gap-1 shrink-0">
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] text-txt-secondary hover:bg-surface-secondary"
+                        >
+                          <ExternalLink size={10} /> Lihat
+                        </a>
+                        <button
+                          onClick={() => deleteSorotan(sorotanData.keywordId, s.id)}
+                          className="inline-flex items-center rounded-full border border-red-200 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-txt-muted">
+                      {s.relatedCount} artikel terkait · Index: {s.indexStatus || "pending"} · {new Date(s.createdAt).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { Clock, Scale, AlertTriangle, ArrowRight, BookOpen, FileText, Gavel, Users, MessageSquare, GitCompare, HelpCircle } from "lucide-react";
+import { Clock, Scale, AlertTriangle, ArrowRight, BookOpen, FileText, Gavel, Users, MessageSquare, GitCompare, HelpCircle, Target } from "lucide-react";
 import { slugify } from "@/lib/utils";
 
 interface PageProps {
@@ -49,6 +49,7 @@ const angleLabels: Record<string, string> = {
   opini: "Perspektif & Opini",
   perbandingan: "Perbandingan Kasus",
   "tanya-jawab": "Tanya Jawab",
+  "keyword-landing": "Topik Terkait",
 };
 
 const angleDescriptions: Record<string, string> = {
@@ -62,6 +63,7 @@ const angleDescriptions: Record<string, string> = {
   opini: "Berbagai perspektif dan pandangan ahli tentang kasus ini",
   perbandingan: "Perbandingan dengan kasus-kasus serupa yang pernah terjadi",
   "tanya-jawab": "Jawaban atas pertanyaan yang sering diajukan tentang kasus ini",
+  "keyword-landing": "Hub topik dengan kompilasi artikel JHB yang relevan",
 };
 
 const angleIcons: Record<string, typeof BookOpen> = {
@@ -75,6 +77,7 @@ const angleIcons: Record<string, typeof BookOpen> = {
   opini: MessageSquare,
   perbandingan: GitCompare,
   "tanya-jawab": HelpCircle,
+  "keyword-landing": Target,
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -108,13 +111,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     "berita hukum",
   ].join(", ");
 
+  // Prefer custom seoTitle/seoDescription if available (keyword-landing)
+  const titleTag = sorotan.seoTitle || sorotan.title;
+  const descTag = sorotan.seoDescription || plainContent;
+
+  // Add target keyword to keywords list if available
+  const finalKeywords = sorotan.targetKeyword
+    ? `${sorotan.targetKeyword}, ${keywordsStr}`
+    : keywordsStr;
+
   return {
-    title: sorotan.title,
-    description: plainContent,
-    keywords: keywordsStr,
+    title: titleTag,
+    description: descTag,
+    keywords: finalKeywords,
     openGraph: {
-      title: sorotan.title,
-      description: plainContent,
+      title: titleTag,
+      description: descTag,
       type: "article",
       url: `${appUrl}/sorotan/${params.slug}`,
       siteName: "Jurnalis Hukum Bandung",
@@ -122,8 +134,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: "summary_large_image",
-      title: sorotan.title,
-      description: plainContent,
+      title: titleTag,
+      description: descTag,
       images: [imageUrl],
     },
     alternates: {
@@ -158,13 +170,26 @@ export default async function SorotanPage({ params }: PageProps) {
     where: { articleId: article.id, slug: { not: params.slug } },
   });
 
-  // Related articles from same category
+  // For keyword-landing, fetch related articles by IDs from sorotan.relatedArticleIds
+  const isKeywordLanding = sorotan.angle === "keyword-landing";
+  const relatedFromIds = isKeywordLanding && sorotan.relatedArticleIds.length > 0
+    ? await prisma.article.findMany({
+        where: {
+          id: { in: sorotan.relatedArticleIds },
+          status: "PUBLISHED",
+        },
+        include: { author: true, category: true },
+        orderBy: { publishedAt: "desc" },
+      })
+    : [];
+
+  // Related articles from same category (fallback for non-keyword-landing OR augment)
   const relatedArticles = await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
       categoryId: { not: undefined },
       category: { slug: article.category.slug },
-      id: { not: article.id },
+      id: { not: article.id, notIn: sorotan.relatedArticleIds },
     },
     include: { author: true, category: true },
     orderBy: { publishedAt: "desc" },
@@ -273,6 +298,45 @@ export default async function SorotanPage({ params }: PageProps) {
               className="mt-8 article-content text-base sm:text-[17px] leading-[1.8] text-justify"
               dangerouslySetInnerHTML={{ __html: formatSorotanContent(sorotan.content) }}
             />
+
+            {/* Artikel Terkait (prominent for keyword-landing) */}
+            {isKeywordLanding && relatedFromIds.length > 0 && (
+              <div className="mt-10 rounded-[12px] border-2 border-goto-green bg-goto-light/30 p-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-txt-primary">
+                  <Target size={20} className="text-goto-green" />
+                  Artikel JHB Terkait Topik &ldquo;{sorotan.targetKeyword}&rdquo;
+                </h2>
+                <p className="mb-4 text-sm text-txt-secondary">
+                  {relatedFromIds.length} artikel mendalam dari Jurnalis Hukum Bandung yang membahas topik ini.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {relatedFromIds.map((a) => (
+                    <Link
+                      key={a.id}
+                      href={`/berita/${a.slug}`}
+                      className="group flex gap-3 rounded-[10px] border border-border bg-surface p-4 shadow-card hover:shadow-card-hover hover:border-goto-green transition-all"
+                    >
+                      {a.featuredImage && (
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[8px]">
+                          <Image src={a.featuredImage} alt={a.title} fill className="object-cover" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold uppercase tracking-wide text-goto-green mb-1">
+                          {a.category.name}
+                        </p>
+                        <p className="text-sm font-semibold text-txt-primary line-clamp-2 group-hover:text-goto-green">
+                          {a.title}
+                        </p>
+                        <p className="mt-1 text-xs text-txt-muted">
+                          {a.author.name} · {a.publishedAt && new Date(a.publishedAt).toLocaleDateString("id-ID")}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* CTA — Baca Berita Lengkap */}
             <div className="mt-10 relative overflow-hidden bg-gradient-to-r from-goto-green to-goto-dark p-8 sm:p-10">

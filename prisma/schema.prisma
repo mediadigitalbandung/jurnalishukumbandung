@@ -285,16 +285,24 @@ model Sorotan {
   slug          String    @unique
   title         String // Unique title for this angle
   content       String    @db.Text // 300-500 words substantive content
-  angle         String // "kronologi" | "analisis" | "dampak"
+  angle         String // "kronologi" | "analisis" | "dampak" | "keyword-landing"
   article       Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
   articleId     String
+  // Keyword-based sorotan extension
+  targetKeyword     String? // Denormalized keyword for easy query
+  targetKeywordId   String? // FK to TargetKeyword (optional)
+  relatedArticleIds String[] @default([]) // For keyword-landing: related article IDs
+  seoTitle          String? // Custom seoTitle for SEO landing
+  seoDescription    String? // Custom seoDescription
   indexStatus   String? // "submitted", "failed", null
   lastIndexedAt DateTime?
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 
   @@index([articleId])
   @@index([angle])
   @@index([indexStatus])
+  @@index([targetKeywordId])
   @@map("sorotan")
 }
 
