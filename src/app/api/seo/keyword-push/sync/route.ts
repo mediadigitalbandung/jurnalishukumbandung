@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       if (tagMatch?.articles[0]) {
         bestArticle = { id: tagMatch.articles[0].id, slug: tagMatch.articles[0].slug };
       } else {
-        // Fallback: find article with keyword in title
+        // Fallback 1: find article with full keyword in title
         const titleMatch = await prisma.article.findFirst({
           where: {
             status: "PUBLISHED",
@@ -151,7 +151,34 @@ export async function POST(req: NextRequest) {
           select: { id: true, slug: true },
           orderBy: { viewCount: "desc" },
         });
-        if (titleMatch) bestArticle = { id: titleMatch.id, slug: titleMatch.slug };
+        if (titleMatch) {
+          bestArticle = { id: titleMatch.id, slug: titleMatch.slug };
+        } else {
+          // Fallback 2: multi-word matching in title OR content.
+          // Split keyword into words ≥3 chars, find article matching ALL words across title+content.
+          const words = target.keyword
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((w) => w.length >= 3);
+          if (words.length > 0) {
+            const multiWordMatch = await prisma.article.findFirst({
+              where: {
+                status: "PUBLISHED",
+                AND: words.map((w) => ({
+                  OR: [
+                    { title: { contains: w, mode: "insensitive" as const } },
+                    { content: { contains: w, mode: "insensitive" as const } },
+                  ],
+                })),
+              },
+              select: { id: true, slug: true },
+              orderBy: { viewCount: "desc" },
+            });
+            if (multiWordMatch) {
+              bestArticle = { id: multiWordMatch.id, slug: multiWordMatch.slug };
+            }
+          }
+        }
       }
 
       // Determine status

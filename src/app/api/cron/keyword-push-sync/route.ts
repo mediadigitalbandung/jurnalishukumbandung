@@ -132,6 +132,55 @@ export async function GET(req: NextRequest) {
         status = match.position <= target.targetPosition ? "on-track" : "needs-push";
       }
 
+      // Identify best article via tag → title → multi-word match across title+content
+      let bestArticle: { id: string; slug: string } | null = null;
+      const tagMatch = await prisma.tag.findFirst({
+        where: {
+          OR: [
+            { name: { equals: target.keyword, mode: "insensitive" } },
+            { slug: target.keyword.toLowerCase().replace(/\s+/g, "-") },
+          ],
+        },
+        include: {
+          articles: {
+            where: { status: "PUBLISHED" },
+            select: { id: true, slug: true },
+            orderBy: { viewCount: "desc" },
+            take: 1,
+          },
+        },
+      });
+      if (tagMatch?.articles[0]) {
+        bestArticle = { id: tagMatch.articles[0].id, slug: tagMatch.articles[0].slug };
+      } else {
+        const titleMatch = await prisma.article.findFirst({
+          where: { status: "PUBLISHED", title: { contains: target.keyword, mode: "insensitive" } },
+          select: { id: true, slug: true },
+          orderBy: { viewCount: "desc" },
+        });
+        if (titleMatch) {
+          bestArticle = titleMatch;
+        } else {
+          const words = target.keyword.toLowerCase().split(/\s+/).filter((w) => w.length >= 3);
+          if (words.length > 0) {
+            const multiWordMatch = await prisma.article.findFirst({
+              where: {
+                status: "PUBLISHED",
+                AND: words.map((w) => ({
+                  OR: [
+                    { title: { contains: w, mode: "insensitive" as const } },
+                    { content: { contains: w, mode: "insensitive" as const } },
+                  ],
+                })),
+              },
+              select: { id: true, slug: true },
+              orderBy: { viewCount: "desc" },
+            });
+            if (multiWordMatch) bestArticle = multiWordMatch;
+          }
+        }
+      }
+
       await prisma.targetKeyword.update({
         where: { id: target.id },
         data: {
@@ -139,6 +188,8 @@ export async function GET(req: NextRequest) {
           currentImpressions: match?.impressions ?? 0,
           currentClicks: match?.clicks ?? 0,
           currentCtr: match?.ctr ?? 0,
+          bestArticleId: bestArticle?.id ?? undefined,
+          bestArticleSlug: bestArticle?.slug ?? undefined,
           lastSyncedAt: new Date(),
           status,
         },
