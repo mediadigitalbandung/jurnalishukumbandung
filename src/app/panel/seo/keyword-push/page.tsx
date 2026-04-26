@@ -21,6 +21,9 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Ban,
+  Lightbulb,
+  Wand2,
 } from "lucide-react";
 
 type Priority = "HIGH" | "MEDIUM" | "LOW";
@@ -124,6 +127,142 @@ export default function KeywordPushPage() {
   const [newKeyword, setNewKeyword] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("MEDIUM");
   const [newTarget, setNewTarget] = useState(3);
+
+  // Auto-disable generic state
+  const [disableLoading, setDisableLoading] = useState(false);
+  const [disableData, setDisableData] = useState<{
+    total: number;
+    candidates: number;
+    stale: number;
+    recommendations: { id: string; keyword: string; reason: string; currentPosition: number | null; currentImpressions: number; currentClicks: number }[];
+  } | null>(null);
+  const [disableSelected, setDisableSelected] = useState<Set<string>>(new Set());
+
+  // AI snippet optimizer state
+  const [snippetLoading, setSnippetLoading] = useState<string | null>(null);
+  const [snippetData, setSnippetData] = useState<{
+    keyword: string;
+    article: { id: string; slug: string; title: string; currentSeoTitle: string | null; currentSeoDesc: string | null };
+    variants: { id: number; title: string; titleLen: number; description: string; descLen: number; angle: string }[];
+    keywordId: string;
+  } | null>(null);
+  const [applyingVariant, setApplyingVariant] = useState<number | null>(null);
+
+  // Long-tail suggester state
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestData, setSuggestData] = useState<{
+    total: number;
+    suggestions: { keyword: string; rationale: string; category: string; priority: Priority }[];
+  } | null>(null);
+  const [suggestSelected, setSuggestSelected] = useState<Set<number>>(new Set());
+  const [suggestApplying, setSuggestApplying] = useState(false);
+
+  const loadDisableCandidates = async () => {
+    setDisableLoading(true);
+    try {
+      const res = await fetch("/api/seo/keyword-push/auto-disable-generic");
+      const json = await res.json();
+      if (json.success) {
+        setDisableData(json.data);
+        // Auto-select all candidates by default
+        setDisableSelected(new Set(json.data.recommendations.map((r: { id: string }) => r.id)));
+      } else showError(json.error || "Gagal load");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setDisableLoading(false);
+  };
+
+  const applyDisable = async () => {
+    if (disableSelected.size === 0) return;
+    setDisableLoading(true);
+    try {
+      const res = await fetch("/api/seo/keyword-push/auto-disable-generic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(disableSelected) }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        success(`${json.data.disabled} keyword di-disable`);
+        setDisableData(null);
+        setDisableSelected(new Set());
+        load();
+      } else showError(json.error || "Apply gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setDisableLoading(false);
+  };
+
+  const optimizeSnippet = async (keywordId: string) => {
+    setSnippetLoading(keywordId);
+    setSnippetData(null);
+    try {
+      const res = await fetch(`/api/seo/keyword-push/optimize-snippet/${keywordId}`);
+      const json = await res.json();
+      if (json.success) {
+        setSnippetData({ ...json.data, keywordId });
+      } else showError(json.error || "AI generate gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setSnippetLoading(null);
+  };
+
+  const applyVariant = async (variantId: number) => {
+    if (!snippetData) return;
+    const variant = snippetData.variants.find((v) => v.id === variantId);
+    if (!variant) return;
+    setApplyingVariant(variantId);
+    try {
+      const res = await fetch(`/api/seo/keyword-push/optimize-snippet/${snippetData.keywordId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          articleId: snippetData.article.id,
+          seoTitle: variant.title,
+          seoDescription: variant.description,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        success(`Variant ${variantId} diterapkan ke artikel`);
+        setSnippetData(null);
+        load();
+      } else showError(json.error || "Apply gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setApplyingVariant(null);
+  };
+
+  const loadSuggestions = async () => {
+    setSuggestLoading(true);
+    try {
+      const res = await fetch("/api/seo/keyword-push/suggest-longtail");
+      const json = await res.json();
+      if (json.success) {
+        setSuggestData(json.data);
+        // Auto-select all by default
+        setSuggestSelected(new Set(json.data.suggestions.map((_: unknown, i: number) => i)));
+      } else showError(json.error || "AI generate gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setSuggestLoading(false);
+  };
+
+  const applySuggestions = async () => {
+    if (!suggestData || suggestSelected.size === 0) return;
+    setSuggestApplying(true);
+    try {
+      const selected = Array.from(suggestSelected).map((i) => suggestData.suggestions[i]);
+      const res = await fetch("/api/seo/keyword-push/suggest-longtail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ suggestions: selected }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        success(`${json.data.inserted} keyword baru ditambahkan, ${json.data.skipped} skip duplicate`);
+        setSuggestData(null);
+        setSuggestSelected(new Set());
+        load();
+      } else showError(json.error || "Apply gagal");
+    } catch (e) { showError(e instanceof Error ? e.message : "Network error"); }
+    setSuggestApplying(false);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -274,6 +413,32 @@ export default function KeywordPushPage() {
             {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             Sync GSC Sekarang
           </button>
+        </div>
+      </div>
+
+      {/* AI Tools Bar */}
+      <div className="rounded-[12px] border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 p-4">
+        <h3 className="text-sm font-semibold text-purple-900 mb-2">✨ AI Tools — Boost CTR & Content Strategy</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <button
+            onClick={loadDisableCandidates}
+            disabled={disableLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
+          >
+            {disableLoading ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+            Auto-Disable Generic
+          </button>
+          <button
+            onClick={loadSuggestions}
+            disabled={suggestLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
+            Suggest Long-Tail (AI)
+          </button>
+          <p className="flex items-center justify-center text-xs text-purple-900 px-2 text-center">
+            💡 Klik <Wand2 size={11} className="inline mx-1" /> di tiap keyword → AI optimize snippet
+          </p>
         </div>
       </div>
 
@@ -479,6 +644,14 @@ export default function KeywordPushPage() {
                       Boost
                     </button>
                     <button
+                      onClick={() => optimizeSnippet(k.id)}
+                      disabled={snippetLoading === k.id || !k.bestArticleId}
+                      className="inline-flex items-center gap-1 rounded-full bg-purple-500 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-purple-600 disabled:opacity-50"
+                      title="AI generate seoTitle + seoDescription baru"
+                    >
+                      {snippetLoading === k.id ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                    </button>
+                    <button
                       onClick={() => setEditingId(editingId === k.id ? null : k.id)}
                       className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-1.5 text-xs text-txt-muted hover:bg-surface-secondary"
                       title="Edit priority/target"
@@ -586,6 +759,207 @@ export default function KeywordPushPage() {
         </div>
       )}
 
+      {/* Auto-Disable Generic Modal */}
+      {disableData && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setDisableData(null)}>
+          <div className="bg-surface rounded-[12px] max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-txt-primary flex items-center gap-2">
+                  <Ban size={20} className="text-red-600" /> Auto-Disable Generic
+                </h2>
+                <p className="text-sm text-txt-muted">
+                  {disableData.candidates} generic keyword + {disableData.stale} stale keyword direkomendasi disable
+                </p>
+              </div>
+              <button onClick={() => setDisableData(null)} className="text-2xl text-txt-muted hover:text-txt-primary">×</button>
+            </div>
+
+            {disableData.recommendations.length === 0 ? (
+              <p className="text-center py-8 text-sm text-txt-muted">
+                Tidak ada keyword yang perlu di-disable. Semua keyword Anda sudah focused. 🎉
+              </p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3 text-xs">
+                  <button
+                    onClick={() => setDisableSelected(new Set(disableData.recommendations.map(r => r.id)))}
+                    className="rounded-full border border-border px-2 py-1 hover:bg-surface-secondary"
+                  >Pilih semua</button>
+                  <button
+                    onClick={() => setDisableSelected(new Set())}
+                    className="rounded-full border border-border px-2 py-1 hover:bg-surface-secondary"
+                  >Pilih none</button>
+                  <span className="text-txt-muted ml-auto">{disableSelected.size}/{disableData.recommendations.length} dipilih</span>
+                </div>
+                <div className="divide-y divide-border max-h-[50vh] overflow-y-auto">
+                  {disableData.recommendations.map((r) => (
+                    <label key={r.id} className="flex items-start gap-2 py-2 cursor-pointer hover:bg-surface-secondary/50">
+                      <input
+                        type="checkbox"
+                        checked={disableSelected.has(r.id)}
+                        onChange={(e) => {
+                          const next = new Set(disableSelected);
+                          if (e.target.checked) next.add(r.id);
+                          else next.delete(r.id);
+                          setDisableSelected(next);
+                        }}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-txt-primary">{r.keyword}</p>
+                        <p className="text-xs text-red-600">{r.reason}</p>
+                        <p className="text-[10px] text-txt-muted">
+                          Posisi: {r.currentPosition ? "#" + r.currentPosition.toFixed(1) : "—"} ·
+                          Impresi: {r.currentImpressions} · Klik: {r.currentClicks}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-4 mt-4 border-t border-border">
+                  <button onClick={() => setDisableData(null)} className="text-sm text-txt-secondary px-3 py-1.5 rounded-full hover:bg-surface-secondary">Batal</button>
+                  <button
+                    onClick={applyDisable}
+                    disabled={disableSelected.size === 0 || disableLoading}
+                    className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {disableLoading ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                    Disable {disableSelected.size} Keyword
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Snippet Optimizer Modal */}
+      {snippetData && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSnippetData(null)}>
+          <div className="bg-surface rounded-[12px] max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-txt-primary flex items-center gap-2">
+                  <Wand2 size={20} className="text-purple-600" /> AI Snippet Optimizer
+                </h2>
+                <p className="text-sm text-txt-muted">
+                  Keyword: <code>{snippetData.keyword}</code> · Article: {snippetData.article.title.slice(0, 60)}...
+                </p>
+              </div>
+              <button onClick={() => setSnippetData(null)} className="text-2xl text-txt-muted hover:text-txt-primary">×</button>
+            </div>
+
+            <div className="rounded-[8px] border border-border bg-surface-secondary p-3 mb-4 text-xs">
+              <p className="font-medium text-txt-secondary mb-1">📋 Sekarang ({(snippetData.article.currentSeoTitle || "").length}/{(snippetData.article.currentSeoDesc || "").length} char):</p>
+              <p className="text-txt-primary">{snippetData.article.currentSeoTitle || "(seoTitle kosong)"}</p>
+              <p className="text-txt-muted mt-1">{snippetData.article.currentSeoDesc || "(seoDescription kosong)"}</p>
+            </div>
+
+            <h3 className="text-sm font-semibold text-txt-primary mb-3">✨ {snippetData.variants.length} Variasi AI</h3>
+            <div className="space-y-3">
+              {snippetData.variants.map((v) => (
+                <div key={v.id} className="rounded-[10px] border border-purple-200 bg-purple-50/30 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-purple-700">VARIANT {v.id}</span>
+                    <span className="text-xs text-purple-600 italic">{v.angle}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-txt-primary mb-1">{v.title}</p>
+                  <p className="text-[10px] text-txt-muted mb-2">{v.titleLen || v.title.length} char</p>
+                  <p className="text-xs text-txt-secondary mb-1">{v.description}</p>
+                  <p className="text-[10px] text-txt-muted mb-3">{v.descLen || v.description.length} char</p>
+                  <button
+                    onClick={() => applyVariant(v.id)}
+                    disabled={applyingVariant !== null}
+                    className="inline-flex items-center gap-1 rounded-full bg-purple-600 px-3 py-1 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {applyingVariant === v.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                    Apply ke Artikel
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Long-Tail Suggester Modal */}
+      {suggestData && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSuggestData(null)}>
+          <div className="bg-surface rounded-[12px] max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-txt-primary flex items-center gap-2">
+                  <Lightbulb size={20} className="text-blue-600" /> Long-Tail Keyword Suggestions
+                </h2>
+                <p className="text-sm text-txt-muted">
+                  AI generate {suggestData.total} keyword baru berdasarkan topik artikel published JHB
+                </p>
+              </div>
+              <button onClick={() => setSuggestData(null)} className="text-2xl text-txt-muted hover:text-txt-primary">×</button>
+            </div>
+
+            {suggestData.suggestions.length === 0 ? (
+              <p className="text-center py-8 text-sm text-txt-muted">Tidak ada suggestion baru.</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3 text-xs">
+                  <button
+                    onClick={() => setSuggestSelected(new Set(suggestData.suggestions.map((_, i) => i)))}
+                    className="rounded-full border border-border px-2 py-1 hover:bg-surface-secondary"
+                  >Pilih semua</button>
+                  <button
+                    onClick={() => setSuggestSelected(new Set())}
+                    className="rounded-full border border-border px-2 py-1 hover:bg-surface-secondary"
+                  >Pilih none</button>
+                  <button
+                    onClick={() => setSuggestSelected(new Set(suggestData.suggestions.map((s, i) => s.priority === "HIGH" ? i : -1).filter(i => i >= 0)))}
+                    className="rounded-full border border-red-200 bg-red-50 text-red-600 px-2 py-1 hover:bg-red-100"
+                  >Hanya HIGH</button>
+                  <span className="text-txt-muted ml-auto">{suggestSelected.size}/{suggestData.suggestions.length} dipilih</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[55vh] overflow-y-auto">
+                  {suggestData.suggestions.map((s, i) => (
+                    <label key={i} className="flex items-start gap-2 rounded-[8px] border border-border p-2 cursor-pointer hover:bg-surface-secondary/50">
+                      <input
+                        type="checkbox"
+                        checked={suggestSelected.has(i)}
+                        onChange={(e) => {
+                          const next = new Set(suggestSelected);
+                          if (e.target.checked) next.add(i);
+                          else next.delete(i);
+                          setSuggestSelected(next);
+                        }}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-txt-primary">{s.keyword}</p>
+                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${PRIORITY_COLOR[s.priority]}`}>{s.priority}</span>
+                          <span className="text-[9px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">{s.category}</span>
+                        </div>
+                        {s.rationale && <p className="text-[10px] text-txt-muted mt-0.5">{s.rationale}</p>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-4 mt-4 border-t border-border">
+                  <button onClick={() => setSuggestData(null)} className="text-sm text-txt-secondary px-3 py-1.5 rounded-full hover:bg-surface-secondary">Batal</button>
+                  <button
+                    onClick={applySuggestions}
+                    disabled={suggestSelected.size === 0 || suggestApplying}
+                    className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {suggestApplying ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                    Tambahkan {suggestSelected.size} Keyword
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Help */}
       <div className="rounded-[12px] border border-blue-200 bg-blue-50 p-4">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">💡 Cara Pakai</h3>
@@ -594,9 +968,12 @@ export default function KeywordPushPage() {
           <li><strong>2. Klik &ldquo;Sync GSC Sekarang&rdquo;</strong> — pull posisi terkini dari Google Search Console</li>
           <li><strong>3. Klik &ldquo;Analyze&rdquo;</strong> per keyword — lihat artikel mana yang bisa dioptimasi + action plan</li>
           <li><strong>4. Klik &ldquo;Boost&rdquo;</strong> — auto submit ke Google Indexing API + purge cache</li>
-          <li><strong>5. Tunggu 3-7 hari</strong> — sync ulang, lihat pergerakan posisi</li>
+          <li><strong>5. Klik <Wand2 size={11} className="inline" /> per keyword</strong> — AI generate seoTitle + seoDescription baru</li>
+          <li><strong>6. Tunggu 3-7 hari</strong> — sync ulang, lihat pergerakan posisi</li>
         </ol>
-        <p className="text-xs text-blue-800 mt-2"><strong>Auto-sync</strong>: cron daily. Manual sync kapan saja via tombol di atas.</p>
+        <p className="text-xs text-blue-800 mt-2">
+          <strong>AI Tools (atas)</strong>: <strong>Auto-Disable Generic</strong> bersih-bersih keyword tidak realistis · <strong>Suggest Long-Tail</strong> AI rekomendasi keyword baru.
+        </p>
       </div>
     </div>
   );
