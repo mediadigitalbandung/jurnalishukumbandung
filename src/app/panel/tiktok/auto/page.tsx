@@ -20,6 +20,10 @@ import {
   Film,
   Clock,
   AlertCircle,
+  Filter,
+  Calendar,
+  Layout,
+  Eye,
 } from "lucide-react";
 
 interface ArticleSearch {
@@ -27,7 +31,26 @@ interface ArticleSearch {
   title: string;
   slug: string;
   status: string;
-  category?: { name: string } | null;
+  publishedAt?: string | null;
+  featuredImage?: string | null;
+  viewCount?: number;
+  category?: { name: string; slug?: string } | null;
+}
+
+interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface TiktokTemplateItem {
+  id: string;
+  name: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  frameStyle: string;
+  useCount?: number;
+  lastUsedAt?: string | null;
 }
 
 interface UploadedFile {
@@ -71,6 +94,15 @@ export default function TiktokAutoCreatePage() {
   const [selectedArticle, setSelectedArticle] = useState<ArticleSearch | null>(null);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
+  const [pickerMode, setPickerMode] = useState<"search" | "browse">("browse");
+  const [filterCategory, setFilterCategory] = useState<string>(""); // category slug
+  const [filterTimeline, setFilterTimeline] = useState<"all" | "7d" | "30d" | "90d">("30d");
+  const [filterSort, setFilterSort] = useState<"recent" | "popular">("recent");
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+
+  // Templates
+  const [templates, setTemplates] = useState<TiktokTemplateItem[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   // Files
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -86,6 +118,22 @@ export default function TiktokAutoCreatePage() {
   const [creating, setCreating] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [autoResult, setAutoResult] = useState<{ videoId: string; choices: AutoChoices } | null>(null);
+
+  // ─── Load categories + templates on mount ───
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setCategories(j.data || []);
+      })
+      .catch(() => {});
+    fetch("/api/tiktok/templates")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setTemplates(j.data || []);
+      })
+      .catch(() => {});
+  }, []);
 
   // ─── Pre-fill article from query param (when navigated from article edit page) ───
   useEffect(() => {
@@ -108,26 +156,65 @@ export default function TiktokAutoCreatePage() {
     }
   }, [searchParams, selectedArticle]);
 
-  // ─── Article search (debounced) ───
+  // ─── Article fetch (search OR browse with filters) ───
   useEffect(() => {
     if (selectedArticle) return;
-    if (!articleQuery.trim() || articleQuery.trim().length < 2) {
-      setArticleResults([]);
-      return;
+
+    // Search mode: butuh query min 2 huruf
+    if (pickerMode === "search") {
+      if (!articleQuery.trim() || articleQuery.trim().length < 2) {
+        setArticleResults([]);
+        return;
+      }
     }
+
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(`/api/articles?status=PUBLISHED&q=${encodeURIComponent(articleQuery)}&limit=8`);
+        const params = new URLSearchParams({
+          status: "PUBLISHED",
+          limit: "20",
+        });
+        if (pickerMode === "search" && articleQuery.trim()) {
+          params.set("q", articleQuery.trim());
+        }
+        if (filterCategory) {
+          params.set("categorySlug", filterCategory);
+        }
+        // Timeline filter — convert to date param if API supports, fallback to client filter
+        if (filterTimeline !== "all") {
+          const days = filterTimeline === "7d" ? 7 : filterTimeline === "30d" ? 30 : 90;
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - days);
+          params.set("publishedAfter", cutoff.toISOString());
+        }
+        if (filterSort === "popular") {
+          params.set("sort", "viewCount");
+        }
+
+        const res = await fetch(`/api/articles?${params.toString()}`);
         const json = await res.json();
         if (json.success) {
-          setArticleResults(json.data?.articles || json.data || []);
+          let articles = json.data?.articles || json.data || [];
+          // Client-side timeline filter as fallback (if API doesn't support publishedAfter)
+          if (filterTimeline !== "all") {
+            const days = filterTimeline === "7d" ? 7 : filterTimeline === "30d" ? 30 : 90;
+            const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
+            articles = articles.filter((a: ArticleSearch) =>
+              a.publishedAt && new Date(a.publishedAt).getTime() >= cutoffMs
+            );
+          }
+          // Client sort by viewCount if popular
+          if (filterSort === "popular") {
+            articles = [...articles].sort((a: ArticleSearch, b: ArticleSearch) => (b.viewCount || 0) - (a.viewCount || 0));
+          }
+          setArticleResults(articles.slice(0, 20));
         }
       } catch { /* ignore */ }
       setSearching(false);
     }, 300);
-  }, [articleQuery, selectedArticle]);
+  }, [articleQuery, selectedArticle, pickerMode, filterCategory, filterTimeline, filterSort]);
 
   // ─── File upload ───
   const handleFiles = async (files: FileList | null) => {
@@ -196,8 +283,9 @@ export default function TiktokAutoCreatePage() {
       showError("Pilih artikel dulu");
       return;
     }
-    if (uploadedFiles.length === 0) {
-      showError("Upload minimal 1 file");
+    const minFiles = Math.max(3, Math.ceil(targetDuration / 20));
+    if (uploadedFiles.length < minFiles) {
+      showError(`Upload minimal ${minFiles} file untuk durasi ${targetDuration}s (sekarang: ${uploadedFiles.length})`);
       return;
     }
 
@@ -218,6 +306,7 @@ export default function TiktokAutoCreatePage() {
           targetDurationSec: targetDuration,
           frameStyle: frameStyleOverride === "auto" ? undefined : frameStyleOverride,
           renderEngine,
+          templateId: selectedTemplateId || undefined,
         }),
       });
       const json = await res.json();
@@ -289,13 +378,26 @@ export default function TiktokAutoCreatePage() {
         </h2>
         {selectedArticle ? (
           <div className="flex items-center justify-between rounded-lg border border-pink-300 bg-pink-50 p-3">
-            <div>
-              <p className="text-sm font-bold text-txt-primary">{selectedArticle.title}</p>
-              <p className="text-xs text-txt-muted">{selectedArticle.category?.name || "Tanpa kategori"} · {selectedArticle.status}</p>
+            <div className="flex gap-3 items-center">
+              {selectedArticle.featuredImage && (
+                <img src={selectedArticle.featuredImage} alt="" className="h-14 w-20 object-cover rounded" />
+              )}
+              <div>
+                <p className="text-sm font-bold text-txt-primary line-clamp-2">{selectedArticle.title}</p>
+                <p className="text-xs text-txt-muted">
+                  {selectedArticle.category?.name || "Tanpa kategori"}
+                  {selectedArticle.publishedAt && (
+                    <> · {new Date(selectedArticle.publishedAt).toLocaleDateString("id-ID")}</>
+                  )}
+                  {typeof selectedArticle.viewCount === "number" && (
+                    <> · {selectedArticle.viewCount} views</>
+                  )}
+                </p>
+              </div>
             </div>
             <button
               onClick={() => { setSelectedArticle(null); setArticleQuery(""); }}
-              className="text-xs text-pink-600 hover:underline"
+              className="text-xs text-pink-600 hover:underline shrink-0"
               disabled={creating}
             >
               Ganti
@@ -303,25 +405,117 @@ export default function TiktokAutoCreatePage() {
           </div>
         ) : (
           <>
-            <input
-              type="text"
-              value={articleQuery}
-              onChange={(e) => setArticleQuery(e.target.value)}
-              placeholder="Cari artikel published... (min 2 huruf)"
-              className="input w-full text-sm"
-              disabled={creating}
-            />
-            {searching && <p className="mt-2 text-xs text-txt-muted">Mencari...</p>}
+            {/* Mode toggle: Browse vs Search */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={() => setPickerMode("browse")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  pickerMode === "browse" ? "bg-pink-600 text-white" : "bg-surface-secondary text-txt-secondary hover:bg-border"
+                }`}
+                disabled={creating}
+              >
+                <Eye size={12} /> Browse
+              </button>
+              <button
+                onClick={() => setPickerMode("search")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  pickerMode === "search" ? "bg-pink-600 text-white" : "bg-surface-secondary text-txt-secondary hover:bg-border"
+                }`}
+                disabled={creating}
+              >
+                <Search size={12} /> Cari
+              </button>
+            </div>
+
+            {/* Search input (only in search mode) */}
+            {pickerMode === "search" && (
+              <input
+                type="text"
+                value={articleQuery}
+                onChange={(e) => setArticleQuery(e.target.value)}
+                placeholder="Cari artikel published... (min 2 huruf)"
+                className="input w-full text-sm mb-3"
+                disabled={creating}
+              />
+            )}
+
+            {/* Filters */}
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <span className="text-xs text-txt-muted flex items-center gap-1">
+                <Filter size={11} /> Filter:
+              </span>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs"
+                disabled={creating}
+              >
+                <option value="">Semua kategori</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.slug}>{c.name}</option>
+                ))}
+              </select>
+              <select
+                value={filterTimeline}
+                onChange={(e) => setFilterTimeline(e.target.value as "all" | "7d" | "30d" | "90d")}
+                className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs"
+                disabled={creating}
+              >
+                <option value="7d">7 hari terakhir</option>
+                <option value="30d">30 hari terakhir</option>
+                <option value="90d">90 hari terakhir</option>
+                <option value="all">Semua waktu</option>
+              </select>
+              <select
+                value={filterSort}
+                onChange={(e) => setFilterSort(e.target.value as "recent" | "popular")}
+                className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs"
+                disabled={creating}
+              >
+                <option value="recent">Terbaru</option>
+                <option value="popular">Terpopuler</option>
+              </select>
+            </div>
+
+            {searching && (
+              <p className="text-xs text-txt-muted flex items-center gap-1">
+                <Loader2 size={11} className="animate-spin" /> Memuat...
+              </p>
+            )}
+            {!searching && articleResults.length === 0 && pickerMode === "browse" && (
+              <p className="text-xs text-txt-muted">Tidak ada artikel sesuai filter</p>
+            )}
+            {!searching && articleResults.length === 0 && pickerMode === "search" && articleQuery.length < 2 && (
+              <p className="text-xs text-txt-muted">Ketik min 2 huruf untuk mulai cari</p>
+            )}
+
             {articleResults.length > 0 && (
-              <div className="mt-3 divide-y divide-border rounded-lg border border-border bg-surface-secondary">
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-border rounded-lg border border-border bg-surface-secondary">
                 {articleResults.map((a) => (
                   <button
                     key={a.id}
                     onClick={() => { setSelectedArticle(a); setArticleQuery(""); setArticleResults([]); }}
-                    className="w-full p-3 text-left hover:bg-pink-50"
+                    className="flex w-full gap-3 p-3 text-left hover:bg-pink-50 transition-colors"
                   >
-                    <p className="text-sm font-medium text-txt-primary">{a.title}</p>
-                    <p className="text-xs text-txt-muted">{a.category?.name || "—"} · {a.status}</p>
+                    {a.featuredImage ? (
+                      <img src={a.featuredImage} alt="" className="h-12 w-16 object-cover rounded shrink-0" />
+                    ) : (
+                      <div className="h-12 w-16 bg-border rounded shrink-0 flex items-center justify-center">
+                        <ImageIcon size={14} className="text-txt-muted" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-txt-primary line-clamp-2">{a.title}</p>
+                      <p className="text-xs text-txt-muted">
+                        {a.category?.name || "—"}
+                        {a.publishedAt && (
+                          <> · {new Date(a.publishedAt).toLocaleDateString("id-ID")}</>
+                        )}
+                        {typeof a.viewCount === "number" && (
+                          <> · {a.viewCount} views</>
+                        )}
+                      </p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -335,6 +529,32 @@ export default function TiktokAutoCreatePage() {
         <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
           <Upload size={14} /> Step 2: Upload Foto / Video
         </h2>
+        {/* Min file indicator */}
+        {(() => {
+          const minFiles = Math.max(3, Math.ceil(targetDuration / 20));
+          const hasMin = uploadedFiles.length >= minFiles;
+          const recommended = Math.ceil(targetDuration / 8);
+          return (
+            <div className={`mb-3 rounded-lg border p-3 text-xs ${hasMin ? "border-green-200 bg-green-50 text-green-900" : "border-orange-200 bg-orange-50 text-orange-900"}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="flex items-center gap-1.5 font-medium">
+                  {hasMin ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+                  Min {minFiles} file untuk durasi {targetDuration}s
+                  {hasMin ? <> ✓ (sekarang: {uploadedFiles.length})</> : <> · belum cukup ({uploadedFiles.length}/{minFiles})</>}
+                </span>
+                <span className="text-[10px] opacity-70">
+                  Rekomendasi: {recommended} file (clip ~8s/file)
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 w-full bg-white/50 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all ${hasMin ? "bg-green-500" : "bg-orange-500"}`}
+                  style={{ width: `${Math.min(100, (uploadedFiles.length / minFiles) * 100)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
         <input
           ref={fileInputRef}
           type="file"
@@ -383,10 +603,58 @@ export default function TiktokAutoCreatePage() {
         )}
       </div>
 
-      {/* Step 3: Options (collapsible advanced) */}
+      {/* Step 3: Pilih Template (kalau ada) */}
+      {templates.length > 0 && (
+        <div className="mb-4 rounded-[12px] border border-border bg-surface p-5 shadow-card">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
+            <Layout size={14} /> Step 3: Pilih Template Style <span className="text-[10px] font-normal normal-case text-txt-muted ml-auto">(opsional)</span>
+          </h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {/* "Tanpa template" option */}
+            <button
+              onClick={() => setSelectedTemplateId("")}
+              className={`text-left rounded-lg border p-3 transition-colors ${
+                selectedTemplateId === "" ? "border-pink-500 bg-pink-50 ring-2 ring-pink-200" : "border-border bg-surface hover:border-pink-300"
+              }`}
+              disabled={creating}
+            >
+              <p className="text-xs font-bold text-txt-primary">🤖 Tanpa template</p>
+              <p className="text-[10px] text-txt-muted mt-0.5">Auto-detect dari kategori</p>
+            </button>
+            {templates.slice(0, 11).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTemplateId(t.id)}
+                className={`text-left rounded-lg border p-3 transition-colors ${
+                  selectedTemplateId === t.id ? "border-pink-500 bg-pink-50 ring-2 ring-pink-200" : "border-border bg-surface hover:border-pink-300"
+                }`}
+                disabled={creating}
+              >
+                {t.thumbnailUrl && (
+                  <div className="aspect-video bg-border rounded overflow-hidden mb-2">
+                    <img src={t.thumbnailUrl} alt={t.name} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <p className="text-xs font-bold text-txt-primary line-clamp-1">{t.name}</p>
+                <p className="text-[10px] text-txt-muted line-clamp-1">{FRAME_LABELS[t.frameStyle] || t.frameStyle}</p>
+                {(t.useCount || 0) > 0 && (
+                  <p className="text-[10px] text-pink-600">Dipakai {t.useCount}x</p>
+                )}
+              </button>
+            ))}
+          </div>
+          {selectedTemplateId && (
+            <p className="mt-3 text-[11px] text-txt-muted">
+              ✓ Template &ldquo;{templates.find((t) => t.id === selectedTemplateId)?.name}&rdquo; akan apply: frame style, overlays, backsong, subtitle config
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Step 4: Options (collapsible advanced) */}
       <details className="mb-4 rounded-[12px] border border-border bg-surface p-5 shadow-card group">
         <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold uppercase tracking-wider text-txt-muted">
-          <Sparkles size={14} /> Step 3: Opsi Lanjutan <span className="text-[10px] font-normal normal-case text-txt-muted ml-auto">(opsional, default sudah ideal)</span>
+          <Sparkles size={14} /> Step {templates.length > 0 ? "4" : "3"}: Opsi Lanjutan <span className="text-[10px] font-normal normal-case text-txt-muted ml-auto">(opsional, default sudah ideal)</span>
         </summary>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
@@ -458,22 +726,31 @@ export default function TiktokAutoCreatePage() {
       </div>
 
       {/* Big button */}
-      <button
-        onClick={handleAutoCreate}
-        disabled={!selectedArticle || uploadedFiles.length === 0 || creating || uploading}
-        className="flex w-full items-center justify-center gap-3 rounded-full bg-pink-600 px-6 py-4 text-base font-bold text-white shadow-lg hover:bg-pink-700 disabled:opacity-40"
-      >
-        {creating ? (
-          <><Loader2 size={20} className="animate-spin" /> {progress || "Membuat..."}</>
-        ) : (
-          <><Wand2 size={20} /> Buat Video TikTok Otomatis</>
-        )}
-      </button>
+      {(() => {
+        const minFiles = Math.max(3, Math.ceil(targetDuration / 20));
+        const meetsMin = uploadedFiles.length >= minFiles;
+        const isDisabled = !selectedArticle || !meetsMin || creating || uploading;
+        return (
+          <button
+            onClick={handleAutoCreate}
+            disabled={isDisabled}
+            className="flex w-full items-center justify-center gap-3 rounded-full bg-pink-600 px-6 py-4 text-base font-bold text-white shadow-lg hover:bg-pink-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={!selectedArticle ? "Pilih artikel dulu" : !meetsMin ? `Upload min ${minFiles} file` : ""}
+          >
+            {creating ? (
+              <><Loader2 size={20} className="animate-spin" /> {progress || "Membuat..."}</>
+            ) : (
+              <><Wand2 size={20} /> Buat Video TikTok Otomatis</>
+            )}
+          </button>
+        );
+      })()}
 
       {/* Smart defaults preview */}
       {selectedArticle && uploadedFiles.length > 0 && !creating && !autoResult && (
         <p className="mt-3 text-center text-xs text-txt-muted">
           {uploadedFiles.length} file → akan dibagi rata jadi clip ~{(targetDuration / uploadedFiles.length).toFixed(1)}s per clip · target total {targetDuration}s · ~{Math.round(targetDuration / 6)} subtitle segment
+          {selectedTemplateId && <> · template: <strong>{templates.find((t) => t.id === selectedTemplateId)?.name}</strong></>}
         </p>
       )}
     </div>

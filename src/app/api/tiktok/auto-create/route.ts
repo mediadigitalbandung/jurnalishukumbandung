@@ -50,6 +50,7 @@ const inputSchema = z.object({
   targetDurationSec: z.number().min(10).max(180).optional(),
   frameStyle: z.enum(["none", "ticker-news", "brand-green", "breaking-news", "minimal", "lower-third", "custom"]).optional(),
   renderEngine: z.enum(["ffmpeg", "hyperframes"]).optional(),
+  templateId: z.string().min(1).optional(), // Apply saved TiktokTemplate after create
   autoSubtitle: z.boolean().optional().default(true),
   autoCaption: z.boolean().optional().default(true),
   autoRender: z.boolean().optional().default(true),
@@ -78,10 +79,20 @@ export async function POST(req: NextRequest) {
     });
     if (!article) throw new ApiError("Artikel tidak ditemukan", 404);
 
-    // ─── Auto-detect smart defaults ───────────────────
+    // ─── Load template if specified (template overrides auto-detect) ──
+    const template = data.templateId
+      ? await prisma.tiktokTemplate.findUnique({
+          where: { id: data.templateId },
+          include: { overlays: { orderBy: { order: "asc" } } },
+        })
+      : null;
+    if (data.templateId && !template) throw new ApiError("Template tidak ditemukan", 404);
+
+    // ─── Auto-detect smart defaults (atau dari template kalau ada) ────
     const targetDuration = data.targetDurationSec ?? AUTO_TARGET_DURATION;
-    const frameStyle = data.frameStyle || autoSelectFrameStyle(article);
-    const backsongId = await autoSelectBacksong(article);
+    const frameStyle = template?.frameStyle as typeof data.frameStyle ||
+      data.frameStyle || autoSelectFrameStyle(article);
+    const backsongId = template?.backsongId || (await autoSelectBacksong(article));
     const clipTypes = data.files.map((f) => f.type);
     const durations = autoDistributeDurations(clipTypes, targetDuration);
     const subtitleSegments = autoSubtitleCount(targetDuration);
@@ -202,6 +213,43 @@ durationSec total = ${targetDuration} detik.`;
       } catch (err) {
         console.warn("[AUTO-CREATE] AI subtitle gagal, lanjut:", err instanceof Error ? err.message : err);
       }
+    }
+
+    // ─── Apply template extras (subtitle config + overlays) if template selected ──
+    if (template) {
+      // Update subtitle config + breaking text from template
+      await prisma.tiktokVideo.update({
+        where: { id: video.id },
+        data: {
+          breakingText: template.breakingText,
+          backsongVolume: template.backsongVolume,
+        },
+      });
+      // Add overlays from template
+      if (template.overlays.length > 0) {
+        await prisma.$transaction(
+          template.overlays.map((ov) =>
+            prisma.tiktokOverlay.create({
+              data: {
+                videoId: video.id,
+                imageUrl: ov.imageUrl,
+                x: ov.x,
+                y: ov.y,
+                scale: ov.scale,
+                rotation: ov.rotation,
+                opacity: ov.opacity,
+                order: ov.order,
+                label: ov.label,
+              },
+            })
+          )
+        );
+      }
+      // Mark template as used
+      await prisma.tiktokTemplate.update({
+        where: { id: template.id },
+        data: { lastUsedAt: new Date(), usedCount: { increment: 1 } },
+      });
     }
 
     // ─── Step 5: Set render engine + trigger render (async background) ────
