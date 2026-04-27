@@ -598,12 +598,23 @@ export function detectHowToSchema(
 /**
  * Detect if article is Q&A-style (single primary question + answer).
  * Triggers on: title is a question (ends with "?", or starts with "apa", "siapa", "kenapa", "bagaimana", "kapan", "dimana")
+ *
+ * Schema mengikuti rekomendasi Google Search Console:
+ * - mainEntity (Question) butuh: name, text, answerCount, datePublished, author, acceptedAnswer
+ * - acceptedAnswer (Answer) butuh: text, url, datePublished, author, upvoteCount
+ *
+ * Source: https://developers.google.com/search/docs/appearance/structured-data/qapage
  */
 export function detectQAPageSchema(
   title: string,
   excerpt: string,
   contentHtml: string,
-  url: string
+  url: string,
+  meta?: {
+    publishedAt?: Date | string | null;
+    authorName?: string | null;
+    siteName?: string | null;
+  }
 ): Record<string, unknown> | null {
   const trimmedTitle = title.trim();
   const isQuestion =
@@ -616,6 +627,26 @@ export function detectQAPageSchema(
   const answer = excerpt || (firstP ? stripHtml(firstP[1]).trim() : "");
   if (!answer || answer.length < 20) return null;
 
+  // Resolve publishedAt → ISO string (Jakarta timezone via toJakartaISO if Date)
+  const publishedISO = meta?.publishedAt
+    ? typeof meta.publishedAt === "string"
+      ? meta.publishedAt
+      : meta.publishedAt.toISOString()
+    : new Date().toISOString();
+
+  const authorName = meta?.authorName || meta?.siteName || "Jurnalis Hukum Bandung";
+  const siteName = meta?.siteName || "Jurnalis Hukum Bandung";
+
+  // Author objects (re-used di Question dan Answer per Google guideline)
+  const authorObj = {
+    "@type": "Person",
+    name: authorName,
+  };
+  const publisherObj = {
+    "@type": "Organization",
+    name: siteName,
+  };
+
   return {
     "@context": "https://schema.org",
     "@type": "QAPage",
@@ -624,10 +655,15 @@ export function detectQAPageSchema(
       name: trimmedTitle.endsWith("?") ? trimmedTitle : `${trimmedTitle}?`,
       text: trimmedTitle,
       answerCount: 1,
+      datePublished: publishedISO,
+      author: authorObj,
       acceptedAnswer: {
         "@type": "Answer",
         text: answer.slice(0, 600),
         url,
+        datePublished: publishedISO,
+        author: publisherObj,
+        upvoteCount: 1,
       },
     },
   };

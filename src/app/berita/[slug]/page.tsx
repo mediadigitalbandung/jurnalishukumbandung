@@ -544,7 +544,11 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
 
   // Auto-detect HowTo & QAPage schema for featured snippets
   const howToLd = detectHowToSchema(article.title, article.content || "", articleUrl, imageUrl);
-  const qaPageLd = detectQAPageSchema(article.title, article.excerpt || "", article.content || "", articleUrl);
+  const qaPageLd = detectQAPageSchema(article.title, article.excerpt || "", article.content || "", articleUrl, {
+    publishedAt: article.publishedAt,
+    authorName: article.author?.name || null,
+    siteName: "Jurnalis Hukum Bandung",
+  });
 
   return (
     <>
