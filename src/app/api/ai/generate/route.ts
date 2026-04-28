@@ -6,7 +6,31 @@ import { prisma } from "@/lib/prisma";
 import { aiRateLimit } from "@/lib/rate-limit";
 import { callAI, hasAIKey } from "@/lib/ai-client";
 
-const SYSTEM_PROMPT = "Kamu adalah asisten AI untuk media berita hukum Indonesia. Jawab dalam Bahasa Indonesia.";
+const SYSTEM_PROMPT = "Kamu adalah asisten AI untuk media berita hukum Indonesia. Jawab dalam Bahasa Indonesia. JANGAN pakai markdown formatting (no **bold**, no \"quotes\", no # heading, no - bullet). Output PLAIN TEXT saja.";
+
+/**
+ * Strip common AI-output formatting artifacts: markdown bold/italic, surrounding
+ * quotes, leading bullets/headings, trailing periods on titles, etc.
+ */
+function sanitizeAiText(s: string): string {
+  let out = s.trim();
+  // Strip leading list/heading markers
+  out = out.replace(/^[-*•#>]+\s*/, "");
+  // Strip leading numbering like "1." or "1)"
+  out = out.replace(/^\d+[.)]\s+/, "");
+  // Strip wrapping markdown bold/italic (** or __ or * or _)
+  out = out.replace(/^\*{1,3}([^*]+)\*{1,3}$/, "$1");
+  out = out.replace(/^_{1,3}([^_]+)_{1,3}$/, "$1");
+  // Strip wrapping straight or smart quotes (use [\s\S] instead of dotAll for ES2017 compat)
+  out = out.replace(/^["'“‘]([\s\S]*)["'”’]$/, "$1");
+  // Strip stray ** anywhere (e.g. partial bold)
+  out = out.replace(/\*\*/g, "");
+  // Strip backticks
+  out = out.replace(/`/g, "");
+  // Collapse multiple spaces
+  out = out.replace(/[ \t]+/g, " ");
+  return out.trim();
+}
 
 const PROMPTS: Record<string, (title: string, content: string) => string> = {
   tags: (title, content) =>
@@ -51,7 +75,9 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = PROMPTS[feature](title, content);
-    const result = await callAI(SYSTEM_PROMPT, prompt, 500);
+    const rawResult = await callAI(SYSTEM_PROMPT, prompt, 500);
+    // Sanitize AI output: strip markdown bold, quotes, bullets, etc.
+    const result = sanitizeAiText(rawResult);
 
     // Log usage (tokens not available without provider info, log 0)
     await prisma.aIUsageLog.create({
