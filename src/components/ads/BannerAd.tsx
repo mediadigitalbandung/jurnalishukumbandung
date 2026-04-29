@@ -140,16 +140,19 @@ export default function BannerAd({ size, slot, className = "", noWrapper }: Bann
 
   // Always render container (so observer can attach + measure layout space).
   // When ad not yet loaded, render minimal placeholder to avoid CLS.
+  // Force rectangle (no rounded) on banner ads by overriding all descendant border-radius.
+  // Pakai [&_*]:!rounded-none aggressive override agar HTML ad di DB yang punya rounded
+  // tetap render rectangle sesuai design system.
   if (noWrapper) {
     return (
-      <div ref={containerRef} className="min-h-[1px]">
+      <div ref={containerRef} className="min-h-[1px] [&_*]:!rounded-none">
         {ad ? <AdContent ad={ad} /> : null}
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className={className}>
+    <div ref={containerRef} className={`${className} [&_*]:!rounded-none`}>
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         {ad ? <AdContent ad={ad} /> : null}
       </div>
