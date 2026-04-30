@@ -466,6 +466,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
       },
       sameAs: [
         "https://twitter.com/jurnalishukumbdg",
+        "https://kartawarta.com",
       ],
       publishingPrinciples: `${appUrl}/kode-etik`,
       ethicsPolicy: `${appUrl}/kode-etik`,

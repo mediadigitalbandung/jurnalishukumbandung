@@ -251,6 +251,7 @@ export default async function HomePage() {
             publishingPrinciples: `${process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com"}/kode-etik`,
             sameAs: [
               "https://twitter.com/jurnalishukumbdg",
+              "https://kartawarta.com",
             ],
             address: {
               "@type": "PostalAddress",

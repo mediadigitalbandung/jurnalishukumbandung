@@ -131,6 +131,7 @@ export default function RootLayout({
     foundingDate: "2024",
     sameAs: [
       "https://twitter.com/jurnalishukumbdg",
+      "https://kartawarta.com",
     ],
     address: {
       "@type": "PostalAddress",
