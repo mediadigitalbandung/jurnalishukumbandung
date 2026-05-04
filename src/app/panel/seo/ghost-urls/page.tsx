@@ -17,6 +17,8 @@ import {
   Search,
   Globe,
   Eye,
+  Ban,
+  XOctagon,
 } from "lucide-react";
 
 type GhostUrl = {
@@ -34,12 +36,18 @@ type GhostUrl = {
   resolvedByName: string | null;
   resolvedArticleId: string | null;
   resolvedArticle: { id: string; title: string; slug: string } | null;
+  markedDeleted: boolean;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  googleRemoveStatus: string | null;
+  googleRemoveAt: string | null;
   notes: string | null;
 };
 
 type Stats = {
   open: number;
   resolved: number;
+  deleted: number;
   googleReferred: number;
   totalHits: number;
 };
@@ -73,7 +81,7 @@ export default function GhostUrlsPage() {
   const [items, setItems] = useState<GhostUrl[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"open" | "resolved" | "all">("open");
+  const [statusFilter, setStatusFilter] = useState<"open" | "resolved" | "deleted" | "all">("open");
   const [sort, setSort] = useState<"hits" | "recent" | "first">("hits");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -117,6 +125,53 @@ export default function GhostUrlsPage() {
         load();
       } else {
         showError(json.error || "Gagal update");
+      }
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "Network error");
+    }
+    setBusyId(null);
+  }
+
+  async function googleRemove(item: GhostUrl) {
+    const ok = await confirm({
+      title: "Hapus URL ini dari Google?",
+      message: `Slug: ${item.slug}\n\nAkan dikirim notifikasi URL_DELETED ke Google Indexing API. URL akan hilang dari hasil pencarian Google dalam beberapa jam.\n\nSetelah ini, URL ini tidak bisa di-claim ulang sampai kamu cabut tanda 'deleted'-nya.`,
+      confirmText: "Ya, hapus dari Google",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setBusyId(item.id);
+    try {
+      const res = await fetch(`/api/seo/ghost-urls/${item.id}/google-remove`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (json.success) {
+        success(json.data?.message || "Berhasil dikirim ke Google");
+        load();
+      } else {
+        showError(json.error || "Gagal kirim ke Google");
+      }
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "Network error");
+    }
+    setBusyId(null);
+  }
+
+  async function undoDelete(item: GhostUrl) {
+    setBusyId(item.id);
+    try {
+      const res = await fetch(`/api/seo/ghost-urls/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markedDeleted: false }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        success("Tanda deleted dicabut. URL aktif lagi (kalau di-hit, akan ke-log lagi)");
+        load();
+      } else {
+        showError(json.error || "Gagal cabut tanda deleted");
       }
     } catch (e) {
       showError(e instanceof Error ? e.message : "Network error");
@@ -177,7 +232,7 @@ export default function GhostUrlsPage() {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="card p-4">
             <div className="text-xs text-txt-secondary">Open (404 aktif)</div>
             <div className="text-2xl font-bold text-red-600 mt-1">{stats.open}</div>
@@ -185,6 +240,12 @@ export default function GhostUrlsPage() {
           <div className="card p-4">
             <div className="text-xs text-txt-secondary">Sudah diklaim</div>
             <div className="text-2xl font-bold text-goto-green mt-1">{stats.resolved}</div>
+          </div>
+          <div className="card p-4">
+            <div className="text-xs text-txt-secondary flex items-center gap-1">
+              <XOctagon className="h-3 w-3" /> Dihapus dari Google
+            </div>
+            <div className="text-2xl font-bold text-gray-700 mt-1">{stats.deleted}</div>
           </div>
           <div className="card p-4">
             <div className="text-xs text-txt-secondary flex items-center gap-1">
@@ -203,8 +264,8 @@ export default function GhostUrlsPage() {
 
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-3 items-center">
-        <div className="flex gap-1 bg-surface-secondary rounded-full p-1">
-          {(["open", "resolved", "all"] as const).map((s) => (
+        <div className="flex gap-1 bg-surface-secondary rounded-full p-1 flex-wrap">
+          {(["open", "resolved", "deleted", "all"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -214,7 +275,7 @@ export default function GhostUrlsPage() {
                   : "text-txt-secondary hover:text-txt-primary"
               }`}
             >
-              {s === "open" ? "Open" : s === "resolved" ? "Resolved" : "Semua"}
+              {s === "open" ? "Open" : s === "resolved" ? "Resolved" : s === "deleted" ? "Dihapus" : "Semua"}
             </button>
           ))}
         </div>
@@ -273,12 +334,25 @@ export default function GhostUrlsPage() {
               </thead>
               <tbody className="divide-y divide-border-light">
                 {items.map((it) => (
-                  <tr key={it.id} className={it.resolved ? "bg-green-50/30" : ""}>
+                  <tr
+                    key={it.id}
+                    className={
+                      it.markedDeleted
+                        ? "bg-gray-100/50"
+                        : it.resolved
+                        ? "bg-green-50/30"
+                        : ""
+                    }
+                  >
                     <td className="px-4 py-3 align-top">
-                      <div className="font-mono text-xs text-txt-primary break-all">
+                      <div
+                        className={`font-mono text-xs break-all ${
+                          it.markedDeleted ? "line-through text-txt-muted" : "text-txt-primary"
+                        }`}
+                      >
                         {it.path}
                       </div>
-                      {it.fromGoogle && (
+                      {it.fromGoogle && !it.markedDeleted && (
                         <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-yellow-700 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded-full">
                           <Globe className="h-3 w-3" /> Pernah dari Google
                         </span>
@@ -295,7 +369,27 @@ export default function GhostUrlsPage() {
                       <div className="text-txt-muted">{formatDate(it.lastHitAt)}</div>
                     </td>
                     <td className="px-4 py-3 align-top">
-                      {it.resolved ? (
+                      {it.markedDeleted ? (
+                        <div>
+                          <span className="badge bg-gray-200 text-gray-700 border-gray-300 inline-flex items-center gap-1">
+                            <XOctagon className="h-3 w-3" /> Dihapus
+                          </span>
+                          {it.googleRemoveStatus === "submitted" ? (
+                            <div className="text-[11px] text-goto-green mt-1">
+                              ✓ Sudah dikirim ke Google
+                            </div>
+                          ) : it.googleRemoveStatus === "failed" ? (
+                            <div className="text-[11px] text-red-600 mt-1">
+                              ✗ Gagal kirim ke Google
+                            </div>
+                          ) : null}
+                          {it.deletedAt && (
+                            <div className="text-[11px] text-txt-muted mt-0.5">
+                              {timeAgo(it.deletedAt)}
+                            </div>
+                          )}
+                        </div>
+                      ) : it.resolved ? (
                         <div>
                           <span className="badge badge-green inline-flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" /> Resolved
@@ -332,26 +426,40 @@ export default function GhostUrlsPage() {
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
-                        {!it.resolved && (
-                          <Link
-                            href={`/panel/artikel/baru?reclaimSlug=${encodeURIComponent(it.slug)}`}
-                            className="btn-primary !px-3 !py-1 inline-flex items-center gap-1 text-xs"
-                            title="Buat artikel baru dengan slug ini"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Klaim
-                          </Link>
+
+                        {/* Aksi untuk Open (belum resolved/deleted) */}
+                        {!it.resolved && !it.markedDeleted && (
+                          <>
+                            <Link
+                              href={`/panel/artikel/baru?reclaimSlug=${encodeURIComponent(it.slug)}`}
+                              className="btn-primary !px-3 !py-1 inline-flex items-center gap-1 text-xs"
+                              title="Buat artikel baru dengan slug ini"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Klaim
+                            </Link>
+                            <button
+                              onClick={() => googleRemove(it)}
+                              disabled={busyId === it.id}
+                              className="!px-3 !py-1 inline-flex items-center gap-1 text-xs rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                              title="Minta Google hapus URL ini dari hasil pencarian"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                              Hapus dari Google
+                            </button>
+                            <button
+                              onClick={() => markResolved(it.id, true)}
+                              disabled={busyId === it.id}
+                              className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs"
+                              title="Tandai resolved manual (tanpa buat artikel)"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 text-goto-green" />
+                            </button>
+                          </>
                         )}
-                        {!it.resolved ? (
-                          <button
-                            onClick={() => markResolved(it.id, true)}
-                            disabled={busyId === it.id}
-                            className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs"
-                            title="Tandai resolved manual (tanpa buat artikel)"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5 text-goto-green" />
-                          </button>
-                        ) : (
+
+                        {/* Aksi untuk Resolved */}
+                        {it.resolved && !it.markedDeleted && (
                           <button
                             onClick={() => markResolved(it.id, false)}
                             disabled={busyId === it.id}
@@ -361,11 +469,25 @@ export default function GhostUrlsPage() {
                             <RotateCcw className="h-3.5 w-3.5" />
                           </button>
                         )}
+
+                        {/* Aksi untuk Deleted — bisa cabut tanda */}
+                        {it.markedDeleted && (
+                          <button
+                            onClick={() => undoDelete(it)}
+                            disabled={busyId === it.id}
+                            className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs"
+                            title="Cabut tanda deleted (URL akan aktif lagi untuk di-log)"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Batalkan
+                          </button>
+                        )}
+
                         <button
                           onClick={() => deleteItem(it)}
                           disabled={busyId === it.id}
                           className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs text-red-600"
-                          title="Hapus entry log"
+                          title="Hapus entry log dari panel (URL tetap 404 / status sebelumnya tidak berubah di Google)"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

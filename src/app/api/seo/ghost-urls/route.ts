@@ -19,8 +19,15 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
 
     const where: Record<string, unknown> = {};
-    if (status === "open") where.resolved = false;
-    else if (status === "resolved") where.resolved = true;
+    if (status === "open") {
+      where.resolved = false;
+      where.markedDeleted = false;
+    } else if (status === "resolved") {
+      where.resolved = true;
+      where.markedDeleted = false;
+    } else if (status === "deleted") {
+      where.markedDeleted = true;
+    }
     if (q) {
       where.OR = [
         { slug: { contains: q, mode: "insensitive" } },
@@ -32,13 +39,14 @@ export async function GET(request: NextRequest) {
     if (sort === "recent") orderBy = { lastHitAt: "desc" };
     else if (sort === "first") orderBy = { firstHitAt: "desc" };
 
-    const [items, openCount, resolvedCount, googleCount, totalHits] = await Promise.all([
+    const [items, openCount, resolvedCount, deletedCount, googleCount, totalHits] = await Promise.all([
       prisma.ghostUrl.findMany({ where, orderBy, take: limit }),
-      prisma.ghostUrl.count({ where: { resolved: false } }),
-      prisma.ghostUrl.count({ where: { resolved: true } }),
-      prisma.ghostUrl.count({ where: { resolved: false, fromGoogle: true } }),
+      prisma.ghostUrl.count({ where: { resolved: false, markedDeleted: false } }),
+      prisma.ghostUrl.count({ where: { resolved: true, markedDeleted: false } }),
+      prisma.ghostUrl.count({ where: { markedDeleted: true } }),
+      prisma.ghostUrl.count({ where: { resolved: false, markedDeleted: false, fromGoogle: true } }),
       prisma.ghostUrl.aggregate({
-        where: { resolved: false },
+        where: { resolved: false, markedDeleted: false },
         _sum: { hitCount: true },
       }),
     ]);
@@ -75,6 +83,7 @@ export async function GET(request: NextRequest) {
       stats: {
         open: openCount,
         resolved: resolvedCount,
+        deleted: deletedCount,
         googleReferred: googleCount,
         totalHits: totalHits._sum.hitCount || 0,
       },

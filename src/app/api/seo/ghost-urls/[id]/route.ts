@@ -29,6 +29,14 @@ export async function PATCH(
       data.resolvedBy = null;
       data.resolvedArticleId = null;
     }
+    // Cabut tanda deleted (kalau salah klik)
+    if (body.markedDeleted === false) {
+      data.markedDeleted = false;
+      data.deletedAt = null;
+      data.deletedBy = null;
+      data.googleRemoveStatus = null;
+      data.googleRemoveAt = null;
+    }
 
     const updated = await prisma.ghostUrl.update({
       where: { id: params.id },

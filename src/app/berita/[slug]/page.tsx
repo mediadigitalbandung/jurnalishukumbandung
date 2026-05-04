@@ -249,6 +249,13 @@ function splitContentIntoPages(html: string): string[] {
 async function logGhostUrl(slug: string) {
   try {
     if (!slug || slug.length > 200) return;
+    // Kalau slug sudah ditandai deleted, jangan increment hit (entry sudah closed)
+    const existing = await prisma.ghostUrl.findUnique({
+      where: { slug },
+      select: { id: true, markedDeleted: true },
+    });
+    if (existing?.markedDeleted) return;
+
     const { headers } = await import("next/headers");
     const h = headers();
     const referer = (h.get("referer") || "").slice(0, 500) || null;

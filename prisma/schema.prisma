@@ -323,11 +323,18 @@ model GhostUrl {
   resolvedAt        DateTime?
   resolvedBy        String? // userId
   resolvedArticleId String? // article yang dibuat untuk klaim slug ini
+  // Deletion flow — admin minta Google hapus URL ini dari index permanen
+  markedDeleted     Boolean   @default(false)
+  deletedAt         DateTime?
+  deletedBy         String? // userId
+  googleRemoveStatus String? // "submitted" | "failed" | null
+  googleRemoveAt    DateTime?
   notes             String?   @db.Text
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @default(now()) @updatedAt
 
   @@index([resolved])
+  @@index([markedDeleted])
   @@index([lastHitAt])
   @@index([hitCount])
   @@map("ghost_urls")
