@@ -246,9 +246,42 @@ function splitContentIntoPages(html: string): string[] {
   return pages.length > 0 ? pages : [html];
 }
 
+async function logGhostUrl(slug: string) {
+  try {
+    if (!slug || slug.length > 200) return;
+    const { headers } = await import("next/headers");
+    const h = headers();
+    const referer = (h.get("referer") || "").slice(0, 500) || null;
+    const userAgent = (h.get("user-agent") || "").slice(0, 500) || null;
+    const fromGoogle = referer ? /google\.[a-z.]+/i.test(referer) : false;
+    await prisma.ghostUrl.upsert({
+      where: { slug },
+      update: {
+        hitCount: { increment: 1 },
+        lastHitAt: new Date(),
+        lastReferer: referer,
+        lastUserAgent: userAgent,
+        fromGoogle: fromGoogle ? true : undefined,
+      },
+      create: {
+        slug,
+        path: `/berita/${slug}`,
+        lastReferer: referer,
+        lastUserAgent: userAgent,
+        fromGoogle,
+      },
+    });
+  } catch {
+    // never break the 404 response
+  }
+}
+
 export default async function ArticlePage({ params, searchParams }: { params: { slug: string }; searchParams: { page?: string } }) {
   const article = await getArticle(params.slug);
-  if (!article) notFound();
+  if (!article) {
+    await logGhostUrl(params.slug);
+    notFound();
+  }
 
   // Non-published articles are private — only visible to author/editors/admins
   const isPublished = article.status === "PUBLISHED";

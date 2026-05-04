@@ -35,6 +35,7 @@ import {
   Hash,
   BookOpen,
   Video,
+  Ghost,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,7 @@ const menuItems: MenuItem[] = [
   { name: "Tags Manager", href: "/panel/tags", icon: Hash, adminOnly: true },
   { name: "Statistik Website", href: "/panel/statistik", icon: BarChart3, superAdminOnly: true },
   { name: "SEO Monitor", href: "/panel/seo", icon: Globe, superAdminOnly: true },
+  { name: "Ghost URLs (404)", href: "/panel/seo/ghost-urls", icon: Ghost, superAdminOnly: true },
   { name: "Sorotan SEO", href: "/panel/sorotan", icon: Sparkles, superAdminOnly: true },
   { name: "Auto-Artikel", href: "/panel/auto-artikel", icon: Bot, superAdminOnly: true },
   { name: "Social Media", href: "/panel/social", icon: Share2, superAdminOnly: true },

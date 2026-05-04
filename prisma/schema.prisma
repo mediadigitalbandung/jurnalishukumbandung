@@ -306,6 +306,33 @@ model Sorotan {
   @@map("sorotan")
 }
 
+// GhostUrl = URL artikel yang pernah ada / sudah terindex Google tapi sekarang 404
+// Di-log otomatis saat hit /berita/[slug] yang artikelnya tidak ditemukan,
+// supaya admin bisa "klaim ulang" slug tsb dengan artikel baru — preserve SEO juice.
+model GhostUrl {
+  id                String    @id @default(cuid())
+  slug              String    @unique // slug yang ke-404
+  path              String // full path, e.g. "/berita/foo-bar-xyz"
+  hitCount          Int       @default(1)
+  firstHitAt        DateTime  @default(now())
+  lastHitAt         DateTime  @default(now())
+  lastReferer       String?   @db.Text
+  lastUserAgent     String?   @db.Text
+  fromGoogle        Boolean   @default(false) // referer dari google.*
+  resolved          Boolean   @default(false)
+  resolvedAt        DateTime?
+  resolvedBy        String? // userId
+  resolvedArticleId String? // article yang dibuat untuk klaim slug ini
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  @@index([resolved])
+  @@index([lastHitAt])
+  @@index([hitCount])
+  @@map("ghost_urls")
+}
+
 model Category {
   id          String    @id @default(cuid())
   name        String    @unique

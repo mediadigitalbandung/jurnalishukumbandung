@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { useToast } from "@/components/ui/Toast";
@@ -44,6 +44,8 @@ import { CAN_SUBMIT_REVIEW, EDITOR_ROLES, roleLabelsMap } from "@/lib/roles";
 
 export default function NewArticlePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reclaimSlug = (searchParams?.get("reclaimSlug") || "").trim();
   const { data: session } = useSession();
   const { success, error: showError } = useToast();
   const { confirm } = useConfirm();
@@ -331,6 +333,7 @@ export default function NewArticlePage() {
             ? coAuthorIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(", ")
             : undefined,
           scheduledAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined,
+          customSlug: reclaimSlug || undefined,
         }),
       });
 
@@ -463,10 +466,31 @@ export default function NewArticlePage() {
 
   return (
     <div className="mx-auto max-w-5xl">
+      {reclaimSlug && (
+        <div className="mb-4 rounded-[12px] border-2 border-yellow-300 bg-yellow-50 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-700 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-yellow-900">
+                Mode Klaim Slug — Ghost URL
+              </div>
+              <div className="text-sm text-yellow-800 mt-1">
+                Artikel ini akan dipublikasikan dengan slug terkunci agar URL yang sudah terindex Google tetap berfungsi:
+              </div>
+              <div className="mt-2 font-mono text-xs bg-white/70 border border-yellow-200 rounded px-3 py-2 break-all">
+                /berita/<span className="font-bold text-yellow-900">{reclaimSlug}</span>
+              </div>
+              <div className="text-xs text-yellow-700 mt-2">
+                Judul boleh berbeda dari slug — judul baru tidak akan mengubah URL.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg sm:text-2xl font-bold text-txt-primary">
-            Tulis Artikel Baru
+            {reclaimSlug ? "Klaim Ulang URL" : "Tulis Artikel Baru"}
           </h1>
           <p className="text-sm text-txt-secondary">
             Pastikan mengikuti standar jurnalistik

@@ -37,6 +37,14 @@ const createArticleSchema = z.object({
     )
     .optional(),
   scheduledAt: z.string().datetime().optional().nullable(),
+  // Custom slug — dipakai untuk reclaim ghost URL (indexed-but-404).
+  // Hanya admin yang boleh men-set slug manual.
+  customSlug: z
+    .string()
+    .min(3)
+    .max(200)
+    .regex(/^[a-z0-9-]+$/, "Slug hanya boleh huruf kecil, angka, dan tanda hubung")
+    .optional(),
 });
 
 // GET /api/articles — list articles (public)
@@ -152,11 +160,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createArticleSchema.parse(body);
 
-    // Generate slug
-    let slug = slugify(data.title);
-    const existingSlug = await prisma.article.findUnique({ where: { slug } });
-    if (existingSlug) {
-      slug = `${slug}-${Date.now().toString(36)}`;
+    // Generate or claim slug
+    let slug: string;
+    let claimedGhostUrl: { id: string } | null = null;
+    if (data.customSlug) {
+      // Reclaim flow — only admin can set custom slug (preserves indexed URL)
+      if (!canApproveArticles(session.user.role)) {
+        throw new ApiError("Hanya admin yang boleh menentukan slug manual", 403);
+      }
+      const exists = await prisma.article.findUnique({ where: { slug: data.customSlug } });
+      if (exists) {
+        throw new ApiError(`Slug "${data.customSlug}" sudah dipakai artikel lain`, 409);
+      }
+      slug = data.customSlug;
+      // Cek apakah slug ini ada di GhostUrl (artinya memang reclaim)
+      claimedGhostUrl = await prisma.ghostUrl.findUnique({
+        where: { slug },
+        select: { id: true },
+      });
+    } else {
+      slug = slugify(data.title);
+      const existingSlug = await prisma.article.findUnique({ where: { slug } });
+      if (existingSlug) {
+        slug = `${slug}-${Date.now().toString(36)}`;
+      }
     }
 
     // Jurnalis/Senior Journalist: DRAFT or IN_REVIEW only
@@ -254,8 +281,21 @@ export async function POST(request: NextRequest) {
       "CREATE",
       "article",
       article.id,
-      `Membuat artikel: ${article.title} [status: ${finalStatus}]${assignedReviewerId ? ` [editor: ${assignedReviewerId}]` : ""}`
+      `Membuat artikel: ${article.title} [status: ${finalStatus}]${assignedReviewerId ? ` [editor: ${assignedReviewerId}]` : ""}${claimedGhostUrl ? ` [reclaimed ghost slug]` : ""}`
     );
+
+    // Tandai ghost URL sebagai resolved jika ini adalah reclaim
+    if (claimedGhostUrl) {
+      await prisma.ghostUrl.update({
+        where: { id: claimedGhostUrl.id },
+        data: {
+          resolved: true,
+          resolvedAt: new Date(),
+          resolvedBy: session.user.id,
+          resolvedArticleId: article.id,
+        },
+      }).catch(() => null);
+    }
 
     return successResponse(article, 201);
   } catch (error) {
