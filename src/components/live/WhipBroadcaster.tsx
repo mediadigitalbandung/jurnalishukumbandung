@@ -525,19 +525,50 @@ export default function WhipBroadcaster({
                   <li>
                     Klik ikon <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-200 rounded mx-1"><Lock className="h-3 w-3" /></span> (gembok / info) di kiri address bar
                   </li>
-                  <li>Cari <strong>"Camera"</strong> & <strong>"Microphone"</strong></li>
-                  <li>Pilih <strong>"Allow"</strong> untuk keduanya</li>
+                  <li>Klik <strong>"Site settings"</strong> (Pengaturan situs)</li>
+                  <li>Cari <strong>"Camera"</strong> & <strong>"Microphone"</strong> — ubah dari "Ask" ke <strong>"Allow"</strong></li>
                   <li>Reload halaman ini, lalu klik <strong>"Coba Lagi"</strong> di bawah</li>
                 </ol>
-                <div className="mt-3 pt-3 border-t border-orange-100 text-xs text-txt-secondary">
-                  💡 Atau buka langsung:{" "}
-                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
-                    chrome://settings/content/camera
-                  </code>{" "}
-                  &{" "}
-                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
-                    chrome://settings/content/microphone
-                  </code>
+                <div className="mt-3 pt-3 border-t border-orange-100 text-xs text-txt-secondary space-y-1">
+                  <div>
+                    💡 Tip: kalau prompt camera ga muncul lagi, coba <strong>tab Incognito</strong> (Ctrl+Shift+N) — fresh permission state.
+                  </div>
+                  <div>
+                    🔧 Direct link:{" "}
+                    <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                      chrome://settings/content/camera
+                    </code>
+                  </div>
+                </div>
+              </div>
+
+              {/* WINDOWS OS-level warning — sering kelewat */}
+              <div className="bg-yellow-50 rounded-lg p-4 border-2 border-yellow-300">
+                <div className="font-semibold text-sm text-yellow-900 mb-2 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-700" />
+                  Windows 10/11: cek juga privacy setting OS-level
+                </div>
+                <p className="text-xs text-yellow-800 mb-2">
+                  Sering kejadian: setting browser sudah Allow tapi <strong>Windows nge-block kamera/mic level OS</strong>. Chrome ga bisa override ini.
+                </p>
+                <ol className="text-sm text-txt-primary space-y-1.5 list-decimal list-inside ml-2">
+                  <li>
+                    Tekan <kbd className="bg-gray-200 px-1.5 py-0.5 rounded text-xs font-mono">Windows</kbd> → ketik <strong>"camera privacy"</strong> → enter
+                  </li>
+                  <li>
+                    Pastikan <strong>"Camera access"</strong> = <span className="text-green-700 font-bold">ON</span>
+                  </li>
+                  <li>
+                    <strong>"Let apps access your camera"</strong> = <span className="text-green-700 font-bold">ON</span>
+                  </li>
+                  <li>
+                    <strong>"Let desktop apps access your camera"</strong> = <span className="text-green-700 font-bold">ON</span>
+                  </li>
+                  <li>Ulangi untuk <strong>"microphone privacy"</strong></li>
+                  <li>Restart Chrome (tutup semua window, buka lagi)</li>
+                </ol>
+                <div className="mt-2 pt-2 border-t border-yellow-200 text-xs text-yellow-800">
+                  📍 macOS: System Settings → Privacy & Security → Camera/Microphone → toggle Chrome ON
                 </div>
               </div>
             </div>
