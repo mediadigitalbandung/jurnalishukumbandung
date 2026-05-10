@@ -57,13 +57,15 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* Push notification opt-in */}
-            <div className="mt-5">
-              <p className="mb-2 text-xs font-semibold text-white/70">
-                Dapatkan notifikasi breaking news
-              </p>
-              <NotificationBell />
-            </div>
+            {/* Push notification opt-in (whole block hides if denied/unsupported) */}
+            <NotificationBell
+              wrapperClassName="mt-5"
+              heading={
+                <p className="mb-2 text-xs font-semibold text-white/70">
+                  Dapatkan notifikasi breaking news
+                </p>
+              }
+            />
 
             {/* Verifikasi Dewan Pers */}
             <div className="mt-5 flex items-center gap-4">

@@ -90,7 +90,12 @@ export default function InstallPrompt() {
     <div
       role="banner"
       aria-label="Prompt pasang aplikasi Jurnalis Hukum Bandung"
-      className="fixed bottom-4 left-4 right-4 z-[150] sm:left-auto sm:right-6 sm:w-80"
+      // Mobile: anchor to bottom but with safe-area, max-w to prevent edge-to-edge feel
+      // Desktop: bottom-right corner, smaller width
+      className="fixed bottom-3 left-3 right-3 z-[60] mx-auto max-w-md sm:left-auto sm:right-5 sm:bottom-5 sm:w-80 sm:max-w-none"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
     >
       <div className="card flex items-start gap-3 border border-border bg-surface p-4 shadow-card-hover">
         <Image

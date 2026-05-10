@@ -69,3 +69,4 @@ playwright-report/
 test-results/
 tests/perf/reports/
 .env.test
+scripts/audit-screenshots/

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff, BellRing } from "lucide-react";
+import { Bell, BellRing } from "lucide-react";
 import {
   pushSupported,
   notificationPermission,
@@ -17,9 +17,13 @@ interface Props {
   className?: string;
   /** Show label text next to icon (default true) */
   showLabel?: boolean;
+  /** Optional heading rendered above the button when bell is visible (hidden if bell hides) */
+  heading?: React.ReactNode;
+  /** Outer wrapper className */
+  wrapperClassName?: string;
 }
 
-export default function NotificationBell({ className = "", showLabel = true }: Props) {
+export default function NotificationBell({ className = "", showLabel = true, heading, wrapperClassName = "" }: Props) {
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
 
@@ -61,45 +65,41 @@ export default function NotificationBell({ className = "", showLabel = true }: P
 
   if (state === "loading" || state === "unsupported") return null;
 
-  if (state === "denied") {
-    return (
-      <button
-        type="button"
-        disabled
-        className={`inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-txt-muted ${className}`}
-        title="Izin notifikasi diblokir di browser. Buka pengaturan situs untuk mengaktifkan."
-      >
-        <BellOff className="h-4 w-4" />
-        {showLabel && <span>Notifikasi diblokir</span>}
-      </button>
-    );
-  }
+  // When permission is denied, don't show a noisy disabled pill — hide the bell entirely.
+  // User can re-enable from browser site settings; no need to clutter the footer.
+  if (state === "denied") return null;
 
   if (state === "subscribed") {
     return (
-      <button
-        type="button"
-        onClick={handleUnsubscribe}
-        disabled={busy}
-        className={`inline-flex items-center gap-2 rounded-full bg-goto-light px-3 py-1.5 text-xs font-semibold text-goto-dark transition hover:bg-goto-green hover:text-white disabled:opacity-50 ${className}`}
-        title="Klik untuk berhenti berlangganan notifikasi"
-      >
-        <BellRing className="h-4 w-4" />
-        {showLabel && <span>Notifikasi aktif</span>}
-      </button>
+      <div className={wrapperClassName}>
+        {heading}
+        <button
+          type="button"
+          onClick={handleUnsubscribe}
+          disabled={busy}
+          className={`inline-flex items-center gap-2 rounded-full bg-goto-light px-3 py-1.5 text-xs font-semibold text-goto-dark transition hover:bg-goto-green hover:text-white disabled:opacity-50 ${className}`}
+          title="Klik untuk berhenti berlangganan notifikasi"
+        >
+          <BellRing className="h-4 w-4" />
+          {showLabel && <span>Notifikasi aktif</span>}
+        </button>
+      </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleSubscribe}
-      disabled={busy}
-      className={`inline-flex items-center gap-2 rounded-full border border-goto-green bg-white px-3 py-1.5 text-xs font-semibold text-goto-green transition hover:bg-goto-green hover:text-white disabled:opacity-50 ${className}`}
-      title="Aktifkan notifikasi breaking news"
-    >
-      <Bell className="h-4 w-4" />
-      {showLabel && <span>{busy ? "Memproses..." : "Aktifkan Notifikasi"}</span>}
-    </button>
+    <div className={wrapperClassName}>
+      {heading}
+      <button
+        type="button"
+        onClick={handleSubscribe}
+        disabled={busy}
+        className={`inline-flex items-center gap-2 rounded-full border border-goto-green bg-white px-3 py-1.5 text-xs font-semibold text-goto-green transition hover:bg-goto-green hover:text-white disabled:opacity-50 ${className}`}
+        title="Aktifkan notifikasi breaking news"
+      >
+        <Bell className="h-4 w-4" />
+        {showLabel && <span>{busy ? "Memproses..." : "Aktifkan Notifikasi"}</span>}
+      </button>
+    </div>
   );
 }

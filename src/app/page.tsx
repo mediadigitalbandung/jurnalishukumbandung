@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"; // always query DB — ISR unusable with
 import Link from "next/link";
 import Image from "next/image";
 import ArticleCard from "@/components/artikel/ArticleCard";
+import NoImagePlaceholder from "@/components/artikel/NoImagePlaceholder";
 import NewsTicker from "@/components/layout/NewsTicker";
 import HeadlineSlider from "@/components/slider/HeadlineSlider";
 import BreakingSlider from "@/components/slider/BreakingSlider";
@@ -697,28 +698,42 @@ export default async function HomePage() {
                 {featured && (
                   <div className="lg:col-span-1">
                     <Link href={`/berita/${featured.slug}`} className="group block">
-                      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-dark">
-                        {featured.featuredImage ? (
+                      {featured.featuredImage ? (
+                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-secondary">
                           <Image
                             src={featured.featuredImage}
                             alt={featured.title}
                             fill
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
                           />
-                        ) : (
-                          <div className="h-full w-full bg-surface-tertiary" />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <h3 className="font-serif text-base font-bold leading-snug text-white line-clamp-2">
-                            {featured.title}
-                          </h3>
-                          <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/50">
-                            <span className="text-goto-green font-semibold">{featured.author.name}</span>
-                            <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-4">
+                            <h3 className="font-serif text-base font-bold leading-snug text-white line-clamp-2">
+                              {featured.title}
+                            </h3>
+                            <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/50">
+                              <span className="text-goto-green font-semibold">{featured.author.name}</span>
+                              <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        // No image — use light placeholder card with text below
+                        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+                          <div className="relative aspect-[4/3] w-full">
+                            <NoImagePlaceholder category={categoryName} />
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-serif text-base font-bold leading-snug text-txt-primary line-clamp-3 group-hover:text-goto-green transition-colors">
+                              {featured.title}
+                            </h3>
+                            <div className="mt-1.5 flex items-center gap-2 text-[11px] text-txt-muted">
+                              <span className="text-goto-green font-semibold">{featured.author.name}</span>
+                              <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </Link>
                   </div>
                 )}
