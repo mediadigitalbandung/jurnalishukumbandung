@@ -8,6 +8,7 @@ import PublicNav from "@/components/layout/PublicNav";
 import PublicFooter from "@/components/layout/PublicFooter";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
+import IosSplashScreens from "@/components/pwa/IosSplashScreens";
 import ZoomCompensator from "@/components/layout/ZoomCompensator";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 
@@ -183,6 +184,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Preload critical brand asset for instant header render */}
         <link rel="preload" as="image" href="/logo-jhb.webp" type="image/webp" fetchPriority="high" />
+        {/* iOS PWA splash screens — Add to Home Screen */}
+        <IosSplashScreens />
       </head>
       <body className="flex min-h-screen flex-col font-sans bg-surface text-txt-primary">
         <script

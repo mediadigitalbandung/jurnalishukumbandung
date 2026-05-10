@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ShieldCheck, Mail, MapPin, Scale } from "lucide-react";
+import NotificationBell from "@/components/pwa/NotificationBell";
 
 const footerLinks = {
   tentang: [
@@ -54,6 +55,14 @@ export default function Footer() {
                 <MapPin size={12} />
                 Bandung, Jawa Barat, Indonesia
               </div>
+            </div>
+
+            {/* Push notification opt-in */}
+            <div className="mt-5">
+              <p className="mb-2 text-xs font-semibold text-white/70">
+                Dapatkan notifikasi breaking news
+              </p>
+              <NotificationBell />
             </div>
 
             {/* Verifikasi Dewan Pers */}

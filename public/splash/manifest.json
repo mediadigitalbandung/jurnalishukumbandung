@@ -1,0 +1,212 @@
+[
+  {
+    "width": 640,
+    "height": 1136,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-640-1136.png",
+    "media": "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 1136,
+    "height": 640,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-1136-640.png",
+    "media": "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 750,
+    "height": 1334,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-750-1334.png",
+    "media": "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 1334,
+    "height": 750,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-1334-750.png",
+    "media": "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 828,
+    "height": 1792,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-828-1792.png",
+    "media": "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 1792,
+    "height": 828,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-1792-828.png",
+    "media": "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 1125,
+    "height": 2436,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1125-2436.png",
+    "media": "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2436,
+    "height": 1125,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2436-1125.png",
+    "media": "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1170,
+    "height": 2532,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1170-2532.png",
+    "media": "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2532,
+    "height": 1170,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2532-1170.png",
+    "media": "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1179,
+    "height": 2556,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1179-2556.png",
+    "media": "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2556,
+    "height": 1179,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2556-1179.png",
+    "media": "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1242,
+    "height": 2208,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1242-2208.png",
+    "media": "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2208,
+    "height": 1242,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2208-1242.png",
+    "media": "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1242,
+    "height": 2688,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1242-2688.png",
+    "media": "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2688,
+    "height": 1242,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2688-1242.png",
+    "media": "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1284,
+    "height": 2778,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1284-2778.png",
+    "media": "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2778,
+    "height": 1284,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2778-1284.png",
+    "media": "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1290,
+    "height": 2796,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1290-2796.png",
+    "media": "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+  },
+  {
+    "width": 2796,
+    "height": 1290,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2796-1290.png",
+    "media": "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+  },
+  {
+    "width": 1536,
+    "height": 2048,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1536-2048.png",
+    "media": "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 2048,
+    "height": 1536,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2048-1536.png",
+    "media": "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 1620,
+    "height": 2160,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1620-2160.png",
+    "media": "(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 2160,
+    "height": 1620,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2160-1620.png",
+    "media": "(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 1668,
+    "height": 2224,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1668-2224.png",
+    "media": "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 2224,
+    "height": 1668,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2224-1668.png",
+    "media": "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 1668,
+    "height": 2388,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-1668-2388.png",
+    "media": "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 2388,
+    "height": 1668,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2388-1668.png",
+    "media": "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  },
+  {
+    "width": 2048,
+    "height": 2732,
+    "orientation": "portrait",
+    "href": "/splash/apple-splash-2048-2732.png",
+    "media": "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+  },
+  {
+    "width": 2732,
+    "height": 2048,
+    "orientation": "landscape",
+    "href": "/splash/apple-splash-2732-2048.png",
+    "media": "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+  }
+]

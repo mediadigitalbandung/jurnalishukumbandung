@@ -1,7 +1,7 @@
 // JHB Service Worker — production PWA
 // Strategy: cache-first static, cache-first images (LRU), network-first HTML
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE  = 'jhb-static-' + CACHE_VERSION;
 const IMAGE_CACHE   = 'jhb-images-' + CACHE_VERSION;
 const PAGE_CACHE    = 'jhb-pages-'  + CACHE_VERSION;
@@ -184,4 +184,86 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// ── Push event — show notification ───────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'Jurnalis Hukum Bandung', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = data.title || 'Jurnalis Hukum Bandung';
+  const options = {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    image: data.imageUrl || undefined,
+    data: { url: data.url || '/' },
+    tag: data.tag || 'jhb-news',
+    renotify: true,
+    requireInteraction: !!data.requireInteraction,
+    vibrate: [200, 100, 200],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ── Notification click — focus existing tab or open new ──────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+
+      // Reuse existing tab from same origin if already open
+      for (const client of allClients) {
+        try {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.origin === self.location.origin && 'focus' in client) {
+            await client.focus();
+            if ('navigate' in client) {
+              await client.navigate(targetUrl).catch(() => {});
+            }
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // Otherwise open new window
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })(),
+  );
+});
+
+// ── Subscription change — re-subscribe (browser may rotate keys) ─────────────
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const newSub = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: event.oldSubscription?.options?.applicationServerKey,
+        });
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newSub.toJSON()),
+        });
+      } catch {
+        /* silently fail — user can re-enable manually */
+      }
+    })(),
+  );
 });

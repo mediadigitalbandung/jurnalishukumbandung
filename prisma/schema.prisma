@@ -1061,3 +1061,47 @@ model LoadTestRun {
   @@index([startedAt])
   @@map("load_test_runs")
 }
+
+// Web Push subscription — opt-in browser/PWA push registrations
+model PushSubscription {
+  id            String    @id @default(cuid())
+  endpoint      String    @unique @db.Text
+  p256dh        String    @db.Text
+  auth          String    @db.Text
+
+  // Optional metadata
+  userId        String?   // null for anonymous subscribers
+  userAgent     String?   @db.Text
+  topics        String[]  @default([]) // future-proof: e.g. ["breaking","sidang","case-12345"]
+
+  // Tracking
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  failedCount   Int       @default(0)  // consecutive send failures (gone after 410 → delete)
+  lastError     String?   @db.Text
+
+  @@index([userId])
+  @@index([failedCount])
+  @@map("push_subscriptions")
+}
+
+// Web Push broadcast log — audit trail for admin sends
+model PushBroadcast {
+  id            String    @id @default(cuid())
+  title         String
+  body          String    @db.Text
+  url           String?
+  imageUrl      String?
+  topic         String?   // null = broadcast to all subscribers
+
+  sentBy        String    // userId of admin who triggered
+  totalSent     Int       @default(0)
+  totalFailed   Int       @default(0)
+  totalGone     Int       @default(0)  // 410 responses → subscriptions deleted
+
+  createdAt     DateTime  @default(now())
+
+  @@index([sentBy])
+  @@index([createdAt])
+  @@map("push_broadcasts")
+}
