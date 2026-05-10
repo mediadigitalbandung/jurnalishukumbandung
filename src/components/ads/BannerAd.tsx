@@ -93,6 +93,18 @@ function handleClick(ad: Ad) {
   fetch(`/api/ads/${ad.id}/track?type=click`, { method: "POST" }).catch(() => {});
 }
 
+// Responsive overrides untuk konten iklan (HTML ad sering punya inline width fixed
+// 1200px / table layout / iframe ukuran tetap — kalau ga di-override bakal kepotong/
+// overflow di mobile). `!` important biar menang lawan inline style dari kode iklan.
+const RESPONSIVE_AD_CSS =
+  "w-full max-w-full overflow-hidden text-center break-words " +
+  "[&_*]:!max-w-full " +
+  "[&_img]:!max-w-full [&_img]:!h-auto [&_img]:!w-auto [&_img]:!inline-block [&_img]:mx-auto " +
+  "[&_iframe]:!max-w-full [&_iframe]:!w-full " +
+  "[&_video]:!max-w-full [&_video]:!h-auto " +
+  "[&_table]:!w-full [&_table]:!table-fixed " +
+  "[&_div]:!max-w-full [&_a]:!max-w-full [&_a]:!inline-block";
+
 function AdContent({ ad }: { ad: Ad }) {
   const safeHtml = useMemo(
     () => (ad.type === "HTML" && ad.htmlCode ? sanitizeAdHtml(ad.htmlCode) : ""),
@@ -100,14 +112,14 @@ function AdContent({ ad }: { ad: Ad }) {
   );
   const content =
     ad.type === "HTML" && safeHtml ? (
-      <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
+      <div className={RESPONSIVE_AD_CSS} dangerouslySetInnerHTML={{ __html: safeHtml }} />
     ) : ad.imageUrl ? (
       <Image
         src={ad.imageUrl}
         alt="Iklan"
         width={1200}
         height={300}
-        className="w-full h-auto block"
+        className="w-full max-w-full h-auto block"
         loading="lazy"
         sizes="(max-width: 768px) 100vw, 1200px"
         unoptimized
@@ -123,7 +135,7 @@ function AdContent({ ad }: { ad: Ad }) {
         target="_blank"
         rel="noopener noreferrer sponsored"
         onClick={() => handleClick(ad)}
-        className="block"
+        className="block w-full max-w-full overflow-hidden"
       >
         {content}
       </a>
@@ -145,14 +157,14 @@ export default function BannerAd({ size, slot, className = "", noWrapper }: Bann
   // tetap render rectangle sesuai design system.
   if (noWrapper) {
     return (
-      <div ref={containerRef} className="min-h-[1px] [&_*]:!rounded-none">
+      <div ref={containerRef} className="min-h-[1px] w-full max-w-full overflow-hidden [&_*]:!rounded-none">
         {ad ? <AdContent ad={ad} /> : null}
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className={`${className} [&_*]:!rounded-none`}>
+    <div ref={containerRef} className={`${className} w-full max-w-full overflow-hidden [&_*]:!rounded-none`}>
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         {ad ? <AdContent ad={ad} /> : null}
       </div>
@@ -175,14 +187,17 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
 
   const content =
     ad.type === "HTML" && safeHtml ? (
-      <div dangerouslySetInnerHTML={{ __html: safeHtml }} className="w-full h-full" />
+      <div
+        dangerouslySetInnerHTML={{ __html: safeHtml }}
+        className={`w-full h-auto ${RESPONSIVE_AD_CSS}`}
+      />
     ) : ad.imageUrl ? (
       <Image
         src={ad.imageUrl}
         alt="Iklan"
         width={300}
         height={600}
-        className="w-full h-full object-contain object-top block rounded-lg"
+        className="w-full h-auto max-w-full object-contain object-top block rounded-lg"
         loading="lazy"
         sizes="300px"
         unoptimized
@@ -191,7 +206,7 @@ export function SidebarAd({ slot = "SIDEBAR" }: { slot?: string }) {
 
   if (!content) return <div ref={containerRef as React.RefObject<HTMLDivElement>} className="block w-full min-h-[1px]" aria-hidden="true" />;
 
-  const wrapperClass = "block w-full h-full rounded-lg overflow-hidden bg-[#0f1210]";
+  const wrapperClass = "block w-full max-w-full h-auto rounded-lg overflow-hidden bg-[#0f1210]";
 
   if (ad.targetUrl) {
     return (
