@@ -14,9 +14,58 @@ import {
   Wifi,
   WifiOff,
   Monitor,
+  Lock,
+  RefreshCw,
+  ShieldAlert,
+  Info,
 } from "lucide-react";
 
 type Status = "idle" | "preview" | "connecting" | "live" | "stopping" | "error";
+
+type ErrorKind =
+  | "permission_denied" // user blocked camera/mic
+  | "no_device" // no camera/mic found
+  | "device_in_use" // camera in use by another app
+  | "constraints_unsupported" // requested resolution/etc not supported
+  | "insecure_context" // not HTTPS
+  | "no_api" // browser tidak support getUserMedia
+  | "unknown";
+
+type DetectedBrowser = "chrome" | "edge" | "firefox" | "safari" | "other";
+
+function detectBrowser(): DetectedBrowser {
+  if (typeof navigator === "undefined") return "other";
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("edg/")) return "edge";
+  if (ua.includes("firefox/")) return "firefox";
+  if (ua.includes("chrome/")) return "chrome";
+  if (ua.includes("safari/") && !ua.includes("chrome/")) return "safari";
+  return "other";
+}
+
+function classifyMediaError(e: unknown): ErrorKind {
+  if (typeof window !== "undefined" && !window.isSecureContext) return "insecure_context";
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return "no_api";
+  if (!(e instanceof Error)) return "unknown";
+  const name = (e as DOMException).name || "";
+  switch (name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError": // legacy
+    case "SecurityError":
+      return "permission_denied";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "no_device";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "device_in_use";
+    case "OverconstrainedError":
+    case "ConstraintNotSatisfiedError":
+      return "constraints_unsupported";
+    default:
+      return "unknown";
+  }
+}
 
 interface Props {
   whipUrl: string;
@@ -49,6 +98,12 @@ export default function WhipBroadcaster({
 
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string>("");
+  const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
+  const [permissionState, setPermissionState] = useState<{
+    camera?: PermissionState;
+    microphone?: PermissionState;
+  }>({});
+  const [browser] = useState<DetectedBrowser>(() => detectBrowser());
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [devices, setDevices] = useState<{ cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[] }>({
@@ -63,6 +118,32 @@ export default function WhipBroadcaster({
   );
   const [duration, setDuration] = useState(0);
   const startTimeRef = useRef<number>(0);
+
+  // Proactive permission check (Permissions API — Chrome/Edge/Firefox; Safari ga support)
+  const checkPermissions = useCallback(async () => {
+    if (!navigator.permissions?.query) return;
+    try {
+      const cam = await navigator.permissions
+        .query({ name: "camera" as PermissionName })
+        .catch(() => null);
+      const mic = await navigator.permissions
+        .query({ name: "microphone" as PermissionName })
+        .catch(() => null);
+      setPermissionState({
+        camera: cam?.state,
+        microphone: mic?.state,
+      });
+      // Listen for permission state changes (user may grant later via address bar)
+      if (cam) cam.onchange = () => setPermissionState((p) => ({ ...p, camera: cam.state }));
+      if (mic) mic.onchange = () => setPermissionState((p) => ({ ...p, microphone: mic.state }));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    checkPermissions();
+  }, [checkPermissions]);
 
   // Enumerate devices
   const refreshDevices = useCallback(async () => {
@@ -81,6 +162,23 @@ export default function WhipBroadcaster({
   // Start preview (request camera/mic)
   const startPreview = useCallback(async () => {
     setError("");
+    setErrorKind(null);
+
+    // Pre-flight: secure context check
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setErrorKind("insecure_context");
+      setError("Halaman harus diakses via HTTPS untuk pakai kamera.");
+      setStatus("error");
+      return;
+    }
+    // Pre-flight: API available?
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorKind("no_api");
+      setError("Browser kamu tidak support akses kamera/mic. Update ke Chrome/Firefox/Safari versi terbaru.");
+      setStatus("error");
+      return;
+    }
+
     try {
       // Stop existing stream
       if (streamRef.current) {
@@ -108,13 +206,27 @@ export default function WhipBroadcaster({
       }
       setStatus("preview");
       await refreshDevices();
+      // Refresh permission state setelah grant
+      await checkPermissions();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Gagal akses kamera/mic";
-      setError(`Gagal akses kamera/mic: ${msg}. Pastikan izin sudah diberikan di browser.`);
+      const kind = classifyMediaError(e);
+      const rawMsg = e instanceof Error ? e.message : String(e);
+      setErrorKind(kind);
+      // Pesan singkat di header — detail di panel terpisah
+      const friendly: Record<ErrorKind, string> = {
+        permission_denied: "Akses kamera & mikrofon ditolak browser",
+        no_device: "Kamera atau mikrofon tidak ditemukan",
+        device_in_use: "Kamera/mic sedang dipakai aplikasi lain",
+        constraints_unsupported: "Kamera tidak support resolusi yang diminta",
+        insecure_context: "Halaman harus diakses via HTTPS",
+        no_api: "Browser tidak support akses kamera",
+        unknown: `Tidak bisa akses kamera/mic: ${rawMsg}`,
+      };
+      setError(friendly[kind]);
       setStatus("error");
-      onError?.(msg);
+      onError?.(rawMsg);
     }
-  }, [selectedCamera, selectedMic, refreshDevices, onError]);
+  }, [selectedCamera, selectedMic, refreshDevices, onError, checkPermissions]);
 
   // Toggle camera/mic on/off
   const toggleCamera = () => {
@@ -321,7 +433,7 @@ export default function WhipBroadcaster({
           className="w-full h-full object-contain"
         />
         {status === "idle" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white p-4 text-center">
             <button
               onClick={startPreview}
               className="flex items-center gap-2 bg-goto-green hover:bg-goto-green-dark px-6 py-3 rounded-full font-semibold"
@@ -329,6 +441,18 @@ export default function WhipBroadcaster({
               <Camera className="h-5 w-5" />
               Aktifkan Kamera & Mic
             </button>
+            {(permissionState.camera === "denied" || permissionState.microphone === "denied") && (
+              <div className="mt-3 text-xs bg-orange-500/90 text-white px-3 py-1.5 rounded-full inline-flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Akses ditolak — klik tombol di atas untuk lihat cara izinkan
+              </div>
+            )}
+            {permissionState.camera === "granted" && permissionState.microphone === "granted" && (
+              <div className="mt-3 text-xs text-green-300 inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-green-400 rounded-full" />
+                Izin sudah aktif — siap broadcast
+              </div>
+            )}
           </div>
         )}
         {status === "live" && (
@@ -355,11 +479,220 @@ export default function WhipBroadcaster({
         )}
       </div>
 
-      {/* Error */}
-      {error && (
+      {/* Error — basic banner untuk error generic */}
+      {error && errorKind !== "permission_denied" && errorKind !== "no_device" && errorKind !== "device_in_use" && (
         <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 px-4 py-3 flex items-start gap-2">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">{error}</div>
+          <div className="text-sm flex-1">{error}</div>
+          <button
+            onClick={() => {
+              setError("");
+              setErrorKind(null);
+              startPreview();
+            }}
+            className="btn-secondary !px-3 !py-1 inline-flex items-center gap-1 text-xs"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Coba Lagi
+          </button>
+        </div>
+      )}
+
+      {/* Permission denied — panel instruksi step-by-step */}
+      {errorKind === "permission_denied" && (
+        <div className="rounded-[12px] border-2 border-orange-300 bg-orange-50 p-5">
+          <div className="flex items-start gap-3 mb-3">
+            <ShieldAlert className="h-6 w-6 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-orange-900 text-base">
+                Browser memblokir akses kamera & mikrofon
+              </h3>
+              <p className="text-sm text-orange-800 mt-1">
+                Untuk broadcast live, kamu harus mengizinkan akses kamera dan mikrofon. Ikuti langkah di bawah ini sesuai browser kamu.
+              </p>
+            </div>
+          </div>
+
+          {browser === "chrome" || browser === "edge" ? (
+            <div className="space-y-3">
+              <div className="bg-white rounded-lg p-4 border border-orange-200">
+                <div className="font-semibold text-sm text-txt-primary mb-2 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-orange-600" />
+                  Cara izinkan di {browser === "edge" ? "Microsoft Edge" : "Google Chrome"}:
+                </div>
+                <ol className="text-sm text-txt-primary space-y-2 list-decimal list-inside ml-2">
+                  <li>
+                    Klik ikon <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-200 rounded mx-1"><Lock className="h-3 w-3" /></span> (gembok / info) di kiri address bar
+                  </li>
+                  <li>Cari <strong>"Camera"</strong> & <strong>"Microphone"</strong></li>
+                  <li>Pilih <strong>"Allow"</strong> untuk keduanya</li>
+                  <li>Reload halaman ini, lalu klik <strong>"Coba Lagi"</strong> di bawah</li>
+                </ol>
+                <div className="mt-3 pt-3 border-t border-orange-100 text-xs text-txt-secondary">
+                  💡 Atau buka langsung:{" "}
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                    chrome://settings/content/camera
+                  </code>{" "}
+                  &{" "}
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                    chrome://settings/content/microphone
+                  </code>
+                </div>
+              </div>
+            </div>
+          ) : browser === "firefox" ? (
+            <div className="bg-white rounded-lg p-4 border border-orange-200">
+              <div className="font-semibold text-sm text-txt-primary mb-2 flex items-center gap-2">
+                <Lock className="h-4 w-4 text-orange-600" /> Cara izinkan di Firefox:
+              </div>
+              <ol className="text-sm text-txt-primary space-y-2 list-decimal list-inside ml-2">
+                <li>Klik ikon perisai/info di kiri address bar</li>
+                <li>Klik <strong>"Connection secure"</strong> → <strong>"More information"</strong></li>
+                <li>Tab <strong>"Permissions"</strong> → cari <strong>"Use the Camera"</strong> & <strong>"Use the Microphone"</strong></li>
+                <li>Uncheck <strong>"Use Default"</strong> → pilih <strong>"Allow"</strong></li>
+                <li>Reload halaman, klik <strong>"Coba Lagi"</strong></li>
+              </ol>
+            </div>
+          ) : browser === "safari" ? (
+            <div className="bg-white rounded-lg p-4 border border-orange-200">
+              <div className="font-semibold text-sm text-txt-primary mb-2 flex items-center gap-2">
+                <Lock className="h-4 w-4 text-orange-600" /> Cara izinkan di Safari:
+              </div>
+              <ol className="text-sm text-txt-primary space-y-2 list-decimal list-inside ml-2">
+                <li>Menu bar atas: <strong>Safari → Settings (atau Preferences)</strong></li>
+                <li>Tab <strong>Websites</strong> → pilih <strong>Camera</strong> di sidebar kiri</li>
+                <li>Cari <strong>jurnalishukumbandung.com</strong> → pilih <strong>Allow</strong></li>
+                <li>Ulangi untuk <strong>Microphone</strong></li>
+                <li>Reload halaman, klik <strong>"Coba Lagi"</strong></li>
+              </ol>
+              <div className="mt-3 pt-3 border-t border-orange-100 text-xs text-txt-secondary">
+                💡 Di iPhone/iPad: <strong>Settings → Safari → Camera/Microphone → Allow</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg p-4 border border-orange-200 text-sm text-txt-primary">
+              Buka pengaturan browser kamu, cari <strong>Site Permissions / Privacy</strong>, lalu izinkan
+              akses kamera & mikrofon untuk <strong>jurnalishukumbandung.com</strong>. Setelah itu reload halaman.
+            </div>
+          )}
+
+          {/* Permission state info (kalau API support) */}
+          {(permissionState.camera || permissionState.microphone) && (
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className={`px-2 py-1 rounded-full border ${permissionState.camera === "granted" ? "bg-green-50 text-green-700 border-green-200" : permissionState.camera === "denied" ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-50 text-gray-700 border-gray-200"}`}>
+                <Camera className="h-3 w-3 inline mr-1" />
+                Camera: {permissionState.camera || "unknown"}
+              </span>
+              <span className={`px-2 py-1 rounded-full border ${permissionState.microphone === "granted" ? "bg-green-50 text-green-700 border-green-200" : permissionState.microphone === "denied" ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-50 text-gray-700 border-gray-200"}`}>
+                <Mic className="h-3 w-3 inline mr-1" />
+                Mic: {permissionState.microphone || "unknown"}
+              </span>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setError("");
+                setErrorKind(null);
+                startPreview();
+              }}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Coba Lagi
+            </button>
+            <button
+              onClick={() => {
+                checkPermissions();
+              }}
+              className="btn-secondary inline-flex items-center gap-2"
+              title="Refresh status izin"
+            >
+              <Info className="h-4 w-4" />
+              Cek Status Izin
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reload Halaman
+            </button>
+          </div>
+
+          <div className="mt-3 text-xs text-orange-700/80 italic">
+            ⚠️ Setelah mengizinkan di pengaturan browser, kamu perlu reload halaman supaya browser mengenali perubahan. Tombol "Coba Lagi" mungkin tidak cukup.
+          </div>
+        </div>
+      )}
+
+      {/* No device — kamera/mic tidak terdeteksi */}
+      {errorKind === "no_device" && (
+        <div className="rounded-[12px] border-2 border-red-300 bg-red-50 p-5">
+          <div className="flex items-start gap-3 mb-3">
+            <CameraOff className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-red-900 text-base">
+                Kamera atau mikrofon tidak terdeteksi
+              </h3>
+              <p className="text-sm text-red-800 mt-1">
+                Browser tidak menemukan kamera atau mikrofon di device kamu.
+              </p>
+            </div>
+          </div>
+          <ul className="text-sm text-txt-primary space-y-1.5 list-disc list-inside ml-2 bg-white rounded p-3 border border-red-200">
+            <li>Pastikan webcam terpasang & kabel USB tidak lepas</li>
+            <li>Pastikan mikrofon (built-in atau external) berfungsi</li>
+            <li>Coba close lalu buka ulang browser</li>
+            <li>Coba browser lain (Chrome / Firefox)</li>
+            <li>Di laptop: cek tombol fisik untuk disable webcam (kadang ada switch)</li>
+          </ul>
+          <button
+            onClick={() => {
+              setError("");
+              setErrorKind(null);
+              startPreview();
+            }}
+            className="btn-primary inline-flex items-center gap-2 mt-4"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Coba Deteksi Lagi
+          </button>
+        </div>
+      )}
+
+      {/* Device in use — kamera kepake aplikasi lain */}
+      {errorKind === "device_in_use" && (
+        <div className="rounded-[12px] border-2 border-yellow-300 bg-yellow-50 p-5">
+          <div className="flex items-start gap-3 mb-3">
+            <AlertTriangle className="h-6 w-6 text-yellow-700 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-yellow-900 text-base">
+                Kamera/mic sedang dipakai aplikasi lain
+              </h3>
+              <p className="text-sm text-yellow-800 mt-1">
+                Hanya satu aplikasi yang bisa pakai kamera dalam satu waktu.
+              </p>
+            </div>
+          </div>
+          <ul className="text-sm text-txt-primary space-y-1.5 list-disc list-inside ml-2 bg-white rounded p-3 border border-yellow-200">
+            <li>Tutup aplikasi yang mungkin pakai kamera: Zoom, Google Meet, Teams, OBS, Discord, Skype, dll</li>
+            <li>Tutup tab browser lain yang lagi pakai kamera (cek titik merah di tab)</li>
+            <li>Restart browser kalau perlu</li>
+          </ul>
+          <button
+            onClick={() => {
+              setError("");
+              setErrorKind(null);
+              startPreview();
+            }}
+            className="btn-primary inline-flex items-center gap-2 mt-4"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Coba Lagi
+          </button>
         </div>
       )}
 
