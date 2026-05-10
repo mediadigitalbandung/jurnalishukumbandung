@@ -36,6 +36,7 @@ import {
   BookOpen,
   Video,
   Ghost,
+  Radio,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { name: "Dashboard", href: "/panel/dashboard", icon: LayoutDashboard },
   { name: "Artikel", href: "/panel/artikel", icon: FileText },
+  { name: "Live Streaming", href: "/panel/live", icon: Radio },
   { name: "Kategori", href: "/panel/kategori", icon: FolderOpen, adminOnly: true },
   { name: "Riwayat Review", href: "/panel/riwayat-review", icon: ClipboardCheck, editorOnly: true },
   { name: "Komentar", href: "/panel/komentar", icon: MessageCircle, adminOnly: true },

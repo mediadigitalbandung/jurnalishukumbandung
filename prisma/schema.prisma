@@ -61,6 +61,14 @@ enum AdSlot {
   FLOATING_BOTTOM
 }
 
+enum LiveStatus {
+  SCHEDULED // dijadwalkan, belum mulai
+  LIVE // sedang siaran
+  ENDED // selesai, recording sedang/sudah di-finalize
+  ARCHIVED // recording siap ditonton ulang (file MP4 ada)
+  FAILED // gagal (broadcaster disconnect, error, dll)
+}
+
 model User {
   id               String     @id @default(cuid())
   email            String     @unique
@@ -87,6 +95,7 @@ model User {
   updatedAt        DateTime   @updatedAt
   articles         Article[]
   auditLogs        AuditLog[]
+  liveSessions     LiveSession[]
 
   @@map("users")
 }
@@ -340,6 +349,57 @@ model GhostUrl {
   @@map("ghost_urls")
 }
 
+// LiveSession = sesi live streaming yang di-broadcast dari panel JHB.
+// Broadcaster pakai browser (WebRTC/WHIP) → SRS → HLS untuk viewer.
+// Setelah selesai, recording MP4 disimpan di /var/www/jhb/recordings/.
+model LiveSession {
+  id                String     @id @default(cuid())
+  slug              String     @unique
+  streamKey         String     @unique // dipakai sebagai SRS app/stream identifier
+  title             String
+  description       String?    @db.Text
+  thumbnail         String? // URL thumbnail (optional, default = capture frame)
+  status            LiveStatus @default(SCHEDULED)
+  // Schedule & timing
+  scheduledAt       DateTime? // jadwal mulai (untuk SCHEDULED state)
+  startedAt         DateTime? // saat broadcaster benar-benar mulai stream
+  endedAt           DateTime? // saat stream berhenti (broadcaster atau timeout)
+  // Stream URLs (di-construct dari streamKey)
+  hlsUrl            String? // URL HLS playlist .m3u8 (live)
+  recordingUrl      String? // URL file MP4 recording (after ENDED)
+  recordingSize     BigInt? // ukuran recording dalam bytes
+  recordingDuration Int? // durasi recording dalam detik
+  // Stats
+  viewCount         Int        @default(0) // total unique viewer
+  peakViewers       Int        @default(0) // peak concurrent viewer
+  currentViewers    Int        @default(0) // viewer sekarang (LIVE only)
+  // Owner & access
+  broadcaster       User       @relation(fields: [broadcasterId], references: [id])
+  broadcasterId     String
+  isPublic          Boolean    @default(true) // false = private, hanya yg dikasih link
+  // Optional links
+  categoryId        String?
+  category          Category?  @relation(fields: [categoryId], references: [id])
+  relatedArticleId  String? // link ke artikel terkait (mis. "Live: Sidang X" → artikel X)
+  // SEO
+  seoTitle          String?
+  seoDescription    String?
+  // Settings
+  allowChat         Boolean    @default(true)
+  allowDownload     Boolean    @default(false) // boleh download recording
+  // Audit
+  notes             String?    @db.Text
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([status])
+  @@index([broadcasterId])
+  @@index([scheduledAt])
+  @@index([startedAt])
+  @@index([categoryId])
+  @@map("live_sessions")
+}
+
 model Category {
   id          String    @id @default(cuid())
   name        String    @unique
@@ -347,8 +407,9 @@ model Category {
   description String?
   icon        String?
   order       Int       @default(0)
-  articles    Article[]
-  polls       Poll[]
+  articles      Article[]
+  polls         Poll[]
+  liveSessions  LiveSession[]
 
   @@map("categories")
 }
