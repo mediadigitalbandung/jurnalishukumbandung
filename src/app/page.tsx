@@ -694,46 +694,36 @@ export default async function HomePage() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left: Featured article — compact landscape */}
+                {/* Left: Featured article — light layout (image top, text below) */}
                 {featured && (
                   <div className="lg:col-span-1">
                     <Link href={`/berita/${featured.slug}`} className="group block">
-                      {featured.featuredImage ? (
-                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-secondary">
+                      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-secondary">
+                        {featured.featuredImage ? (
                           <Image
                             src={featured.featuredImage}
                             alt={featured.title}
                             fill
+                            sizes="(max-width: 1024px) 100vw, 33vw"
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-4">
-                            <h3 className="font-serif text-base font-bold leading-snug text-white line-clamp-2">
-                              {featured.title}
-                            </h3>
-                            <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/50">
-                              <span className="text-goto-green font-semibold">{featured.author.name}</span>
-                              <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
-                            </div>
-                          </div>
+                        ) : (
+                          <NoImagePlaceholder category={categoryName} />
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <span className="text-xs font-bold uppercase tracking-wide text-goto-green">
+                          {categoryName}
+                        </span>
+                        <h3 className="mt-1 font-serif text-base font-bold leading-snug text-txt-primary line-clamp-3 group-hover:text-goto-green transition-colors">
+                          {featured.title}
+                        </h3>
+                        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-txt-muted">
+                          <span className="font-semibold">{featured.author.name}</span>
+                          <span>·</span>
+                          <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
                         </div>
-                      ) : (
-                        // No image — use light placeholder card with text below
-                        <div className="overflow-hidden rounded-lg border border-border bg-surface">
-                          <div className="relative aspect-[4/3] w-full">
-                            <NoImagePlaceholder category={categoryName} />
-                          </div>
-                          <div className="p-4">
-                            <h3 className="font-serif text-base font-bold leading-snug text-txt-primary line-clamp-3 group-hover:text-goto-green transition-colors">
-                              {featured.title}
-                            </h3>
-                            <div className="mt-1.5 flex items-center gap-2 text-[11px] text-txt-muted">
-                              <span className="text-goto-green font-semibold">{featured.author.name}</span>
-                              <span>{featured.publishedAt ? new Date(featured.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : ""}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </Link>
                   </div>
                 )}
