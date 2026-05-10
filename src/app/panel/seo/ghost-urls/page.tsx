@@ -19,6 +19,7 @@ import {
   Eye,
   Ban,
   XOctagon,
+  ChevronRight,
 } from "lucide-react";
 
 type GhostUrl = {
@@ -85,6 +86,17 @@ export default function GhostUrlsPage() {
   const [sort, setSort] = useState<"hits" | "recent" | "first">("hits");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, sort, search, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pagedItems = items.slice(startIdx, startIdx + pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -333,7 +345,7 @@ export default function GhostUrlsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-light">
-                {items.map((it) => (
+                {pagedItems.map((it) => (
                   <tr
                     key={it.id}
                     className={
@@ -497,6 +509,77 @@ export default function GhostUrlsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && items.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-border-light bg-surface-secondary/40">
+            <div className="text-xs text-txt-secondary">
+              Menampilkan{" "}
+              <span className="font-semibold text-txt-primary">
+                {startIdx + 1}–{Math.min(startIdx + pageSize, items.length)}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-txt-primary">
+                {items.length.toLocaleString("id-ID")}
+              </span>{" "}
+              entry
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-txt-secondary flex items-center gap-2">
+                Per halaman
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="input !py-1 !px-2 !text-xs !w-auto"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </label>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(1)}
+                  disabled={currentPage === 1}
+                  className="btn-ghost !px-2 !py-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Halaman pertama"
+                >
+                  «
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="btn-ghost !px-2 !py-1 inline-flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Sebelumnya"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-xs text-txt-primary px-2 font-medium tabular-nums">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="btn-ghost !px-2 !py-1 inline-flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Selanjutnya"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="btn-ghost !px-2 !py-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Halaman terakhir"
+                >
+                  »
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
