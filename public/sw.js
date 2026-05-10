@@ -1,37 +1,187 @@
-const CACHE_NAME = 'jhb-v1';
-const OFFLINE_URL = '/offline';
+// JHB Service Worker — production PWA
+// Strategy: cache-first static, cache-first images (LRU), network-first HTML
 
-// Pre-cache essential assets
+const CACHE_VERSION = 'v3';
+const STATIC_CACHE  = 'jhb-static-' + CACHE_VERSION;
+const IMAGE_CACHE   = 'jhb-images-' + CACHE_VERSION;
+const PAGE_CACHE    = 'jhb-pages-'  + CACHE_VERSION;
+
+const OFFLINE_URL   = '/offline';
+
+// Cache size budgets
+const IMAGE_MAX_ENTRIES = 60;
+const IMAGE_MAX_BYTES   = 50 * 1024 * 1024; // 50 MB
+const PAGE_MAX_ENTRIES  = 30;
+
+// Pre-cache assets on install
+const PRECACHE_ASSETS = [
+  '/offline',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/logo-jhb.webp',
+];
+
+// ── Install ──────────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        '/',
-        '/offline',
-        '/manifest.json',
-      ]);
-    })
+    caches.open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Clean old caches
+// ── Activate ─────────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
+  const validCaches = [STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE];
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
-    })
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((k) => !validCaches.includes(k)).map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Network-first strategy with cache fallback
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function trimCacheEntries(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys  = await cache.keys();
+  if (keys.length > maxEntries) {
+    const toDelete = keys.slice(0, keys.length - maxEntries);
+    await Promise.all(toDelete.map((k) => cache.delete(k)));
+  }
+}
+
+async function trimCacheSize(cacheName, maxBytes) {
+  const cache    = await caches.open(cacheName);
+  const keys     = await cache.keys();
+  let totalBytes = 0;
+  const entries  = [];
+
+  for (const key of keys) {
+    const resp = await cache.match(key);
+    if (!resp) continue;
+    const clone = resp.clone();
+    const buf   = await clone.arrayBuffer();
+    totalBytes += buf.byteLength;
+    entries.push({ key, size: buf.byteLength });
+  }
+
+  if (totalBytes <= maxBytes) return;
+
+  for (const entry of entries) {
+    if (totalBytes <= maxBytes) break;
+    await cache.delete(entry.key);
+    totalBytes -= entry.size;
+  }
+}
+
+function isImageRequest(request, url) {
+  if (request.destination === 'image') return true;
+  return /\.(?:png|jpg|jpeg|webp|gif|svg|avif)$/i.test(url.pathname);
+}
+
+function isStaticAsset(url) {
+  return (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname === '/manifest.json' ||
+    /\.(?:js|css|woff2?|ttf)$/i.test(url.pathname)
+  );
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
-  if (event.request.mode === 'navigate') {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Only handle same-origin
+  if (url.origin !== self.location.origin) return;
+
+  // Skip non-GET
+  if (request.method !== 'GET') return;
+
+  // Skip /panel/* — admin routes never cached, always fresh
+  if (url.pathname.startsWith('/panel/') || url.pathname === '/panel') return;
+
+  // Skip /api/* — API responses never cached by SW
+  if (url.pathname.startsWith('/api/')) return;
+
+  // Skip auth routes
+  if (url.pathname.startsWith('/login') || url.pathname.startsWith('/auth')) return;
+
+  // 1. Static Next.js assets — cache-first, long TTL
+  if (isStaticAsset(url)) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(OFFLINE_URL) || caches.match('/');
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const resp = await fetch(request);
+          if (resp.ok) cache.put(request, resp.clone());
+          return resp;
+        } catch {
+          return cached || Response.error();
+        }
       })
     );
+    return;
+  }
+
+  // 2. Images — cache-first with LRU eviction & size budget
+  if (isImageRequest(request, url)) {
+    event.respondWith(
+      caches.open(IMAGE_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const resp = await fetch(request);
+          if (resp.ok) {
+            cache.put(request, resp.clone()).then(() => {
+              trimCacheEntries(IMAGE_CACHE, IMAGE_MAX_ENTRIES);
+              trimCacheSize(IMAGE_CACHE, IMAGE_MAX_BYTES);
+            });
+          }
+          return resp;
+        } catch {
+          return cached || Response.error();
+        }
+      })
+    );
+    return;
+  }
+
+  // 3. HTML pages — network-first, fall back to cache, then offline page
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      (async () => {
+        try {
+          const resp = await fetch(request);
+          if (resp.ok) {
+            const cache = await caches.open(PAGE_CACHE);
+            cache.put(request, resp.clone()).then(() => {
+              trimCacheEntries(PAGE_CACHE, PAGE_MAX_ENTRIES);
+            });
+          }
+          return resp;
+        } catch {
+          const cache  = await caches.open(PAGE_CACHE);
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          const offline = await caches.match(OFFLINE_URL);
+          return offline || Response.error();
+        }
+      })()
+    );
+    return;
+  }
+});
+
+// ── Message handler — allow client to trigger updates ────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });

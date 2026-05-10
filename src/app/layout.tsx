@@ -7,6 +7,7 @@ import TopLoader from "@/components/layout/TopLoader";
 import PublicNav from "@/components/layout/PublicNav";
 import PublicFooter from "@/components/layout/PublicFooter";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import InstallPrompt from "@/components/pwa/InstallPrompt";
 import ZoomCompensator from "@/components/layout/ZoomCompensator";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 
@@ -202,6 +203,7 @@ export default function RootLayout({
           <main id="main-content" className="flex-1">{children}</main>
           <PublicFooter />
           <ServiceWorkerRegistration />
+          <InstallPrompt />
           <ZoomCompensator />
           <Suspense fallback={null}>
             <GoogleAnalytics />

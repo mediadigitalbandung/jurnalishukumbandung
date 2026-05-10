@@ -1,24 +1,72 @@
 {
-  "name": "Jurnalis Hukum Bandung",
+  "name": "Jurnalis Hukum Bandung — Berita Hukum Terpercaya",
   "short_name": "JHB News",
-  "description": "Portal berita hukum terpercaya di Bandung",
-  "start_url": "/",
+  "description": "Portal berita hukum terpercaya di Bandung dan Jawa Barat — putusan pengadilan, regulasi, advokasi, dan analisis ahli.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#FFFFFF",
   "theme_color": "#00AA13",
   "orientation": "portrait-primary",
+  "lang": "id-ID",
+  "dir": "ltr",
+  "categories": ["news", "magazines", "books"],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Berita Terkini",
+      "short_name": "Terkini",
+      "description": "Lihat berita hukum terbaru",
+      "url": "/berita?source=pwa-shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cari Berita",
+      "short_name": "Cari",
+      "description": "Cari berita hukum",
+      "url": "/search?source=pwa-shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bandung Raya",
+      "short_name": "Bandung",
+      "description": "Berita hukum Bandung Raya",
+      "url": "/kategori/bandung-raya?source=pwa-shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Panel Redaksi",
+      "short_name": "Panel",
+      "description": "Akses panel admin redaksi",
+      "url": "/panel?source=pwa-shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
 }
