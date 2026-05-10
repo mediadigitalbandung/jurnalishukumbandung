@@ -998,6 +998,42 @@ export async function onArticlePublished(slug: string, articleId: string, catego
     );
   }
 
+  // Web Push: notify users following any of the article's tags (case/sidang follows)
+  if (articleData && !skipSocialAuto) {
+    tasks.push(
+      (async () => {
+        const tagsWithSlug = await prisma.tag.findMany({
+          where: { id: { in: tagIds } },
+          select: { name: true, slug: true },
+        });
+        if (tagsWithSlug.length === 0) return null;
+
+        const { broadcast } = await import("./push");
+
+        // Article featured image for richer notif (Android)
+        const articleFull = await prisma.article.findUnique({
+          where: { id: articleId },
+          select: { featuredImage: true, excerpt: true },
+        });
+
+        // Broadcast once per tag (subscribers can dedupe via tag-based notification tag)
+        const broadcasts = tagsWithSlug.map((t) =>
+          broadcast(
+            {
+              title: articleData.title,
+              body: articleFull?.excerpt?.slice(0, 200) || `Update terkait ${t.name}`,
+              url: articleUrl,
+              imageUrl: articleFull?.featuredImage || undefined,
+              tag: `case-${t.slug}`,
+            },
+            { topic: `tag-${t.slug}`, sentBy: "system-publish-hook" },
+          ).catch(() => null),
+        );
+        return Promise.all(broadcasts);
+      })().catch(() => null),
+    );
+  }
+
   if (skipSocialAuto) {
     console.log(`[SEO] Article published (AUTO-GENERATED, social auto skipped): ${slug}. Editor must publish manually if desired.`);
   } else {

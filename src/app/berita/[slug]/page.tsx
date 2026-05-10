@@ -16,6 +16,9 @@ import ArticleCard from "@/components/artikel/ArticleCard";
 import BannerAd, { SidebarAd } from "@/components/ads/BannerAd";
 import CommentSection from "@/components/artikel/CommentSection";
 import BookmarkButton from "@/components/artikel/BookmarkButton";
+import AudioPlayer from "@/components/artikel/AudioPlayer";
+import VersiAwamToggle from "@/components/artikel/VersiAwamToggle";
+import FollowTagButton from "@/components/artikel/FollowTagButton";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 // Note: DOMPurify removed — content sanitized at input via API validation
@@ -761,28 +764,35 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                 </div>
               )}
 
-              {/* Article content with inline ads */}
+              {/* Audio player — listen to article via TTS */}
+              <div className="mt-6">
+                <AudioPlayer text={article.content || ""} title={article.title} />
+              </div>
+
+              {/* Article content with Versi Awam toggle (wraps original with inline ads) */}
               <div className="mt-8 max-w-full overflow-hidden">
-                {sanitizedContent.includes(AD_PLACEHOLDER) ? (
-                  sanitizedContent.split(AD_PLACEHOLDER).map((chunk, i, arr) => (
-                    <div key={i}>
-                      <div
-                        className="article-content text-base sm:text-[17px] leading-[1.8] break-words text-justify"
-                        dangerouslySetInnerHTML={{ __html: chunk }}
-                      />
-                      {i < arr.length - 1 && (
-                        <div className="my-6">
-                          <BannerAd slot="IN_ARTICLE" noWrapper />
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div
-                    className="article-content text-base sm:text-[17px] leading-[1.8] break-words text-justify"
-                    dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-                  />
-                )}
+                <VersiAwamToggle articleId={article.id}>
+                  {sanitizedContent.includes(AD_PLACEHOLDER) ? (
+                    sanitizedContent.split(AD_PLACEHOLDER).map((chunk, i, arr) => (
+                      <div key={i}>
+                        <div
+                          className="article-content text-base sm:text-[17px] leading-[1.8] break-words text-justify"
+                          dangerouslySetInnerHTML={{ __html: chunk }}
+                        />
+                        {i < arr.length - 1 && (
+                          <div className="my-6">
+                            <BannerAd slot="IN_ARTICLE" noWrapper />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div
+                      className="article-content text-base sm:text-[17px] leading-[1.8] break-words text-justify"
+                      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+                    />
+                  )}
+                </VersiAwamToggle>
               </div>
 
               {/* Page navigation */}
@@ -837,9 +847,19 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
                 <ShareBar articleUrl={articleUrl} articleTitle={article.title} />
                 <div className="mt-3 flex items-center justify-end gap-2">
                   <PrintButton />
-                  <BookmarkButton slug={params.slug} />
+                  <BookmarkButton slug={params.slug} featuredImage={article.featuredImage} />
                 </div>
               </div>
+
+              {/* Follow tags / case — push notif untuk update terkait */}
+              {article.tags && article.tags.length > 0 && (
+                <div className="mt-6">
+                  <FollowTagButton
+                    tags={article.tags.map((t: { name: string; slug: string }) => ({ name: t.name, slug: t.slug }))}
+                    articleTitle={article.title}
+                  />
+                </div>
+              )}
 
               {/* Sources */}
               {article.sources.length > 0 && (

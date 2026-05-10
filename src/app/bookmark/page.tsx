@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bookmark, Trash2, ArrowLeft } from "lucide-react";
+import { Bookmark, Trash2, ArrowLeft, WifiOff, Download } from "lucide-react";
+import { getPageCache } from "@/lib/offline-cache";
 
 interface BookmarkedArticle {
   id: string;
@@ -29,6 +30,8 @@ export default function BookmarkPage() {
   const [articles, setArticles] = useState<BookmarkedArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [offlineSlugs, setOfflineSlugs] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading]   = useState(false);
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("bookmarks") || "[]");
@@ -54,11 +57,69 @@ export default function BookmarkPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Detect which bookmarks are already cached for offline reading
+  useEffect(() => {
+    if (articles.length === 0) return;
+    (async () => {
+      const cache = await getPageCache();
+      if (!cache) return;
+      const ready = new Set<string>();
+      for (const a of articles) {
+        const url = `${window.location.origin}/berita/${a.slug}`;
+        if (await cache.match(url)) ready.add(a.slug);
+      }
+      setOfflineSlugs(ready);
+    })();
+  }, [articles]);
+
   function removeBookmark(slug: string) {
     const updated = bookmarks.filter((s) => s !== slug);
     setBookmarks(updated);
     localStorage.setItem("bookmarks", JSON.stringify(updated));
     setArticles((prev) => prev.filter((a) => a.slug !== slug));
+    // Remove from cache too
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      const article = articles.find((a) => a.slug === slug);
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.active?.postMessage({
+          type: "UNCACHE_ARTICLE",
+          url: `${window.location.origin}/berita/${slug}`,
+          imageUrl: article?.featuredImage || undefined,
+        });
+      });
+    }
+  }
+
+  async function downloadAllForOffline() {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    setDownloading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      for (const a of articles) {
+        if (offlineSlugs.has(a.slug)) continue;
+        reg.active?.postMessage({
+          type: "CACHE_ARTICLE",
+          url: `${window.location.origin}/berita/${a.slug}`,
+          imageUrl: a.featuredImage || undefined,
+        });
+      }
+      // Wait then re-check
+      setTimeout(async () => {
+        const cache = await getPageCache();
+        if (cache) {
+          const ready = new Set<string>();
+          for (const a of articles) {
+            if (await cache.match(`${window.location.origin}/berita/${a.slug}`)) {
+              ready.add(a.slug);
+            }
+          }
+          setOfflineSlugs(ready);
+        }
+        setDownloading(false);
+      }, 3000);
+    } catch {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -80,6 +141,26 @@ export default function BookmarkPage() {
           <p className="mt-1 text-sm text-txt-secondary">
             Artikel yang Anda simpan untuk dibaca nanti
           </p>
+
+          {/* Download all for offline */}
+          {articles.length > 0 && offlineSlugs.size < articles.length && (
+            <button
+              onClick={downloadAllForOffline}
+              disabled={downloading}
+              className="btn-secondary mt-3 inline-flex items-center gap-2 text-xs disabled:opacity-50"
+            >
+              <Download size={14} />
+              {downloading
+                ? "Mengunduh..."
+                : `Unduh ${articles.length - offlineSlugs.size} artikel untuk offline`}
+            </button>
+          )}
+          {articles.length > 0 && offlineSlugs.size === articles.length && (
+            <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-goto-green">
+              <WifiOff size={14} />
+              Semua bookmark tersedia offline
+            </p>
+          )}
         </div>
 
         {loading ? (
@@ -119,6 +200,14 @@ export default function BookmarkPage() {
                 key={article.slug}
                 className="group relative rounded-[12px] border border-border bg-surface overflow-hidden shadow-card transition-all hover:shadow-lg"
               >
+                {/* Offline badge */}
+                {offlineSlugs.has(article.slug) && (
+                  <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-goto-green/90 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
+                    <WifiOff size={10} />
+                    Offline
+                  </div>
+                )}
+
                 {/* Featured image */}
                 {article.featuredImage ? (
                   <Link href={`/berita/${article.slug}`}>

@@ -85,6 +85,21 @@ export default function NewArticlePage() {
 
   const AUTOSAVE_KEY = "autosave_draft_new";
 
+  // Pre-fill from Web Share Target (when JHB PWA receives shared content)
+  useEffect(() => {
+    const sharedTitle   = searchParams?.get("title")?.trim();
+    const sharedExcerpt = searchParams?.get("excerpt")?.trim();
+    const sharedSource  = searchParams?.get("source")?.trim();
+    if (sharedTitle && !title) setTitle(sharedTitle.slice(0, 200));
+    if (sharedExcerpt && !excerpt) setExcerpt(sharedExcerpt.slice(0, 500));
+    if (sharedSource) {
+      setSources((prev) => {
+        if (prev.some((s) => s.url === sharedSource)) return prev;
+        return [{ name: "", title: "Sumber dibagikan", institution: "", url: sharedSource }, ...prev.filter((s) => s.url || s.name)];
+      });
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-extract featured image from first image in content
   useEffect(() => {
     const match = content.match(/<img[^>]+src="([^"]+)"/);

@@ -1,7 +1,7 @@
 // JHB Service Worker — production PWA
 // Strategy: cache-first static, cache-first images (LRU), network-first HTML
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE  = 'jhb-static-' + CACHE_VERSION;
 const IMAGE_CACHE   = 'jhb-images-' + CACHE_VERSION;
 const PAGE_CACHE    = 'jhb-pages-'  + CACHE_VERSION;
@@ -179,12 +179,57 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// ── Message handler — allow client to trigger updates ────────────────────────
+// ── Message handler — SKIP_WAITING + bookmark prefetch ──────────────────────
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'CACHE_ARTICLE') {
+    const { url, imageUrl } = event.data;
+    event.waitUntil(cacheArticleForOffline(url, imageUrl));
+  }
+
+  if (event.data?.type === 'UNCACHE_ARTICLE') {
+    const { url, imageUrl } = event.data;
+    event.waitUntil(uncacheArticle(url, imageUrl));
   }
 });
+
+async function cacheArticleForOffline(url, imageUrl) {
+  if (!url) return;
+  try {
+    const pageCache = await caches.open(PAGE_CACHE);
+    const pageReq   = new Request(url, { cache: 'reload' });
+    const pageResp  = await fetch(pageReq);
+    if (pageResp.ok) {
+      await pageCache.put(url, pageResp.clone());
+    }
+
+    if (imageUrl) {
+      const imgCache = await caches.open(IMAGE_CACHE);
+      const imgReq   = new Request(imageUrl, { cache: 'reload' });
+      const imgResp  = await fetch(imgReq);
+      if (imgResp.ok) {
+        await imgCache.put(imageUrl, imgResp.clone());
+      }
+    }
+  } catch {
+    /* prefetch best-effort, silent failure */
+  }
+}
+
+async function uncacheArticle(url, imageUrl) {
+  if (url) {
+    const pageCache = await caches.open(PAGE_CACHE);
+    await pageCache.delete(url);
+  }
+  if (imageUrl) {
+    const imgCache = await caches.open(IMAGE_CACHE);
+    await imgCache.delete(imageUrl);
+  }
+}
 
 // ── Push event — show notification ───────────────────────────────────────────
 self.addEventListener('push', (event) => {
@@ -246,6 +291,36 @@ self.addEventListener('notificationclick', (event) => {
     })(),
   );
 });
+
+// ── Periodic Background Sync — prefetch breaking news every 12h ──────────────
+// Browser support: Android Chrome 80+ when site is installed as PWA
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'jhb-prefetch-headlines') {
+    event.waitUntil(prefetchHeadlines());
+  }
+});
+
+async function prefetchHeadlines() {
+  try {
+    // Fetch fresh homepage HTML
+    const homeReq  = new Request('/?source=periodic-sync', { cache: 'reload' });
+    const homeResp = await fetch(homeReq);
+    if (homeResp.ok) {
+      const cache = await caches.open(PAGE_CACHE);
+      await cache.put('/', homeResp.clone());
+    }
+
+    // Fetch latest articles list (warm the page cache)
+    const latestReq  = new Request('/berita?source=periodic-sync', { cache: 'reload' });
+    const latestResp = await fetch(latestReq);
+    if (latestResp.ok) {
+      const cache = await caches.open(PAGE_CACHE);
+      await cache.put('/berita', latestResp.clone());
+    }
+  } catch {
+    /* silent — best effort */
+  }
+}
 
 // ── Subscription change — re-subscribe (browser may rotate keys) ─────────────
 self.addEventListener('pushsubscriptionchange', (event) => {

@@ -41,6 +41,28 @@ export default function ServiceWorkerRegistration() {
 
     register();
 
+    // Try to register periodic background sync (Android Chrome PWA installed only)
+    (async () => {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const periodicSync = (reg as ServiceWorkerRegistration & {
+          periodicSync?: { register: (tag: string, opts: { minInterval: number }) => Promise<void> };
+        }).periodicSync;
+        if (!periodicSync) return;
+
+        const status = await navigator.permissions.query({
+          name: "periodic-background-sync" as PermissionName,
+        });
+        if (status.state === "granted") {
+          await periodicSync.register("jhb-prefetch-headlines", {
+            minInterval: 12 * 60 * 60 * 1000, // 12 hours
+          });
+        }
+      } catch {
+        /* not supported / permission denied — silent */
+      }
+    })();
+
     // Reload page when new SW takes over
     let reloaded = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
