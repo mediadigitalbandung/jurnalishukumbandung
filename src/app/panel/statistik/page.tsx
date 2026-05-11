@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
   FileText,
@@ -817,47 +817,153 @@ function CloudflareTab({ data }: { data: Record<string, unknown> | null }) {
 
 // ───── MAIN PAGE ─────
 
+// Lazy fetch — internal is days-agnostic, external sources are days-dependent.
+// Fetched data is cached per (source, days) so tab switching doesn't refetch.
+type SourceState = {
+  data: Record<string, unknown> | null;
+  loading: boolean;
+  error: string | null;
+  fetchedDays: number | null; // null for internal (days-agnostic)
+};
+
+const EMPTY_STATE: SourceState = { data: null, loading: false, error: null, fetchedDays: null };
+
 export default function StatistikPage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [days, setDays] = useState(30);
-  const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const [internalData, setInternalData] = useState<Record<string, unknown> | null>(null);
-  const [gscData, setGscData] = useState<Record<string, unknown> | null>(null);
-  const [gaData, setGaData] = useState<Record<string, unknown> | null>(null);
-  const [cfData, setCfData] = useState<Record<string, unknown> | null>(null);
+  const [internalState, setInternalState] = useState<SourceState>(EMPTY_STATE);
+  const [gscState, setGscState] = useState<SourceState>(EMPTY_STATE);
+  const [gaState, setGaState] = useState<SourceState>(EMPTY_STATE);
+  const [cfState, setCfState] = useState<SourceState>(EMPTY_STATE);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [intRes, gscRes, gaRes, cfRes] = await Promise.all([
-        fetch("/api/stats/internal"),
-        fetch(`/api/stats/google-search?days=${days}`),
-        fetch(`/api/stats/google-analytics?days=${days}`),
-        fetch(`/api/stats/cloudflare?days=${days}`),
-      ]);
-      const [intJson, gscJson, gaJson, cfJson] = await Promise.all([
-        intRes.json(),
-        gscRes.json(),
-        gaRes.json(),
-        cfRes.json(),
-      ]);
-      setInternalData(intJson.data || null);
-      setGscData(gscJson.data || null);
-      setGaData(gaJson.data || null);
-      setCfData(cfJson.data || null);
-      setLastUpdated(new Date());
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, [days]);
+  // Refs hold the latest state for callbacks — prevents callback identity churn
+  // (which would otherwise cause useEffect to re-run and trigger duplicate fetches).
+  const internalRef = useRef(internalState);
+  const gscRef = useRef(gscState);
+  const gaRef = useRef(gaState);
+  const cfRef = useRef(cfState);
+  internalRef.current = internalState;
+  gscRef.current = gscState;
+  gaRef.current = gaState;
+  cfRef.current = cfState;
 
+  const fetchOne = useCallback(
+    async (
+      url: string,
+      setter: React.Dispatch<React.SetStateAction<SourceState>>,
+      cacheDays: number | null
+    ) => {
+      setter((s) => ({ ...s, loading: true, error: null }));
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || `Gagal memuat (${res.status})`);
+        }
+        setter({ data: json.data || null, loading: false, error: null, fetchedDays: cacheDays });
+        setLastUpdated(new Date());
+      } catch (e) {
+        console.error("[statistik]", url, e);
+        setter((s) => ({
+          ...s,
+          loading: false,
+          error: e instanceof Error ? e.message : "Gagal memuat data",
+        }));
+      }
+    },
+    []
+  );
+
+  // Internal — days-agnostic, fetch once
+  const loadInternal = useCallback(
+    (force = false) => {
+      const s = internalRef.current;
+      if (s.loading) return; // already in flight
+      if (!force && s.data) return;
+      fetchOne("/api/stats/internal", setInternalState, null);
+    },
+    [fetchOne]
+  );
+
+  // External sources — refetch when days mismatches cached fetchedDays
+  const loadGsc = useCallback(
+    (force = false) => {
+      const s = gscRef.current;
+      if (s.loading) return;
+      if (!force && s.data && s.fetchedDays === days) return;
+      fetchOne(`/api/stats/google-search?days=${days}`, setGscState, days);
+    },
+    [fetchOne, days]
+  );
+
+  const loadGa = useCallback(
+    (force = false) => {
+      const s = gaRef.current;
+      if (s.loading) return;
+      if (!force && s.data && s.fetchedDays === days) return;
+      fetchOne(`/api/stats/google-analytics?days=${days}`, setGaState, days);
+    },
+    [fetchOne, days]
+  );
+
+  const loadCf = useCallback(
+    (force = false) => {
+      const s = cfRef.current;
+      if (s.loading) return;
+      if (!force && s.data && s.fetchedDays === days) return;
+      fetchOne(`/api/stats/cloudflare?days=${days}`, setCfState, days);
+    },
+    [fetchOne, days]
+  );
+
+  // Fetch what the active tab needs
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    if (activeTab === "overview") {
+      loadInternal();
+      loadGsc();
+      loadGa();
+      loadCf();
+    } else if (activeTab === "internal") {
+      loadInternal();
+    } else if (activeTab === "search-console") {
+      loadGsc();
+    } else if (activeTab === "analytics") {
+      loadGa();
+    } else if (activeTab === "cloudflare") {
+      loadCf();
+    }
+  }, [activeTab, loadInternal, loadGsc, loadGa, loadCf]);
+
+  // Refresh — force-reload data for the active tab only
+  const handleRefresh = useCallback(() => {
+    if (activeTab === "overview") {
+      loadInternal(true);
+      loadGsc(true);
+      loadGa(true);
+      loadCf(true);
+    } else if (activeTab === "internal") {
+      loadInternal(true);
+    } else if (activeTab === "search-console") {
+      loadGsc(true);
+    } else if (activeTab === "analytics") {
+      loadGa(true);
+    } else if (activeTab === "cloudflare") {
+      loadCf(true);
+    }
+  }, [activeTab, loadInternal, loadGsc, loadGa, loadCf]);
+
+  const anyLoading =
+    internalState.loading || gscState.loading || gaState.loading || cfState.loading;
+
+  // Combine all errors across sources for surfacing
+  const errors = [
+    internalState.error && { source: "Internal", msg: internalState.error },
+    gscState.error && { source: "Search Console", msg: gscState.error },
+    gaState.error && { source: "Google Analytics", msg: gaState.error },
+    cfState.error && { source: "Cloudflare", msg: cfState.error },
+  ].filter(Boolean) as { source: string; msg: string }[];
 
   return (
     <div className="space-y-6">
@@ -872,11 +978,11 @@ export default function StatistikPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Period selector */}
           <select
             value={days}
             onChange={(e) => setDays(parseInt(e.target.value))}
             className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-goto-green"
+            aria-label="Periode statistik"
           >
             <option value={7}>7 hari</option>
             <option value={30}>30 hari</option>
@@ -884,11 +990,12 @@ export default function StatistikPage() {
             <option value={90}>90 hari</option>
           </select>
           <button
-            onClick={fetchAll}
-            disabled={loading}
+            onClick={handleRefresh}
+            disabled={anyLoading}
             className="flex items-center gap-2 rounded-full bg-goto-green px-4 py-2 text-sm font-medium text-white hover:bg-goto-dark transition-colors disabled:opacity-60"
+            aria-label="Muat ulang"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={anyLoading ? "animate-spin" : ""} />
             Refresh
           </button>
         </div>
@@ -915,8 +1022,33 @@ export default function StatistikPage() {
         })}
       </div>
 
-      {/* Loading overlay */}
-      {loading && (
+      {/* Error banner (surface, not silent) */}
+      {errors.length > 0 && (
+        <div className="rounded-[12px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">Sebagian data gagal dimuat:</p>
+              <ul className="mt-1 ml-4 list-disc space-y-0.5">
+                {errors.map((e, i) => (
+                  <li key={i}>
+                    <span className="font-medium">{e.source}:</span> {e.msg}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading indicator */}
+      {anyLoading && (
         <div className="flex items-center gap-2 text-sm text-txt-muted">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-goto-green border-t-transparent" />
           Memuat data...
@@ -925,12 +1057,17 @@ export default function StatistikPage() {
 
       {/* Tab content */}
       {activeTab === "overview" && (
-        <OverviewTab internal={internalData} gsc={gscData} ga={gaData} cf={cfData} />
+        <OverviewTab
+          internal={internalState.data}
+          gsc={gscState.data}
+          ga={gaState.data}
+          cf={cfState.data}
+        />
       )}
-      {activeTab === "internal" && <InternalTab data={internalData} />}
-      {activeTab === "search-console" && <SearchConsoleTab data={gscData} />}
-      {activeTab === "analytics" && <AnalyticsTab data={gaData} />}
-      {activeTab === "cloudflare" && <CloudflareTab data={cfData} />}
+      {activeTab === "internal" && <InternalTab data={internalState.data} />}
+      {activeTab === "search-console" && <SearchConsoleTab data={gscState.data} />}
+      {activeTab === "analytics" && <AnalyticsTab data={gaState.data} />}
+      {activeTab === "cloudflare" && <CloudflareTab data={cfState.data} />}
     </div>
   );
 }
