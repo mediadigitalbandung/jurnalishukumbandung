@@ -18,6 +18,7 @@ export async function GET() {
   let articles = await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
+      noIndex: false,
       publishedAt: { gte: thirtyDaysAgo },
     },
     select: {
@@ -38,7 +39,7 @@ export async function GET() {
   // Fallback: if no recent articles, get the latest 50
   if (articles.length === 0) {
     articles = await prisma.article.findMany({
-      where: { status: "PUBLISHED" },
+      where: { status: "PUBLISHED", noIndex: false },
       select: {
         slug: true,
         title: true,

@@ -76,13 +76,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     alternates: {
       canonical: `${appUrl}/berita/${params.slug}`,
     },
-    robots: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large" as const,
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
+    robots: article.noIndex
+      ? { index: false, follow: true, nocache: true }
+      : {
+          index: true,
+          follow: true,
+          "max-image-preview": "large" as const,
+          "max-snippet": -1,
+          "max-video-preview": -1,
+        },
     other: {
       // Google News specific meta tags
       "news_keywords": article.tags?.map((t: { name: string }) => t.name).join(", ") || "",

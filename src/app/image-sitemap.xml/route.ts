@@ -10,6 +10,7 @@ export async function GET() {
   const articles = await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
+      noIndex: false,
       featuredImage: { not: null },
     },
     select: {

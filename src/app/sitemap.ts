@@ -51,7 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Published articles — ALL of them (up to 49000 to stay within 50k sitemap limit)
   // Dynamic priority: recent articles get higher priority
   const articles = await prisma.article.findMany({
-    where: { status: "PUBLISHED" },
+    where: { status: "PUBLISHED", noIndex: false },
     select: { slug: true, updatedAt: true, publishedAt: true },
     orderBy: { publishedAt: "desc" },
     take: 49000,
@@ -108,7 +108,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Daily digest pages (last 60 days with articles)
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   const dailyArticles = await prisma.article.findMany({
-    where: { status: "PUBLISHED", publishedAt: { gte: sixtyDaysAgo } },
+    where: { status: "PUBLISHED", noIndex: false, publishedAt: { gte: sixtyDaysAgo } },
     select: { publishedAt: true },
     orderBy: { publishedAt: "desc" },
   });
