@@ -87,6 +87,7 @@ export interface RenderResult {
   success: boolean;
   outputPath?: string;       // Absolute server path
   outputUrl?: string;        // Public URL
+  thumbnailUrl?: string;     // Public URL of extracted cover image (JPG)
   durationSec?: number;
   sizeBytes?: number;
   error?: string;

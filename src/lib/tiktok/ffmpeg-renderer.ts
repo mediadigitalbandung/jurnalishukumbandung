@@ -11,6 +11,7 @@
 
 import { spawn } from "child_process";
 import { mkdir, stat, unlink, writeFile } from "fs/promises";
+import { existsSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { ClipInput, RenderSpec, RenderResult } from "./types";
@@ -31,6 +32,27 @@ function resolveAssetPath(urlOrPath: string): string {
     return join(process.cwd(), "public", urlOrPath);
   }
   return urlOrPath;
+}
+
+/** Detect the best bold font available on this system (cached). */
+let _cachedFontPath: string | null | undefined;
+function getFontPath(): string | null {
+  if (_cachedFontPath !== undefined) return _cachedFontPath;
+  // Candidates in priority order: Linux (Ubuntu), macOS, Windows, then null fallback
+  const candidates = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    "/Library/Fonts/Arial Bold.ttf",
+    "/System/Library/Fonts/Helvetica.ttc",
+    "C:\\Windows\\Fonts\\arialbd.ttf",
+    "C:\\Windows\\Fonts\\segoeuib.ttf",
+  ];
+  for (const p of candidates) {
+    try { if (existsSync(p)) { _cachedFontPath = p; return p; } } catch { /* ignore */ }
+  }
+  _cachedFontPath = null;
+  return null;
 }
 
 /** Escape text for FFmpeg drawtext filter */
@@ -77,65 +99,61 @@ async function normalizeClip(
   const duration = Math.max(0.5, clip.durationSec);
   const isImage = clip.type === "image";
 
-  // Build video filter chain
-  const filters: string[] = [];
-
   // Apply per-clip offset for letterbox repositioning.
   // offsetX/Y range -1..1 (percentage of free space in letterbox dimension).
-  // pad x/y default centered: (ow-iw)/2; offset shifts by offset * (ow-iw)/2 from center.
-  // Final: padX = (ow-iw)/2 * (1 + offsetX), padY = (oh-ih)/2 * (1 + offsetY)
   const ox = typeof clip.offsetX === "number" ? Math.max(-1, Math.min(1, clip.offsetX)) : 0;
   const oy = typeof clip.offsetY === "number" ? Math.max(-1, Math.min(1, clip.offsetY)) : 0;
-  const padX = `(ow-iw)/2*(1+${ox.toFixed(3)})`;
-  const padY = `(oh-ih)/2*(1+${oy.toFixed(3)})`;
-  const padFilter = `pad=${width}:${height}:${padX}:${padY}:color=black`;
 
-  if (isImage) {
-    // Scale image to fit 9:16, pad with black if needed
-    // Optionally Ken Burns (slow zoom)
-    if (clip.kenBurns) {
-      // zoompan: zoom from 1.0 to 1.15 over duration
-      const frames = Math.ceil(duration * fps);
-      filters.push(
-        `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-        padFilter,
-        `zoompan=z='min(zoom+0.0015,1.15)':d=${frames}:s=${width}x${height}:fps=${fps}`
-      );
-    } else {
-      filters.push(
-        `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-        padFilter,
-        `fps=${fps}`
-      );
-    }
+  // BLURRED BACKDROP: instead of black bars, fill the letterbox area with a heavily
+  // blurred + darkened copy of the same media. This is the modern TikTok/Reels look.
+  // Pipeline:
+  //   1. Take source [0:v], split into two streams
+  //   2. Stream A: scale to fill canvas via cover (crop), blur heavily, dim
+  //   3. Stream B: scale fit (preserve aspect), letterbox-aware position
+  //   4. Overlay B on top of A
+  const padX = `(W-w)/2*(1+${ox.toFixed(3)})`;
+  const padY = `(H-h)/2*(1+${oy.toFixed(3)})`;
+
+  // For images, we apply Ken Burns AFTER overlay (so backdrop stays static, fg zooms)
+  let fgChain: string;
+  if (isImage && clip.kenBurns) {
+    const frames = Math.ceil(duration * fps);
+    fgChain = `scale=${width}:${height}:force_original_aspect_ratio=decrease,zoompan=z='min(zoom+0.0015,1.15)':d=${frames}:s=${width}x${height}:fps=${fps}`;
   } else {
-    // Video: scale + pad to 9:16 (keep original without cropping to preserve content)
-    filters.push(
-      `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
-      padFilter,
-      `fps=${fps}`
-    );
+    fgChain = `scale=${width}:${height}:force_original_aspect_ratio=decrease,fps=${fps}`;
   }
 
-  // Text overlay — supports pixel-precise (textX/textY %) OR 9-grid presets
+  // Filter complex:
+  //   [0:v] split=2 [bg][fg]
+  //   [bg] scale=cover, gblur (heavy), eq (dim 0.7 brightness) → [bgblur]
+  //   [fg] (fgChain) → [fgScaled]
+  //   [bgblur][fgScaled] overlay at offset
+  const filterComplex = [
+    `[0:v]split=2[bgsrc][fgsrc]`,
+    // Background: scale to COVER canvas (may crop), then blur + dim
+    `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},gblur=sigma=30,eq=brightness=-0.15:saturation=0.7,fps=${fps}[bg]`,
+    // Foreground: scale to FIT (letterbox), optional Ken Burns
+    `[fgsrc]${fgChain}[fg]`,
+    // Overlay foreground on background, centered with offset
+    `[bg][fg]overlay=x=${padX}:y=${padY}[v0]`,
+  ];
+
+  // Append drawtext to filter chain on top of [v0]
+  let finalLabel = "[v0]";
   if (clip.textOverlay && clip.textOverlay.trim()) {
     const text = escapeDrawText(clip.textOverlay.trim().slice(0, 240));
     const color = clip.textColor || "#FFFFFF";
     const fontSize = clip.textFontSize || 54;
-    const rotation = clip.textRotation || 0;
 
     let xExpr = "(w-tw)/2";
     let yExpr = "h-th-120";
 
-    // Pixel-precise (from drag-drop editor): textX/textY as percentage 0-100
     if (typeof clip.textX === "number" && typeof clip.textY === "number") {
-      // Center text at (x%, y%) of video dimensions
       const xPx = Math.round((clip.textX / 100) * width);
       const yPx = Math.round((clip.textY / 100) * height);
       xExpr = `${xPx}-tw/2`;
       yExpr = `${yPx}-th/2`;
     } else {
-      // Fallback: 9-grid preset
       const position = clip.textPosition || "bottom";
       const [vPart, hPart] = (() => {
         if (position === "top") return ["top", "center"];
@@ -144,25 +162,25 @@ async function normalizeClip(
         const parts = position.split("-");
         return parts.length === 2 ? parts : ["bottom", "center"];
       })();
-
       if (vPart === "top") yExpr = "120";
       else if (vPart === "center") yExpr = "(h-th)/2";
-
       if (hPart === "left") xExpr = "80";
       else if (hPart === "right") xExpr = "w-tw-80";
     }
 
-    // Box behind text for readability
-    let drawtext = `drawtext=text='${text}':fontcolor=${color}:fontsize=${fontSize}:box=1:boxcolor=black@0.5:boxborderw=20:x=${xExpr}:y=${yExpr}`;
+    // TikTok-style drawtext: thick stroke + shadow instead of solid box behind.
+    // borderw=6 → bold outline, shadowx/y → soft drop shadow for depth.
+    // Falls back to box if user explicitly wants it later.
+    const fontFile = getFontPath();
+    const fontArg = fontFile ? `:fontfile='${fontFile}'` : "";
+    const drawtext = `drawtext=text='${text}':fontcolor=${color}:fontsize=${fontSize}${fontArg}:borderw=6:bordercolor=black@0.95:shadowx=2:shadowy=3:shadowcolor=black@0.6:x=${xExpr}:y=${yExpr}`;
 
-    // Apply rotation via filtergraph wrapper (FFmpeg drawtext doesn't support rotation directly)
-    // For rotation != 0, we'd need separate rotation layer — skip for now (common use case: 0°)
-    if (rotation !== 0) {
-      // Log but don't fail — rotation support requires more complex filter graph
-      console.warn("[FFMPEG] Text rotation requested but not yet supported in render pipeline");
-    }
-
-    filters.push(drawtext);
+    filterComplex.push(`${finalLabel}${drawtext}[outv]`);
+    finalLabel = "[outv]";
+  } else {
+    // No text — rename v0 to outv for consistency
+    filterComplex.push(`${finalLabel}null[outv]`);
+    finalLabel = "[outv]";
   }
 
   const args: string[] = [];
@@ -176,7 +194,8 @@ async function normalizeClip(
   }
 
   args.push(
-    "-vf", filters.join(","),
+    "-filter_complex", filterComplex.join(";"),
+    "-map", "[outv]",
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-pix_fmt", "yuv420p",
@@ -189,7 +208,7 @@ async function normalizeClip(
   await runFfmpeg(args);
 }
 
-/** Concat normalized clips using the concat demuxer (fast, no re-encode needed since they share format) */
+/** Concat normalized clips using the concat demuxer (fast hard cuts). */
 async function concatClips(normalizedPaths: string[], concatListPath: string, outputPath: string): Promise<void> {
   const listContent = normalizedPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join("\n");
   await writeFile(concatListPath, listContent, "utf8");
@@ -203,6 +222,100 @@ async function concatClips(normalizedPaths: string[], concatListPath: string, ou
     outputPath,
   ];
   await runFfmpeg(args);
+}
+
+/**
+ * Concat clips with crossfade/slide/zoom transitions via xfade filter.
+ * Each clip transitions into the next with 0.5s overlap (no gap, smooth blend).
+ *
+ * Transitions per clip:
+ *   - "fade" → xfade transition=fade
+ *   - "slide" → xfade transition=slideleft
+ *   - "zoom" → xfade transition=zoomin
+ *   - "none" or undefined → no transition (uses concat instead)
+ *
+ * @param clipPaths      Local normalized MP4 paths
+ * @param clipTransitions Per-clip transition (transition applies BEFORE entering that clip)
+ * @param clipDurations  Each clip's intended duration in seconds (needed for xfade offset)
+ * @param outputPath     Final concatenated MP4
+ * @param fps            Frame rate (for sync)
+ */
+async function concatWithTransitions(
+  clipPaths: string[],
+  clipTransitions: Array<string | null | undefined>,
+  clipDurations: number[],
+  outputPath: string,
+): Promise<void> {
+  if (clipPaths.length === 0) throw new Error("No clips to concat");
+  if (clipPaths.length === 1) {
+    // Single clip — just copy
+    await runFfmpeg(["-i", clipPaths[0], "-c", "copy", "-y", outputPath]);
+    return;
+  }
+
+  const TRANSITION_DUR = 0.5; // 500ms blend per transition (TikTok sweet spot)
+
+  // Map transition kind to xfade name
+  const xfadeName = (t: string | null | undefined): string => {
+    switch (t) {
+      case "fade":  return "fade";
+      case "slide": return "slideleft";
+      case "zoom":  return "zoomin";
+      default:      return ""; // empty = hard cut, use concat instead
+    }
+  };
+
+  // Check if any transition is requested — if all "none", skip xfade chain entirely
+  const hasAnyTransition = clipTransitions.some((t, i) => i > 0 && xfadeName(t));
+  if (!hasAnyTransition) {
+    // No transitions — use fast concat demuxer
+    const listPath = outputPath + ".list.txt";
+    await concatClips(clipPaths, listPath, outputPath);
+    await unlink(listPath).catch(() => {});
+    return;
+  }
+
+  // Build xfade chain. xfade requires two inputs at a time.
+  // Cumulative offset = sum(clip[0..i].duration) - TRANSITION_DUR * (i transitions so far)
+  //   because each xfade overlaps the previous output by TRANSITION_DUR.
+  const inputs: string[] = [];
+  for (const p of clipPaths) inputs.push("-i", p);
+
+  const filterParts: string[] = [];
+  let lastLabel = "[0:v]";
+  let cumOffset = clipDurations[0];
+
+  for (let i = 1; i < clipPaths.length; i++) {
+    const transition = clipTransitions[i];
+    const xName = xfadeName(transition);
+    const outLabel = i === clipPaths.length - 1 ? "[outv]" : `[v${i}]`;
+
+    if (xName) {
+      // xfade requires offset = where the transition STARTS in the cumulative timeline
+      const offset = Math.max(0, cumOffset - TRANSITION_DUR);
+      filterParts.push(
+        `${lastLabel}[${i}:v]xfade=transition=${xName}:duration=${TRANSITION_DUR}:offset=${offset.toFixed(3)}${outLabel}`,
+      );
+      cumOffset += clipDurations[i] - TRANSITION_DUR;
+    } else {
+      // No transition for this junction — concat
+      filterParts.push(`${lastLabel}[${i}:v]concat=n=2:v=1:a=0${outLabel}`);
+      cumOffset += clipDurations[i];
+    }
+    lastLabel = outLabel;
+  }
+
+  const args = [
+    ...inputs,
+    "-filter_complex", filterParts.join(";"),
+    "-map", "[outv]",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-pix_fmt", "yuv420p",
+    "-y",
+    outputPath,
+  ];
+  await runFfmpeg(args, 600000); // 10min — xfade is expensive
 }
 
 interface CustomOverlaySpec {
@@ -485,12 +598,17 @@ async function burnSubtitleEntries(
     return;
   }
 
+  const fontFile = getFontPath();
+  const fontArg  = fontFile ? `:fontfile='${fontFile}'` : "";
+
   const filters: string[] = entries.map((e) => {
     const text = escapeDrawText(e.text.slice(0, 200));
     const fontSize = e.fontSize || 54;
     const color = e.color || "#FFFFFF";
     const yPos = typeof e.y === "number" ? Math.round(e.y * height) : Math.round(0.85 * height);
-    return `drawtext=text='${text}':fontcolor=${color}:fontsize=${fontSize}:box=1:boxcolor=black@0.6:boxborderw=15:x=(w-tw)/2:y=${yPos}-th/2:enable='between(t,${e.startSec.toFixed(3)},${e.endSec.toFixed(3)})'`;
+    // TikTok-style subtitle: thick stroke + drop shadow for readability without ugly box.
+    // Stroke is the dominant TikTok caption look (no box, just bold outlined text).
+    return `drawtext=text='${text}':fontcolor=${color}:fontsize=${fontSize}${fontArg}:borderw=6:bordercolor=black@0.95:shadowx=2:shadowy=3:shadowcolor=black@0.6:x=(w-tw)/2:y=${yPos}-th/2:enable='between(t,${e.startSec.toFixed(3)},${e.endSec.toFixed(3)})'`;
   });
 
   const args = [
@@ -504,6 +622,24 @@ async function burnSubtitleEntries(
     outputPath,
   ];
   await runFfmpeg(args);
+}
+
+/**
+ * Extract a high-quality thumbnail from a rendered MP4.
+ * Picks the frame at ~1.5s (avoiding the very first frames which may be transitions).
+ * Output: 1080×1920 JPG at quality 85, ready for TikTok cover.
+ */
+async function extractThumbnail(videoPath: string, outputPath: string): Promise<void> {
+  const args = [
+    "-ss", "1.5",
+    "-i", videoPath,
+    "-vframes", "1",
+    "-q:v", "3",       // ffmpeg JPEG quality scale 1-31, lower=better. 3 ≈ 90% quality
+    "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+    "-y",
+    outputPath,
+  ];
+  await runFfmpeg(args, 30000);
 }
 
 /** Get duration of a media file using ffprobe */
@@ -536,33 +672,56 @@ async function finalizeVideo(
   const videoDuration = await probeDuration(videoPath);
   const targetDuration = Math.min(videoDuration, maxDuration);
 
+  // Output encoding flags — TikTok-optimized:
+  //   -movflags +faststart → moov atom at start, streaming-friendly (TikTok scrubbing)
+  //   -crf 20 → high quality (visually near-lossless)
+  //   -maxrate 8M -bufsize 12M → cap bitrate so file size stays reasonable (~5-8MB/min)
+  //   -profile:v high -level 4.2 → broad device compatibility incl iOS
+  //   -preset medium → better compression than veryfast at final step (still fast enough)
+  const VIDEO_FLAGS = [
+    "-c:v", "libx264",
+    "-preset", "medium",
+    "-profile:v", "high",
+    "-level", "4.2",
+    "-crf", "20",
+    "-maxrate", "8M",
+    "-bufsize", "12M",
+    "-pix_fmt", "yuv420p",
+    "-movflags", "+faststart",
+  ];
+
   const args: string[] = ["-i", videoPath];
 
   if (backsongPath) {
     args.push("-i", backsongPath);
     const vol = Math.max(0, Math.min(1, backsongVolume));
-    // audio filter: trim backsong to video length, volume control, fade out last 1s
+    // Audio chain:
+    //   - volume scale
+    //   - trim to video length
+    //   - loudnorm (EBU R128, -14 LUFS = TikTok default) — consistent loudness across videos
+    //   - afade out last 1s
     const filterComplex = [
-      `[1:a]volume=${vol},atrim=0:${targetDuration},afade=t=out:st=${Math.max(0, targetDuration - 1)}:d=1[music]`,
+      `[1:a]volume=${vol},atrim=0:${targetDuration},loudnorm=I=-14:LRA=11:TP=-1.5,afade=t=out:st=${Math.max(0, targetDuration - 1)}:d=1[music]`,
     ].join(";");
     args.push(
       "-filter_complex", filterComplex,
       "-map", "0:v",
       "-map", "[music]",
-      "-c:v", "copy",
+      ...VIDEO_FLAGS,
       "-c:a", "aac",
-      "-b:a", "128k",
+      "-b:a", "192k",
+      "-ar", "44100",
       "-shortest",
       "-t", String(targetDuration),
       "-y",
       outputPath
     );
   } else {
-    // No audio — add silent audio track (TikTok usually prefers video with audio)
+    // No audio — add silent track so TikTok upload succeeds
     args.push(
       "-f", "lavfi",
       "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-      "-c:v", "copy",
+      ...VIDEO_FLAGS,
       "-c:a", "aac",
       "-b:a", "128k",
       "-shortest",
@@ -572,7 +731,7 @@ async function finalizeVideo(
     );
   }
 
-  await runFfmpeg(args);
+  await runFfmpeg(args, 600000); // 10min — encoding at preset=medium takes longer
   return targetDuration;
 }
 
@@ -607,10 +766,18 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
       normalizedPaths.push(normPath);
     }
 
-    // Step 2: concat all normalized clips
+    // Step 2: concat all normalized clips with optional transitions
     const concatListPath = join(workDir, "concat.txt");
     const concatPath = join(workDir, "concat.mp4");
-    await concatClips(normalizedPaths, concatListPath, concatPath);
+    const clipTransitions = sortedClips.map((c) => c.transition);
+    const clipDurations   = sortedClips.map((c) => Math.max(0.5, c.durationSec));
+    const hasTransitions  = clipTransitions.some((t, i) => i > 0 && t && t !== "none");
+
+    if (hasTransitions) {
+      await concatWithTransitions(normalizedPaths, clipTransitions, clipDurations, concatPath);
+    } else {
+      await concatClips(normalizedPaths, concatListPath, concatPath);
+    }
 
     // Step 2b: apply frame overlay (if any)
     const frameStyle = spec.frameStyle || "none";
@@ -678,10 +845,22 @@ export async function renderTiktokVideo(spec: RenderSpec): Promise<RenderResult>
     const stats = await stat(outputPath);
     const outputUrl = `${BASE_URL.replace(/\/$/, "")}/uploads/tiktok/${outputFilename}`;
 
+    // Extract cover thumbnail (best-effort — if it fails, video still ok)
+    const thumbFilename = outputFilename.replace(/\.mp4$/, ".jpg");
+    const thumbPath = join(TIKTOK_DIR, thumbFilename);
+    let thumbnailUrl: string | undefined;
+    try {
+      await extractThumbnail(outputPath, thumbPath);
+      thumbnailUrl = `${BASE_URL.replace(/\/$/, "")}/uploads/tiktok/${thumbFilename}`;
+    } catch (err) {
+      console.warn("[FFMPEG] Thumbnail extract failed:", err instanceof Error ? err.message : err);
+    }
+
     return {
       success: true,
       outputPath,
       outputUrl,
+      thumbnailUrl,
       durationSec: finalDuration,
       sizeBytes: stats.size,
     };

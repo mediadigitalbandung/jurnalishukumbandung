@@ -144,6 +144,7 @@ async function processNext(): Promise<void> {
             renderedUrl: result.outputUrl,
             renderedSize: result.sizeBytes,
             durationSec: result.durationSec,
+            thumbnailUrl: result.thumbnailUrl,
             renderedAt: new Date(),
             renderError: null,
           },
