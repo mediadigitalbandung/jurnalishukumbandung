@@ -1317,7 +1317,7 @@ function TechStackTab() {
     {
       layer: "Infrastructure",
       tech: [
-        { name: "VPS Ubuntu 24.04", detail: "Hostinger VPS — 145.79.15.99, port 3001 (internal), 443 (public)" },
+        { name: "VPS Ubuntu 24.04", detail: "Hostinger VPS — port 3001 (internal), 443 (public)" },
         { name: "PM2", detail: "Process manager cluster mode (4 instances)" },
         { name: "Nginx", detail: "Reverse proxy + SSL termination" },
         { name: "Cloudflare", detail: "CDN + DDoS protection + cache layer" },
@@ -1516,7 +1516,7 @@ function DeployTab() {
       <div className="rounded-[12px] border border-border bg-surface p-6 shadow-card">
         <h2 className="mb-3 text-lg font-bold text-txt-primary">Info VPS</h2>
         <div className="grid gap-3 text-sm md:grid-cols-2">
-          <div><span className="font-semibold text-txt-muted">IP:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">145.79.15.99</code></div>
+          <div><span className="font-semibold text-txt-muted">IP:</span> <code className="rounded bg-surface-secondary px-2 py-0.5" title="Cek di kontrol panel Hostinger">[VPS_IP — lihat Hostinger]</code></div>
           <div><span className="font-semibold text-txt-muted">Domain:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">jurnalishukumbandung.com</code></div>
           <div><span className="font-semibold text-txt-muted">App dir:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">/var/www/jhb</code></div>
           <div><span className="font-semibold text-txt-muted">PM2 process:</span> <code className="rounded bg-surface-secondary px-2 py-0.5">jhb</code> (cluster, 4 instances)</div>
@@ -1551,7 +1551,7 @@ git push origin master`}</code>
             <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">3</span>
             <div>
               <p className="font-semibold text-txt-primary">Deploy ke VPS</p>
-              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs whitespace-pre">{`ssh root@145.79.15.99 "cd /var/www/jhb && \\
+              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs whitespace-pre">{`ssh root@<VPS_IP> "cd /var/www/jhb && \\
   git pull origin master && \\
   npm install && \\
   rm -rf .next/types && \\
@@ -1563,7 +1563,7 @@ git push origin master`}</code>
             <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-goto-green text-xs font-bold text-white">4</span>
             <div>
               <p className="font-semibold text-txt-primary">Verifikasi</p>
-              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs">ssh root@145.79.15.99 &quot;pm2 list&quot;</code>
+              <code className="mt-1 block rounded bg-surface-secondary p-2 text-xs">ssh root@&lt;VPS_IP&gt; &quot;pm2 list&quot;</code>
               <p className="mt-1 text-xs text-txt-secondary">Pastikan status <code>online</code> untuk semua instance jhb.</p>
             </div>
           </li>
@@ -1700,7 +1700,7 @@ npx next build           # Build production`}</pre>
           </div>
           <div>
             <p className="mb-1 font-semibold text-txt-primary">VPS (via SSH)</p>
-            <pre className="rounded bg-surface-secondary p-2 font-mono">{`ssh root@145.79.15.99
+            <pre className="rounded bg-surface-secondary p-2 font-mono">{`ssh root@<VPS_IP>
 cd /var/www/jhb
 git pull origin master
 npm install

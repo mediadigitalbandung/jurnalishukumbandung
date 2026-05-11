@@ -31,7 +31,7 @@ export default function SlotWireframe({ slot }: { slot: string }) {
           <span className="h-[5px] w-[5px] rounded-full bg-[#febc2e]" />
           <span className="h-[5px] w-[5px] rounded-full bg-[#28c840]" />
           <div className="flex-1 h-3 rounded-full bg-white ml-1.5 px-2 flex items-center">
-            <span className="text-[6px] text-[#aaa]">145.79.15.99.nip.io</span>
+            <span className="text-[6px] text-[#aaa]">jurnalishukumbandung.com</span>
           </div>
         </div>
 

@@ -435,6 +435,7 @@ export default function GhostUrlsPage() {
                           rel="noopener noreferrer"
                           className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs"
                           title="Buka URL (cek 404)"
+                          aria-label="Buka URL untuk cek 404"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
@@ -464,6 +465,7 @@ export default function GhostUrlsPage() {
                               disabled={busyId === it.id}
                               className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs"
                               title="Tandai resolved manual (tanpa buat artikel)"
+                              aria-label="Tandai resolved manual"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5 text-goto-green" />
                             </button>
@@ -477,6 +479,7 @@ export default function GhostUrlsPage() {
                             disabled={busyId === it.id}
                             className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs"
                             title="Buka kembali (unresolve)"
+                            aria-label="Buka kembali (unresolve)"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                           </button>
@@ -500,6 +503,7 @@ export default function GhostUrlsPage() {
                           disabled={busyId === it.id}
                           className="btn-ghost !px-2 !py-1 inline-flex items-center gap-1 text-xs text-red-600"
                           title="Hapus entry log dari panel (URL tetap 404 / status sebelumnya tidak berubah di Google)"
+                          aria-label="Hapus entry log dari panel"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -548,6 +552,7 @@ export default function GhostUrlsPage() {
                   disabled={currentPage === 1}
                   className="btn-ghost !px-2 !py-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Halaman pertama"
+                  aria-label="Halaman pertama"
                 >
                   «
                 </button>
@@ -556,6 +561,7 @@ export default function GhostUrlsPage() {
                   disabled={currentPage === 1}
                   className="btn-ghost !px-2 !py-1 inline-flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Sebelumnya"
+                  aria-label="Halaman sebelumnya"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -567,6 +573,7 @@ export default function GhostUrlsPage() {
                   disabled={currentPage === totalPages}
                   className="btn-ghost !px-2 !py-1 inline-flex items-center disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Selanjutnya"
+                  aria-label="Halaman selanjutnya"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -575,6 +582,7 @@ export default function GhostUrlsPage() {
                   disabled={currentPage === totalPages}
                   className="btn-ghost !px-2 !py-1 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Halaman terakhir"
+                  aria-label="Halaman terakhir"
                 >
                   »
                 </button>

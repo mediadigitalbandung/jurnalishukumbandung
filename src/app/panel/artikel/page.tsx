@@ -658,8 +658,9 @@ export default function ArtikelPage() {
                             {isEditor && article.status === "IN_REVIEW" && (
                               <button
                                 onClick={() => handleQuickApprove(article.id, article.title)}
-                                className="rounded-lg p-2 text-blue-500 hover:bg-blue-50 transition-colors"
+                                className="rounded-lg p-2.5 text-blue-500 hover:bg-blue-50 transition-colors"
                                 title="Setujui artikel"
+                                aria-label={`Setujui artikel: ${article.title}`}
                               >
                                 <CheckCircle size={18} />
                               </button>
@@ -668,8 +669,9 @@ export default function ArtikelPage() {
                             {isEditor && article.status === "APPROVED" && (
                               <button
                                 onClick={() => handleQuickPublish(article.id, article.title)}
-                                className="rounded-lg p-2 text-goto-green hover:bg-goto-light transition-colors"
+                                className="rounded-lg p-2.5 text-goto-green hover:bg-goto-light transition-colors"
                                 title="Publikasikan artikel"
+                                aria-label={`Publikasikan artikel: ${article.title}`}
                               >
                                 <ArrowDownCircle size={18} className="rotate-180" />
                               </button>
@@ -679,8 +681,9 @@ export default function ArtikelPage() {
                               <button
                                 onClick={() => handlePostToSocial(article.id, article.title)}
                                 disabled={posting === article.id}
-                                className="rounded-lg p-2 text-pink-600 hover:bg-pink-50 disabled:opacity-50 transition-colors"
+                                className="rounded-lg p-2.5 text-pink-600 hover:bg-pink-50 disabled:opacity-50 transition-colors"
                                 title="Post ke Instagram & Facebook"
+                                aria-label={`Post ke Instagram dan Facebook: ${article.title}`}
                               >
                                 {posting === article.id ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
                               </button>
@@ -689,31 +692,35 @@ export default function ArtikelPage() {
                             {isEditor && article.status === "PUBLISHED" && (
                               <button
                                 onClick={() => handleTakedown(article.id, article.title)}
-                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
+                                className="rounded-lg p-2.5 text-red-500 hover:bg-red-50 transition-colors"
                                 title="Takedown artikel"
+                                aria-label={`Takedown artikel: ${article.title}`}
                               >
                                 <ArrowDownCircle size={18} />
                               </button>
                             )}
                             <button
                               onClick={() => router.push(`/berita/${article.slug}`)}
-                              className="rounded-lg p-2 text-txt-secondary hover:bg-surface-secondary hover:text-txt-primary transition-colors"
+                              className="rounded-lg p-2.5 text-txt-secondary hover:bg-surface-secondary hover:text-txt-primary transition-colors"
                               title="Lihat artikel"
+                              aria-label={`Lihat artikel: ${article.title}`}
                             >
                               <Eye size={18} />
                             </button>
                             <button
                               onClick={() => router.push(`/panel/artikel/${article.id}/edit`)}
-                              className="rounded-lg p-2 text-txt-secondary hover:bg-surface-secondary hover:text-txt-primary transition-colors"
+                              className="rounded-lg p-2.5 text-txt-secondary hover:bg-surface-secondary hover:text-txt-primary transition-colors"
                               title="Edit artikel"
+                              aria-label={`Edit artikel: ${article.title}`}
                             >
                               <Edit size={18} />
                             </button>
                             <button
                               onClick={() => handleDelete(article.id, article.title)}
                               disabled={deleting === article.id}
-                              className="rounded-lg p-2 text-txt-secondary hover:bg-red-50 hover:text-red-500 disabled:opacity-50 transition-colors"
+                              className="rounded-lg p-2.5 text-txt-secondary hover:bg-red-50 hover:text-red-500 disabled:opacity-50 transition-colors"
                               title="Hapus artikel"
+                              aria-label={`Hapus artikel: ${article.title}`}
                             >
                               <Trash2 size={18} />
                             </button>

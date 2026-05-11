@@ -36,15 +36,30 @@ export async function GET(
     const role = session?.user?.role || "";
     const isEditorOrAdmin = ["SUPER_ADMIN", "EDITOR"].includes(role);
 
-    const comments = await prisma.comment.findMany({
-      where: {
-        articleId: params.id,
-        ...(isEditorOrAdmin ? {} : { isApproved: true }),
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Pagination — cegah response gigantic kalau artikel viral punya 10k+ komen.
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")));
 
-    return successResponse(comments);
+    const where = {
+      articleId: params.id,
+      ...(isEditorOrAdmin ? {} : { isApproved: true }),
+    };
+
+    const [comments, total] = await Promise.all([
+      prisma.comment.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.comment.count({ where }),
+    ]);
+
+    return successResponse({
+      comments,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     return errorResponse(error);
   }

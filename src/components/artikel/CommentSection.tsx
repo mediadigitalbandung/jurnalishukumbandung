@@ -40,13 +40,14 @@ export default function CommentSection({ articleId }: { articleId: string }) {
 
   const fetchComments = useCallback(async () => {
     try {
-      const res = await fetch(`/api/articles/${articleId}/comments`);
+      const res = await fetch(`/api/articles/${articleId}/comments?limit=50`);
       if (res.ok) {
         const json = await res.json();
-        // Only show approved comments for public view
-        setComments(
-          (json.data || []).filter((c: Comment) => c.isApproved)
-        );
+        // Endpoint sekarang return { comments, pagination }
+        const list: Comment[] = Array.isArray(json.data)
+          ? json.data
+          : json.data?.comments || [];
+        setComments(list.filter((c) => c.isApproved));
       }
     } catch {
       // silent fail
