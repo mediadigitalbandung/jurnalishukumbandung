@@ -100,6 +100,8 @@ export default function WhipBroadcaster({
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string>("");
   const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
+  const [rawError, setRawError] = useState<{ name: string; message: string } | null>(null);
+  const [diagnosticOutput, setDiagnosticOutput] = useState<string>("");
   const [permissionState, setPermissionState] = useState<{
     camera?: PermissionState;
     microphone?: PermissionState;
@@ -248,7 +250,9 @@ export default function WhipBroadcaster({
     } catch (e) {
       const kind = classifyMediaError(e);
       const rawMsg = e instanceof Error ? e.message : String(e);
+      const errName = e instanceof Error ? e.name : "Error";
       setErrorKind(kind);
+      setRawError({ name: errName, message: rawMsg });
       // Pesan singkat di header — detail di panel terpisah
       const friendly: Record<ErrorKind, string> = {
         permission_denied: "Akses kamera & mikrofon ditolak browser",
@@ -264,6 +268,84 @@ export default function WhipBroadcaster({
       onError?.(rawMsg);
     }
   }, [selectedCamera, selectedMic, refreshDevices, onError, checkPermissions]);
+
+  // Diagnostic test — pure getUserMedia call, no constraints, raw output
+  const runDiagnostic = useCallback(async () => {
+    setDiagnosticOutput("Running...");
+    const lines: string[] = [];
+    lines.push(`Browser: ${navigator.userAgent}`);
+    lines.push(`Secure context: ${window.isSecureContext}`);
+    lines.push(`Origin: ${window.location.origin}`);
+
+    if (navigator.permissions?.query) {
+      try {
+        const cam = await navigator.permissions.query({ name: "camera" as PermissionName });
+        lines.push(`Camera permission state: ${cam.state}`);
+      } catch (e) {
+        lines.push(`Camera permission query failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      try {
+        const mic = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        lines.push(`Microphone permission state: ${mic.state}`);
+      } catch (e) {
+        lines.push(`Microphone permission query failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else {
+      lines.push("Permissions API: not supported");
+    }
+
+    // List devices (works even before getUserMedia, but labels empty if no permission)
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      const cams = list.filter((d) => d.kind === "videoinput");
+      const mics = list.filter((d) => d.kind === "audioinput");
+      lines.push(`Cameras detected: ${cams.length}`);
+      cams.forEach((c, i) => lines.push(`  [${i}] ${c.label || "(label hidden — no perm)"} id=${c.deviceId.slice(0, 12)}`));
+      lines.push(`Microphones detected: ${mics.length}`);
+      mics.forEach((m, i) => lines.push(`  [${i}] ${m.label || "(label hidden — no perm)"} id=${m.deviceId.slice(0, 12)}`));
+    } catch (e) {
+      lines.push(`enumerateDevices error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // The actual test
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      lines.push("");
+      lines.push(`✅ SUCCESS — stream id: ${stream.id}`);
+      lines.push(`Video tracks: ${stream.getVideoTracks().length}`);
+      lines.push(`Audio tracks: ${stream.getAudioTracks().length}`);
+      stream.getTracks().forEach((t) => {
+        lines.push(`  ${t.kind}: ${t.label || "(no label)"} (state=${t.readyState}, enabled=${t.enabled})`);
+        t.stop(); // clean up
+      });
+    } catch (e) {
+      lines.push("");
+      lines.push(`❌ FAIL`);
+      lines.push(`Error name: ${e instanceof Error ? e.name : "(no name)"}`);
+      lines.push(`Error message: ${e instanceof Error ? e.message : String(e)}`);
+      lines.push("");
+      // Interpretation
+      const msg = e instanceof Error ? e.message.toLowerCase() : "";
+      const name = e instanceof Error ? e.name : "";
+      if (name === "NotAllowedError" && msg.includes("system")) {
+        lines.push("🪟 INTERPRETATION: Windows OS-level block. Fix via Windows Settings → Privacy → Camera/Microphone.");
+      } else if (name === "NotAllowedError" && msg.includes("dismiss")) {
+        lines.push("🚫 INTERPRETATION: User dismissed the permission prompt. Click lock icon in address bar → Reset permissions → reload.");
+      } else if (name === "NotAllowedError") {
+        lines.push("🚫 INTERPRETATION: Chrome site-level block. Click lock icon → Site settings → Camera/Mic = Allow → reload.");
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        lines.push("📷 INTERPRETATION: Camera/mic in use by another app (Zoom/Meet/Teams/OBS/etc). Close them and retry.");
+      } else if (name === "NotFoundError") {
+        lines.push("🔌 INTERPRETATION: No camera/mic hardware detected. Check USB connection / built-in webcam.");
+      } else if (name === "OverconstrainedError") {
+        lines.push("⚙️ INTERPRETATION: Device doesn't support requested resolution. Code will fall back automatically.");
+      } else {
+        lines.push(`❓ INTERPRETATION: Unusual error. Screenshot this and share with developer.`);
+      }
+    }
+
+    setDiagnosticOutput(lines.join("\n"));
+  }, []);
 
   // Toggle camera/mic on/off
   const toggleCamera = () => {
@@ -688,7 +770,52 @@ export default function WhipBroadcaster({
               <RefreshCw className="h-4 w-4" />
               Reload Halaman
             </button>
+            <button
+              onClick={runDiagnostic}
+              className="btn-secondary inline-flex items-center gap-2"
+              title="Test detail untuk diagnosa masalah"
+            >
+              <Info className="h-4 w-4" />
+              🔬 Diagnostic Test
+            </button>
           </div>
+
+          {/* Raw error display untuk debug */}
+          {rawError && (
+            <div className="mt-3 rounded-lg bg-gray-900 text-green-400 p-3 font-mono text-xs">
+              <div className="font-semibold text-gray-400 mb-1">Browser error detail:</div>
+              <div><span className="text-yellow-400">Name:</span> {rawError.name}</div>
+              <div><span className="text-yellow-400">Message:</span> {rawError.message}</div>
+              {rawError.message.toLowerCase().includes("system") && (
+                <div className="mt-2 text-orange-300 font-sans not-italic">
+                  → Pesan mengandung &quot;system&quot;: ini Windows OS-level block. Buka <code className="bg-gray-800 px-1 rounded">ms-settings:privacy-webcam</code>.
+                </div>
+              )}
+              {rawError.message.toLowerCase().includes("dismiss") && (
+                <div className="mt-2 text-orange-300 font-sans not-italic">
+                  → Pesan mengandung &quot;dismiss&quot;: kamu pernah klik X di popup. Click lock icon di address bar → Reset permissions.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Diagnostic output */}
+          {diagnosticOutput && (
+            <div className="mt-3 rounded-lg bg-gray-900 text-gray-100 p-3 font-mono text-xs whitespace-pre-wrap break-all max-h-96 overflow-y-auto">
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-semibold text-gray-400">Diagnostic output:</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(diagnosticOutput);
+                  }}
+                  className="text-xs text-blue-400 hover:underline"
+                >
+                  Copy
+                </button>
+              </div>
+              {diagnosticOutput}
+            </div>
+          )}
 
           <div className="mt-3 text-xs text-orange-700/80 italic">
             ⚠️ Setelah mengizinkan di pengaturan browser, kamu perlu reload halaman supaya browser mengenali perubahan. Tombol "Coba Lagi" mungkin tidak cukup.
