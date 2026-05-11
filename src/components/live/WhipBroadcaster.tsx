@@ -146,6 +146,42 @@ export default function WhipBroadcaster({
     checkPermissions();
   }, [checkPermissions]);
 
+  // Auto-trigger preview kalau permission sudah granted (atau jadi granted setelah user Allow di prompt)
+  // Track previous state untuk detect transition denied → granted/prompt
+  const prevPermissionRef = useRef<{ camera?: PermissionState; microphone?: PermissionState }>({});
+  useEffect(() => {
+    const prev = prevPermissionRef.current;
+    const now = permissionState;
+    prevPermissionRef.current = now;
+
+    // Skip kalau status sudah live/preview/connecting (jangan interrupt session aktif)
+    if (status === "preview" || status === "live" || status === "connecting") return;
+
+    // Trigger kondisi:
+    // 1. Mount dengan permission already granted → auto-start preview
+    // 2. Transition dari denied/prompt → granted (user just clicked Allow) → auto-start
+    const bothGranted = now.camera === "granted" && now.microphone === "granted";
+    const wasNotGranted = prev.camera !== "granted" || prev.microphone !== "granted";
+
+    if (bothGranted && (status === "idle" || status === "error")) {
+      // Defer ke next tick supaya state updates settle
+      const t = setTimeout(() => startPreview(), 100);
+      return () => clearTimeout(t);
+    }
+
+    // Kasus kedua: error sebelumnya permission_denied, sekarang status berubah jadi "prompt"
+    // (user reset/reload setelah ubah setting) → otomatis re-attempt
+    if (
+      errorKind === "permission_denied" &&
+      (now.camera === "prompt" || now.microphone === "prompt") &&
+      wasNotGranted
+    ) {
+      const t = setTimeout(() => startPreview(), 200);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissionState.camera, permissionState.microphone, status, errorKind]);
+
   // Enumerate devices
   const refreshDevices = useCallback(async () => {
     try {
