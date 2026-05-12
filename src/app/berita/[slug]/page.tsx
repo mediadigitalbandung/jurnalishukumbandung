@@ -593,6 +593,7 @@ export default async function ArticlePage({ params, searchParams }: { params: { 
   const qaPageLd = detectQAPageSchema(article.title, article.excerpt || "", article.content || "", articleUrl, {
     publishedAt: article.publishedAt,
     authorName: article.author?.name || null,
+    authorSlug: article.author?.name ? slugify(article.author.name) : null,
     siteName: "Jurnalis Hukum Bandung",
   });
 

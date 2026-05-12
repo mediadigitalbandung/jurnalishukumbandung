@@ -613,6 +613,7 @@ export function detectQAPageSchema(
   meta?: {
     publishedAt?: Date | string | null;
     authorName?: string | null;
+    authorSlug?: string | null;
     siteName?: string | null;
   }
 ): Record<string, unknown> | null {
@@ -627,7 +628,7 @@ export function detectQAPageSchema(
   const answer = excerpt || (firstP ? stripHtml(firstP[1]).trim() : "");
   if (!answer || answer.length < 20) return null;
 
-  // Resolve publishedAt → ISO string (Jakarta timezone via toJakartaISO if Date)
+  // Resolve publishedAt → ISO string
   const publishedISO = meta?.publishedAt
     ? typeof meta.publishedAt === "string"
       ? meta.publishedAt
@@ -637,14 +638,26 @@ export function detectQAPageSchema(
   const authorName = meta?.authorName || meta?.siteName || "Jurnalis Hukum Bandung";
   const siteName = meta?.siteName || "Jurnalis Hukum Bandung";
 
-  // Author objects (re-used di Question dan Answer per Google guideline)
+  // Derive site origin from article URL — needed for Organization.url and fallback Person.url
+  let siteOrigin = "https://jurnalishukumbandung.com";
+  try { siteOrigin = new URL(url).origin; } catch { /* fallback */ }
+
+  // Per Google QAPage spec, Person/Organization author requires `url` field.
+  // - Person → link ke /penulis/{slug} kalau ada, fallback ke artikel URL
+  // - Organization → site root URL
+  const authorUrl = meta?.authorSlug
+    ? `${siteOrigin}/penulis/${meta.authorSlug}`
+    : url;
+
   const authorObj = {
     "@type": "Person",
     name: authorName,
+    url: authorUrl,
   };
   const publisherObj = {
     "@type": "Organization",
     name: siteName,
+    url: siteOrigin,
   };
 
   return {
