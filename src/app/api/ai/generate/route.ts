@@ -3,8 +3,9 @@ export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import { requireAuth, successResponse, errorResponse, ApiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
-import { aiRateLimit } from "@/lib/rate-limit";
 import { callAI, hasAIKey } from "@/lib/ai-client";
+
+const AI_RATE_LIMIT_PER_HOUR = 20;
 
 const SYSTEM_PROMPT = "Kamu adalah asisten AI untuk media berita hukum Indonesia. Jawab dalam Bahasa Indonesia. JANGAN pakai markdown formatting (no **bold**, no \"quotes\", no # heading, no - bullet). Output PLAIN TEXT saja.";
 
@@ -46,13 +47,33 @@ const PROMPTS: Record<string, (title: string, content: string) => string> = {
 };
 
 export async function POST(req: NextRequest) {
+  let userIdForLog: string | null = null;
+  let userNameForLog = "";
+  let featureForLog = "unknown";
+  let titleForLog = "";
+
   try {
     const session = await requireAuth();
+    userIdForLog = session.user.id;
+    userNameForLog = session.user.name;
 
-    // Rate limit per user
-    const { success: allowed } = aiRateLimit(session.user.id);
-    if (!allowed) {
-      throw new ApiError("Batas penggunaan AI tercapai (20 request/jam). Coba lagi nanti.", 429);
+    // Cluster-safe rate limit: count recent successful calls in DB instead of
+    // process-local Map (PM2 cluster spawns 4 instances, each with its own map).
+    // Rate limit counts only SUCCESSFUL calls (feature without ":FAILED" suffix)
+    // so users who hit transient errors aren't permanently blocked.
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await prisma.aIUsageLog.count({
+      where: {
+        userId: session.user.id,
+        createdAt: { gte: oneHourAgo },
+        feature: { not: { contains: ":FAILED" } },
+      },
+    });
+    if (recentCount >= AI_RATE_LIMIT_PER_HOUR) {
+      throw new ApiError(
+        `Batas penggunaan AI tercapai (${AI_RATE_LIMIT_PER_HOUR} request/jam). Coba lagi nanti.`,
+        429
+      );
     }
 
     const body = await req.json();
@@ -61,13 +82,18 @@ export async function POST(req: NextRequest) {
       content: string;
       title: string;
     };
+    featureForLog = feature || "unknown";
+    titleForLog = title || "";
 
     if (!feature || !content || !title) {
       throw new ApiError("Field feature, content, dan title diperlukan", 400);
     }
 
     if (!PROMPTS[feature]) {
-      throw new ApiError("Feature tidak valid. Gunakan: tags, summary, seo_title, meta_description", 400);
+      throw new ApiError(
+        `Feature tidak valid. Gunakan: ${Object.keys(PROMPTS).join(", ")}`,
+        400
+      );
     }
 
     if (!(await hasAIKey())) {
@@ -79,7 +105,7 @@ export async function POST(req: NextRequest) {
     // Sanitize AI output: strip markdown bold, quotes, bullets, etc.
     const result = sanitizeAiText(rawResult);
 
-    // Log usage (tokens not available without provider info, log 0)
+    // Log successful usage (tokens not available without provider info, log 0)
     await prisma.aIUsageLog.create({
       data: {
         userId: session.user.id,
@@ -94,6 +120,28 @@ export async function POST(req: NextRequest) {
 
     return successResponse({ result, tokensUsed: 0 });
   } catch (error) {
+    // Log failure so admins can diagnose user-reported "AI not working" issues.
+    if (userIdForLog) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[AI generate] user=${userNameForLog} feature=${featureForLog} failed:`,
+        msg
+      );
+      // Best-effort failure log — don't block response if log itself fails
+      prisma.aIUsageLog
+        .create({
+          data: {
+            userId: userIdForLog,
+            userName: userNameForLog,
+            feature: `${featureForLog}:FAILED`,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            articleTitle: `[ERROR] ${msg.slice(0, 200)} — ${titleForLog.slice(0, 50)}`,
+          },
+        })
+        .catch(() => {});
+    }
     return errorResponse(error);
   }
 }

@@ -398,8 +398,8 @@ export default function AutoArtikelPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ count: 1 }),
         });
-        const data = await res.json();
-        if (data.success && data.data?.results?.[0]) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.success && data.data?.results?.[0]) {
           const r = data.data.results[0];
           setGenerateResult((prev) => prev ? {
             generated: prev.generated + (r.success ? 1 : 0),
@@ -407,17 +407,25 @@ export default function AutoArtikelPage() {
             results: [...prev.results, r],
           } : prev);
         } else {
+          // HTTP error or no results — surface the actual message
+          const errMsg = data?.error
+            || (res.status === 401 ? "Sesi habis — login ulang"
+              : res.status === 403 ? "Anda tidak berwenang (perlu SUPER_ADMIN/EDITOR)"
+              : res.status === 429 ? "Rate limit AI tercapai — coba lagi 1 jam"
+              : res.status >= 500 ? `Server error (HTTP ${res.status})`
+              : `Gagal generate (HTTP ${res.status})`);
           setGenerateResult((prev) => prev ? {
             ...prev,
             failed: prev.failed + 1,
-            results: [...prev.results, { success: false, error: data.error || "Gagal" }],
+            results: [...prev.results, { success: false, error: errMsg }],
           } : prev);
         }
-      } catch {
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Timeout / koneksi terputus";
         setGenerateResult((prev) => prev ? {
           ...prev,
           failed: prev.failed + 1,
-          results: [...prev.results, { success: false, error: "Timeout / server error" }],
+          results: [...prev.results, { success: false, error: errMsg }],
         } : prev);
       }
 

@@ -221,17 +221,28 @@ export default function NewArticlePage() {
     }
   };
 
-  const AiButton = ({ feature, setter }: { feature: string; setter: (val: string) => void }) => (
-    <button
-      type="button"
-      onClick={() => generateAI(feature, setter)}
-      disabled={!title.trim() || !content.trim() || aiLoading[feature]}
-      className="flex items-center gap-1 text-xs text-goto-green hover:underline disabled:opacity-40 disabled:no-underline"
-    >
-      {aiLoading[feature] ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-      Generate AI
-    </button>
-  );
+  const AiButton = ({ feature, setter }: { feature: string; setter: (val: string) => void }) => {
+    const disabled = !title.trim() || !content.trim() || aiLoading[feature];
+    const reason = !title.trim()
+      ? "Isi judul dulu"
+      : !content.trim()
+        ? "Isi konten artikel dulu"
+        : aiLoading[feature]
+          ? "Sedang generate…"
+          : "";
+    return (
+      <button
+        type="button"
+        onClick={() => generateAI(feature, setter)}
+        disabled={disabled}
+        title={reason || "Generate via AI"}
+        className="flex items-center gap-1 text-xs text-goto-green hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+      >
+        {aiLoading[feature] ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+        Generate AI
+      </button>
+    );
+  };
 
   const fetchCategories = useCallback(async () => {
     try {

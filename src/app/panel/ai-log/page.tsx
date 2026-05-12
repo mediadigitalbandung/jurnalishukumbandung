@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
-import { Sparkles, Cpu, Hash, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Sparkles, Cpu, Hash, Users, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 interface AILog {
   id: string;
@@ -43,9 +43,17 @@ const FEATURE_LABELS: Record<string, string> = {
   summary: "Ringkasan",
   seo_title: "SEO Title",
   meta_description: "Meta Description",
+  image_caption: "Caption Gambar",
 };
 
+function featureLabel(feature: string): { label: string; failed: boolean } {
+  const failed = feature.endsWith(":FAILED");
+  const baseKey = failed ? feature.slice(0, -":FAILED".length) : feature;
+  return { label: FEATURE_LABELS[baseKey] || baseKey, failed };
+}
+
 export default function AIPage() {
+  const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const userRole = session?.user?.role || "";
 
@@ -55,14 +63,13 @@ export default function AIPage() {
   const [filterUser, setFilterUser] = useState("");
   const [logLoading, setLogLoading] = useState(true);
 
-  if (
-    sessionStatus !== "loading" &&
-    session &&
-    userRole !== "SUPER_ADMIN" &&
-    userRole !== "EDITOR"
-  ) {
-    redirect("/panel/dashboard");
-  }
+  // Redirect non-allowed roles — done in effect, never call redirect() during render
+  useEffect(() => {
+    if (sessionStatus === "loading" || !session) return;
+    if (userRole !== "SUPER_ADMIN" && userRole !== "EDITOR") {
+      router.replace("/panel/dashboard");
+    }
+  }, [sessionStatus, session, userRole, router]);
 
   const fetchLogs = useCallback(
     async (page: number) => {
@@ -206,19 +213,35 @@ export default function AIPage() {
                   <td colSpan={5} className="px-5 py-8 text-center text-base text-txt-muted">Belum ada data penggunaan AI</td>
                 </tr>
               ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50 transition-colors">
-                    <td className="px-3 sm:px-5 py-4 text-xs sm:text-sm text-txt-secondary whitespace-nowrap">{formatDate(log.createdAt)}</td>
-                    <td className="hidden sm:table-cell px-5 py-4 text-sm text-txt-primary">{log.userName}</td>
-                    <td className="px-3 sm:px-5 py-4">
-                      <span className="inline-block rounded-full bg-goto-light px-2.5 py-0.5 text-xs font-medium text-goto-green">
-                        {FEATURE_LABELS[log.feature] || log.feature}
-                      </span>
-                    </td>
-                    <td className="px-3 sm:px-5 py-4 text-right text-sm font-medium text-txt-primary">{formatNumber(log.totalTokens)}</td>
-                    <td className="hidden md:table-cell px-5 py-4 text-sm text-txt-secondary max-w-[200px] truncate">{log.articleTitle || "-"}</td>
-                  </tr>
-                ))
+                logs.map((log) => {
+                  const { label, failed } = featureLabel(log.feature);
+                  return (
+                    <tr key={log.id} className="border-b border-border last:border-0 hover:bg-surface-secondary/50 transition-colors">
+                      <td className="px-3 sm:px-5 py-4 text-xs sm:text-sm text-txt-secondary whitespace-nowrap">{formatDate(log.createdAt)}</td>
+                      <td className="hidden sm:table-cell px-5 py-4 text-sm text-txt-primary">{log.userName}</td>
+                      <td className="px-3 sm:px-5 py-4">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            failed
+                              ? "bg-red-50 text-red-600"
+                              : "bg-goto-light text-goto-green"
+                          }`}
+                        >
+                          {failed && <AlertCircle size={11} />}
+                          {label}
+                          {failed && " (gagal)"}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-5 py-4 text-right text-sm font-medium text-txt-primary">{formatNumber(log.totalTokens)}</td>
+                      <td
+                        className="hidden md:table-cell px-5 py-4 text-sm text-txt-secondary max-w-[200px] truncate"
+                        title={log.articleTitle || ""}
+                      >
+                        {log.articleTitle || "-"}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

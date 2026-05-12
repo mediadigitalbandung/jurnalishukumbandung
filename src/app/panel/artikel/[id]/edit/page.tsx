@@ -341,17 +341,28 @@ export default function EditArticlePage() {
     }
   };
 
-  const AiButton = ({ feature, setter }: { feature: string; setter: (val: string) => void }) => (
-    <button
-      type="button"
-      onClick={() => generateAI(feature, setter)}
-      disabled={!title.trim() || !content.trim() || aiLoading[feature]}
-      className="flex items-center gap-1 text-xs text-goto-green hover:underline disabled:opacity-40 disabled:no-underline"
-    >
-      {aiLoading[feature] ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-      Generate AI
-    </button>
-  );
+  const AiButton = ({ feature, setter }: { feature: string; setter: (val: string) => void }) => {
+    const disabled = !title.trim() || !content.trim() || aiLoading[feature];
+    const reason = !title.trim()
+      ? "Isi judul dulu"
+      : !content.trim()
+        ? "Isi konten artikel dulu"
+        : aiLoading[feature]
+          ? "Sedang generate…"
+          : "";
+    return (
+      <button
+        type="button"
+        onClick={() => generateAI(feature, setter)}
+        disabled={disabled}
+        title={reason || "Generate via AI"}
+        className="flex items-center gap-1 text-xs text-goto-green hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+      >
+        {aiLoading[feature] ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+        Generate AI
+      </button>
+    );
+  };
 
   const generateTagsAI = async () => {
     if (!title.trim() || !content.trim()) return;
@@ -362,15 +373,20 @@ export default function EditArticlePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feature: "tags", title, content }),
       });
-      if (!res.ok) throw new Error("Gagal generate tags");
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        setError(json?.error || `Gagal generate tags (HTTP ${res.status})`);
+        return;
+      }
       const newTags = json.data?.result?.split(",").map((t: string) => t.trim()).filter(Boolean) || [];
       setTags((prev) => {
         const existing = prev.split(",").map((t) => t.trim()).filter(Boolean);
         const merged = Array.from(new Set([...existing, ...newTags]));
         return merged.join(", ");
       });
-    } catch { /* ignore */ } finally {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menghubungi AI service");
+    } finally {
       setGeneratingTags(false);
     }
   };
