@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import TopLoader from "@/components/layout/TopLoader";
 import PublicNav from "@/components/layout/PublicNav";
 import PublicFooter from "@/components/layout/PublicFooter";
+import LiveBanner from "@/components/layout/LiveBanner";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import IosSplashScreens from "@/components/pwa/IosSplashScreens";
@@ -201,6 +202,10 @@ export default function RootLayout({
           </a>
           <Suspense fallback={null}>
             <TopLoader />
+          </Suspense>
+          {/* Global LIVE banner — visible di semua halaman saat ada live session aktif */}
+          <Suspense fallback={null}>
+            <LiveBanner />
           </Suspense>
           <PublicNav />
           <main id="main-content" className="flex-1">{children}</main>

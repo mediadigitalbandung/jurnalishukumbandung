@@ -365,6 +365,124 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Live Sidang — visible langsung setelah headline supaya visitor tau ada yang sedang live */}
+      {liveSessions.length > 0 && (() => {
+        const featured = liveSessions.find((s) => s.status === "LIVE") || liveSessions[0];
+        const others = liveSessions.filter((s) => s.id !== featured.id).slice(0, 3);
+        const isLive = featured.status === "LIVE";
+        return (
+          <section className={`py-6 ${isLive ? "bg-red-50/40" : "bg-surface-secondary"}`}>
+            <div className="container-main">
+              <div className="flex items-center justify-between mb-4">
+                <Link href="/live" className="border-l-[3px] border-red-500 pl-3 font-serif text-lg font-bold text-txt-primary flex items-center hover:text-red-500 transition-colors">
+                  <Radio size={18} className="mr-2 text-red-500 animate-pulse" />
+                  {isLive ? "Live Sekarang" : "Live Hari Ini"}
+                </Link>
+                <Link href="/live" className="text-sm font-medium text-goto-green hover:underline">
+                  Lihat Semua
+                </Link>
+              </div>
+
+              {/* Featured live — clickable card to viewer page */}
+              <Link
+                href={`/live/${featured.slug}`}
+                className="block relative w-full aspect-video rounded-lg overflow-hidden bg-surface-dark mb-5 group"
+              >
+                {featured.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={featured.thumbnail}
+                    alt={featured.title}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-red-600 shadow-lg shadow-red-600/40 group-hover:bg-red-500 transition">
+                    <Play size={26} className="text-white ml-1" />
+                  </div>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 text-white">
+                  <p className="font-bold text-sm sm:text-lg leading-tight">{featured.title}</p>
+                  <p className="mt-1 text-white/70 text-xs sm:text-sm">
+                    {featured.broadcaster.name}
+                    {featured.category && <span> · {featured.category.name}</span>}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    {isLive ? (
+                      <>
+                        <span className="flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                          LIVE
+                        </span>
+                        {featured.currentViewers > 0 && (
+                          <span className="text-xs text-white/80">{featured.currentViewers} menonton</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
+                        DIJADWALKAN
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+
+              {/* Other live/scheduled — info cards */}
+              {others.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {others.map((s) => (
+                    <Link
+                      key={s.id}
+                      href={`/live/${s.slug}`}
+                      className="rounded-lg border border-border bg-surface p-4 transition-shadow hover:shadow-card"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-txt-secondary">
+                          {s.broadcaster.name}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            s.status === "LIVE"
+                              ? "bg-red-50 text-red-600"
+                              : "bg-blue-50 text-blue-600"
+                          }`}
+                        >
+                          {s.status === "LIVE" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                          )}
+                          {s.status === "LIVE" ? "Live" : "Dijadwalkan"}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-bold text-txt-primary leading-snug line-clamp-2">
+                        {s.title}
+                      </h3>
+                      {s.category && (
+                        <p className="text-xs text-txt-muted mt-1">{s.category.name}</p>
+                      )}
+                      <p className="text-xs font-semibold text-goto-green mt-2">
+                        {s.status === "LIVE"
+                          ? "Tonton sekarang →"
+                          : s.scheduledAt
+                          ? new Date(s.scheduledAt).toLocaleString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              day: "numeric",
+                              month: "short",
+                            })
+                          : "Lihat detail →"}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      })()}
+
       {/* Berita Terkini + Terpopuler side by side */}
       <section className="bg-surface py-8">
         <div className="container-main">
@@ -512,124 +630,6 @@ export default async function HomePage() {
       </section>
 
       <div className="border-b border-border" />
-
-      {/* Live Sidang — hanya muncul kalau ada live session aktif/scheduled */}
-      {liveSessions.length > 0 && (() => {
-        const featured = liveSessions.find((s) => s.status === "LIVE") || liveSessions[0];
-        const others = liveSessions.filter((s) => s.id !== featured.id).slice(0, 3);
-        const isLive = featured.status === "LIVE";
-        return (
-          <section className="bg-surface-secondary py-6">
-            <div className="container-main">
-              <div className="flex items-center justify-between mb-4">
-                <Link href="/live" className="border-l-[3px] border-red-500 pl-3 font-serif text-lg font-bold text-txt-primary flex items-center hover:text-red-500 transition-colors">
-                  <Radio size={18} className="mr-2 text-red-500 animate-pulse" />
-                  {isLive ? "Live Sekarang" : "Live Hari Ini"}
-                </Link>
-                <Link href="/live" className="text-sm font-medium text-goto-green hover:underline">
-                  Lihat Semua
-                </Link>
-              </div>
-
-              {/* Featured live — clickable card to viewer page */}
-              <Link
-                href={`/live/${featured.slug}`}
-                className="block relative w-full aspect-video rounded-lg overflow-hidden bg-surface-dark mb-5 group"
-              >
-                {featured.thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={featured.thumbnail}
-                    alt={featured.title}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800" />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-red-600 shadow-lg shadow-red-600/40 group-hover:bg-red-500 transition">
-                    <Play size={26} className="text-white ml-1" />
-                  </div>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 text-white">
-                  <p className="font-bold text-sm sm:text-lg leading-tight">{featured.title}</p>
-                  <p className="mt-1 text-white/70 text-xs sm:text-sm">
-                    {featured.broadcaster.name}
-                    {featured.category && <span> · {featured.category.name}</span>}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    {isLive ? (
-                      <>
-                        <span className="flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
-                          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                          LIVE
-                        </span>
-                        {featured.currentViewers > 0 && (
-                          <span className="text-xs text-white/80">{featured.currentViewers} menonton</span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
-                        DIJADWALKAN
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-
-              {/* Other live/scheduled — info cards */}
-              {others.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {others.map((s) => (
-                    <Link
-                      key={s.id}
-                      href={`/live/${s.slug}`}
-                      className="rounded-lg border border-border bg-surface p-4 transition-shadow hover:shadow-card"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-txt-secondary">
-                          {s.broadcaster.name}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            s.status === "LIVE"
-                              ? "bg-red-50 text-red-600"
-                              : "bg-blue-50 text-blue-600"
-                          }`}
-                        >
-                          {s.status === "LIVE" && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                          )}
-                          {s.status === "LIVE" ? "Live" : "Dijadwalkan"}
-                        </span>
-                      </div>
-                      <h3 className="text-sm font-bold text-txt-primary leading-snug line-clamp-2">
-                        {s.title}
-                      </h3>
-                      {s.category && (
-                        <p className="text-xs text-txt-muted mt-1">{s.category.name}</p>
-                      )}
-                      <p className="text-xs font-semibold text-goto-green mt-2">
-                        {s.status === "LIVE"
-                          ? "Tonton sekarang →"
-                          : s.scheduledAt
-                          ? new Date(s.scheduledAt).toLocaleString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              day: "numeric",
-                              month: "short",
-                            })
-                          : "Lihat detail →"}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })()}
 
       {/* Polling Hukum */}
       <section className="bg-surface py-8">
