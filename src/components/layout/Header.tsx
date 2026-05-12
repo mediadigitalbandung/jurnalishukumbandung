@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   ChevronRight,
   Bookmark,
+  Download,
 } from "lucide-react";
 
 // Static nav items (selalu ada, bukan kategori)
@@ -136,6 +137,16 @@ export default function Header() {
                 className="w-full rounded-full border border-border bg-white py-2 pl-10 pr-4 text-sm text-txt-primary placeholder:text-txt-muted transition-all focus:border-goto-green focus:outline-none focus:ring-2 focus:ring-goto-green/20"
               />
             </form>
+
+              {/* Install app link — desktop */}
+              <Link
+                href="/install"
+                className="hidden lg:flex items-center gap-1.5 rounded-full border border-goto-green/40 bg-goto-green/10 px-3 py-1.5 text-xs font-semibold text-goto-green transition-colors hover:border-goto-green hover:bg-goto-green hover:text-white"
+                title="Pasang aplikasi JHB"
+              >
+                <Download size={14} />
+                <span className="hidden xl:inline">Pasang App</span>
+              </Link>
 
               {/* Bookmark link — xl only */}
               <Link
@@ -355,6 +366,25 @@ export default function Header() {
                 >
                   <Bookmark size={16} className="text-goto-green" />
                   Bookmark Saya
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/install"
+                  className="flex items-center justify-between gap-2 rounded bg-goto-light/40 px-3 py-2.5 text-sm font-semibold text-goto-dark transition-colors hover:bg-goto-light"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span className="flex items-center gap-2">
+                    <Image
+                      src="/logo-jhb.png"
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="rounded-sm"
+                    />
+                    Pasang Aplikasi JHB
+                  </span>
+                  <Download size={14} />
                 </Link>
               </li>
             </ul>
