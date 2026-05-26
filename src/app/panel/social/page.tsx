@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Share2, Instagram, Facebook, Settings, CheckCircle, XCircle, Clock,
   Save, Loader2, ExternalLink, RefreshCw, AlertCircle, Plus, X, Send, Layout, Edit3, Trash2, Star, Eye,
+  ChevronDown, ChevronUp, Check, Info, HelpCircle, Key, ShieldAlert,
 } from "lucide-react";
 import TemplateEditor, { type TemplateData } from "./_components/TemplateEditor";
 
@@ -436,6 +437,51 @@ function TemplatesView({
 /* ───── Global Settings Form ───── */
 function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSettings; onSave: (d: Partial<GlobalSettings>) => void; saving: boolean }) {
   const [form, setForm] = useState(settings);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const [activeGuideTab, setActiveGuideTab] = useState<"system" | "explorer">("system");
+
+  const handleAnalyzeToken = async () => {
+    if (!form.metaAccessToken || form.metaAccessToken === "***configured***") {
+      alert("Silakan masukkan/tempel token Meta baru terlebih dahulu.");
+      return;
+    }
+    setAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisResult(null);
+    try {
+      const res = await fetch("/api/social/settings/analyze-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: form.metaAccessToken }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAnalysisResult(json.data);
+      } else {
+        setAnalysisError(json.error || "Gagal menganalisis token. Pastikan token valid.");
+      }
+    } catch (err) {
+      setAnalysisError("Terjadi kesalahan jaringan saat menganalisis token.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const applyPageConfig = (page: any) => {
+    setForm({
+      ...form,
+      metaAccessToken: page.accessToken,
+      fbPageId: page.id,
+      fbPageName: page.name,
+      igUserId: page.instagram?.id || null,
+      igAccountName: page.instagram?.username ? `@${page.instagram.username}` : null,
+      metaTokenExpiresAt: null, // Token abadi / page token tidak expire di Graph API
+    });
+    alert(`Konfigurasi halaman "${page.name}" telah diterapkan ke form!\n\nUntuk menyimpannya secara permanen di database, silakan klik tombol "Simpan Settings Global" di bawah.`);
+  };
 
   return (
     <div className="space-y-5">
@@ -477,18 +523,44 @@ function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSett
       </div>
 
       {/* Meta Credentials */}
-      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card">
-        <h3 className="mb-3 text-sm font-semibold text-txt-primary">Meta API Credentials</h3>
-        <p className="text-xs text-txt-muted mb-4">Manual input Page Access Token dari Meta Developer dashboard (OAuth flow akan ditambahkan nanti).</p>
+      <div className="rounded-[12px] border border-border bg-surface p-5 shadow-card space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-txt-primary flex items-center gap-2">
+            <Facebook size={18} className="text-blue-600" />
+            Meta API Credentials & Token Assistant
+          </h3>
+          <p className="text-xs text-txt-muted mt-0.5">
+            Gunakan asisten analisis token di bawah untuk mengisi data halaman Facebook dan Instagram secara otomatis secara aman.
+          </p>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-txt-primary">Meta Access Token</label>
-            <input
-              type="password"
-              placeholder={form.metaAccessToken === "***configured***" ? "••••••••••••• (tersimpan)" : "EAAxxxx..."}
-              onChange={(e) => setForm({ ...form, metaAccessToken: e.target.value || null })}
-              className="input w-full text-sm"
-            />
+            <label className="mb-1 block text-xs font-medium text-txt-primary flex items-center justify-between">
+              <span>Meta Access Token</span>
+              {(form.metaAccessToken && form.metaAccessToken !== "***configured***") && (
+                <span className="text-[10px] text-goto-green font-semibold animate-pulse">Token baru terdeteksi!</span>
+              )}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                placeholder={form.metaAccessToken === "***configured***" ? "••••••••••••• (tersimpan)" : "EAAxxxx..."}
+                onChange={(e) => setForm({ ...form, metaAccessToken: e.target.value || null })}
+                className="input flex-1 text-sm font-mono"
+              />
+              <button
+                type="button"
+                onClick={handleAnalyzeToken}
+                disabled={analyzing || !form.metaAccessToken || form.metaAccessToken === "***configured***"}
+                className="px-3 py-2 text-xs font-semibold text-white bg-goto-green hover:bg-goto-green-dark disabled:opacity-50 disabled:bg-surface-tertiary disabled:text-txt-muted rounded-lg flex items-center gap-1 shrink-0 transition-all border border-transparent shadow-sm"
+                title="Analisis token untuk mendeteksi Page ID dan IG secara otomatis"
+              >
+                {analyzing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                Analisis Token
+              </button>
+            </div>
+            <p className="mt-1 text-[10px] text-txt-muted">Pecahkan token Anda untuk mendeteksi Page FB & IG Account secara otomatis.</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-txt-primary">FB Page ID</label>
@@ -511,6 +583,230 @@ function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSett
             <input type="datetime-local" value={form.metaTokenExpiresAt ? form.metaTokenExpiresAt.slice(0, 16) : ""} onChange={(e) => setForm({ ...form, metaTokenExpiresAt: e.target.value ? new Date(e.target.value).toISOString() : null })} className="input w-full text-sm" />
           </div>
         </div>
+
+        {/* Token Analysis Result Block */}
+        {analysisError && (
+          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2 animate-fadeIn">
+            <AlertCircle size={14} className="shrink-0 mt-0.5 text-red-600" />
+            <div>
+              <span className="font-bold">Analisis Gagal:</span> {analysisError}
+            </div>
+          </div>
+        )}
+
+        {analysisResult && (
+          <div className="p-4 rounded-lg bg-goto-light border border-goto-green/20 space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-goto-green/10 pb-2">
+              <h4 className="text-xs font-bold text-goto-green flex items-center gap-1.5">
+                <Key size={14} /> Hasil Analisis Token ({analysisResult.tokenType} Token)
+              </h4>
+              <span className="text-[10px] font-semibold bg-white px-2 py-0.5 rounded-full border border-goto-green/10 text-txt-secondary">
+                Pemilik: {analysisResult.principalName}
+              </span>
+            </div>
+
+            {/* Permissions status */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-txt-secondary">Status Hak Akses (Permissions):</p>
+              {analysisResult.missingPermissions.length > 0 ? (
+                <div className="p-2.5 rounded-md bg-yellow-50 border border-yellow-200 text-[11px] text-yellow-800 space-y-1">
+                  <p className="font-semibold flex items-center gap-1">
+                    <ShieldAlert size={12} className="shrink-0 text-yellow-600" />
+                    ⚠️ Token kekurangan beberapa izin penting berikut:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-0.5 text-[10px] font-mono text-yellow-700">
+                    {analysisResult.missingPermissions.map((p: string) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-[10px] font-sans text-yellow-600">
+                    Hal ini dapat menyebabkan kegagalan auto-publish. Disarankan men-generate token dengan semua izin tersebut tercentang.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2 rounded-md bg-green-50 border border-green-200 text-[11px] text-green-800 font-semibold flex items-center gap-1.5">
+                  <CheckCircle size={12} className="text-green-600" />
+                  ✓ Semua izin penting lengkap dan aktif!
+                </div>
+              )}
+            </div>
+
+            {/* Detected Pages */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-txt-secondary">FB Page & Instagram Terdeteksi ({analysisResult.pages.length}):</p>
+              {analysisResult.pages.length === 0 ? (
+                <p className="text-xs text-txt-muted italic bg-white p-3 rounded-lg text-center border">
+                  Tidak ada FB Page yang terdeteksi dikelola oleh token ini. Pastikan akun Meta Anda terhubung ke Page.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {analysisResult.pages.map((page: any) => (
+                    <div key={page.id} className="bg-white p-3 rounded-lg border border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shadow-sm">
+                      <div className="space-y-1">
+                        <div className="font-bold text-txt-primary flex items-center gap-1.5">
+                          <Facebook size={14} className="text-blue-600" />
+                          {page.name}
+                          <span className="text-[10px] font-normal text-txt-muted">({page.id})</span>
+                        </div>
+                        {page.instagram ? (
+                          <div className="text-[11px] text-pink-600 flex items-center gap-1 font-semibold pl-5">
+                            <Instagram size={12} />
+                            Instagram terhubung: @{page.instagram.username}
+                            <span className="text-[10px] font-normal text-txt-muted">({page.instagram.id})</span>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-yellow-600 flex items-center gap-1 pl-5">
+                            <AlertCircle size={12} />
+                            Instagram tidak terhubung ke Page ini
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => applyPageConfig(page)}
+                        className="shrink-0 self-end sm:self-center flex items-center gap-1 rounded-full bg-goto-green hover:bg-goto-green-dark px-3 py-1.5 text-xs font-semibold text-white transition-colors shadow-sm"
+                      >
+                        <Check size={12} />
+                        Terapkan Halaman Ini
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Never-Expiring Token Guide (Interactive Accordion) */}
+      <div className="rounded-[12px] border border-border bg-surface shadow-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowGuide(!showGuide)}
+          className="w-full flex items-center justify-between p-5 bg-surface hover:bg-surface-secondary transition-colors text-left"
+        >
+          <div className="flex items-center gap-2">
+            <HelpCircle size={20} className="text-goto-green" />
+            <div>
+              <p className="text-sm font-semibold text-txt-primary">💡 Panduan Mendapatkan Token Abadi (Never-Expiring)</p>
+              <p className="text-xs text-txt-muted mt-0.5">Solusi permanen agar token Meta tidak kedaluwarsa secara berkala.</p>
+            </div>
+          </div>
+          {showGuide ? <ChevronUp size={18} className="text-txt-secondary" /> : <ChevronDown size={18} className="text-txt-secondary" />}
+        </button>
+
+        {showGuide && (
+          <div className="p-5 border-t border-border bg-surface-secondary/40 space-y-4 animate-slideDown">
+            <div className="flex gap-2 border-b border-border pb-2">
+              <button
+                type="button"
+                onClick={() => setActiveGuideTab("system")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                  activeGuideTab === "system"
+                    ? "bg-goto-green text-white border-transparent"
+                    : "bg-white text-txt-secondary border-border hover:bg-surface"
+                }`}
+              >
+                Metode 1: System User (Sangat Direkomendasikan)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveGuideTab("explorer")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                  activeGuideTab === "explorer"
+                    ? "bg-goto-green text-white border-transparent"
+                    : "bg-white text-txt-secondary border-border hover:bg-surface"
+                }`}
+              >
+                Metode 2: Ekstensi via Graph API Explorer
+              </button>
+            </div>
+
+            {activeGuideTab === "system" ? (
+              <div className="text-xs text-txt-primary space-y-3 leading-relaxed">
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-[11px]">
+                  <span className="font-bold">Keuntungan:</span> Token Pengguna Sistem (System User) dibuat di dalam Business Manager Meta, tidak terikat ke akun pribadi, dan secara resmi <strong>TIDAK PERNAH kedaluwarsa</strong> (abadi) kecuali Anda me-revoke secara manual. Sangat cocok untuk auto-post dari server website JHB.
+                </div>
+                <ol className="list-decimal pl-4 space-y-2">
+                  <li>
+                    Buka <strong>Meta Business Suite</strong> dan masuk ke <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="text-goto-green underline font-semibold">Pengaturan Bisnis (Business Settings)</a>.
+                  </li>
+                  <li>
+                    Di kolom menu kiri, cari bagian <strong>Users (Pengguna)</strong>, lalu pilih <strong>System Users (Pengguna Sistem)</strong>.
+                  </li>
+                  <li>
+                    Klik tombol <strong>Add (Tambah)</strong>, berikan nama pengguna sistem (misal: <code className="bg-surface px-1.5 py-0.5 rounded font-mono text-[10px]">JHB Auto Poster</code>), lalu atur Peran Pengguna Sistem sebagai <strong>Admin</strong>. Klik buat.
+                  </li>
+                  <li>
+                    Klik tombol <strong>Assign Assets (Tetapkan Aset)</strong>:
+                    <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                      <li>Pilih <strong>Pages (Halaman)</strong>, pilih Halaman Facebook <span className="font-semibold">&quot;Jurnalis Hukum Bandung&quot;</span>, aktifkan toggle <strong>Full Control</strong> (izin penuh).</li>
+                      <li>Pilih <strong>Instagram Accounts</strong>, pilih akun Instagram <span className="font-semibold">&quot;jurnalis.hukumbandung&quot;</span>, aktifkan akses penuh.</li>
+                    </ul>
+                  </li>
+                  <li>
+                    Klik tombol <strong>Generate New Token (Buat Token Baru)</strong>, lalu pilih <strong>Aplikasi Developer Anda</strong> dari dropdown.
+                  </li>
+                  <li>
+                    Di daftar izin (permissions), centang 5 izin wajib berikut:
+                    <div className="grid grid-cols-2 gap-1 mt-1 font-mono text-[10px] text-txt-secondary bg-white p-2 rounded border max-w-md">
+                      <div>• pages_show_list</div>
+                      <div>• pages_read_engagement</div>
+                      <div>• pages_manage_posts</div>
+                      <div>• instagram_basic</div>
+                      <div>• instagram_content_publish</div>
+                    </div>
+                  </li>
+                  <li>
+                    Klik <strong>Generate Token</strong> di bagian bawah, lalu <strong>salin token</strong> yang ditampilkan.
+                  </li>
+                  <li>
+                    Tempel token tersebut ke kolom <strong>Meta Access Token</strong> di atas, lalu klik <strong>Analisis Token</strong> untuk mendeteksi ID-nya secara otomatis dan menyimpan setelan Anda!
+                  </li>
+                </ol>
+              </div>
+            ) : (
+              <div className="text-xs text-txt-primary space-y-3 leading-relaxed">
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-[11px]">
+                  <span className="font-bold">Keuntungan:</span> Cara ini mengubah token User biasa (berlaku 2 jam) menjadi token panjang (60 hari), kemudian menghasilkan <strong>Page Access Token</strong> yang otomatis diwariskan menjadi <strong>tidak terbatas (Expires: Never)</strong>.
+                </div>
+                <ol className="list-decimal pl-4 space-y-2">
+                  <li>
+                    Buka <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="text-goto-green underline font-semibold">Graph API Explorer</a>.
+                  </li>
+                  <li>
+                    Di dropdown <strong>Meta App</strong>, pilih Aplikasi Anda. Di dropdown <strong>User or Page</strong>, pilih <strong>User Access Token</strong>.
+                  </li>
+                  <li>
+                    Di panel kanan (Permissions), klik <strong>Add a Permission</strong> dan pilih izin berikut:
+                    <span className="block font-mono text-[10px] text-txt-secondary bg-white p-1 px-2 rounded border mt-1 max-w-sm">
+                      pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish
+                    </span>
+                  </li>
+                  <li>
+                    Klik <strong>Generate Access Token</strong>, dan lakukan otentikasi login Facebook jika diminta.
+                  </li>
+                  <li>
+                    Di kolom token di bagian atas, klik ikon info biru kecil &quot;i&quot; di sebelah token, lalu klik tombol &quot;Open in Access Token Tool&quot; (atau buka <a href="https://developers.facebook.com/tools/accesstoken/" target="_blank" rel="noopener noreferrer" className="text-goto-green underline font-semibold">developers.facebook.com/tools/accesstoken</a>).
+                  </li>
+                  <li>
+                    Temukan User Token Anda di tabel, lalu klik tombol &quot;Extend Access Token&quot; di bagian bawahnya. Konfirmasi password, maka Anda akan mendapatkan <strong>Long-Lived User Access Token</strong> (berlaku 60 hari). Salin token baru ini.
+                  </li>
+                  <li>
+                    Tempel token baru tersebut di kolom <strong>Meta Access Token</strong> di atas, lalu tekan tombol <strong>Analisis Token</strong>.
+                  </li>
+                  <li>
+                    Sistem kami akan memanggil Graph API untuk mengambil <strong>Page Access Token abadi</strong> (Expires: Never) yang dikaitkan dengan token panjang Anda tersebut, lalu mengisikannya otomatis.
+                  </li>
+                </ol>
+              </div>
+            )}a otomatis.
+                  </li>
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Brand Hashtags */}
@@ -825,7 +1121,14 @@ function LogsView({ posts, stats, loading, filter, setFilter, onRefresh }: { pos
                     {p.status === "success" || p.status === "published" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600"><CheckCircle size={10} /> Sukses</span>
                     ) : p.status === "failed" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600" title={p.errorMessage || ""}><XCircle size={10} /> Gagal</span>
+                      <div className="space-y-1">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 cursor-help" title={p.errorMessage || ""}><XCircle size={10} /> Gagal</span>
+                        {p.errorMessage && (
+                          <p className="text-[10px] text-red-500 font-sans max-w-[200px] leading-tight break-words" title={p.errorMessage}>
+                            {p.errorMessage.length > 80 ? p.errorMessage.substring(0, 80) + "..." : p.errorMessage}
+                          </p>
+                        )}
+                      </div>
                     ) : p.status === "draft" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-700">📝 Draft</span>
                     ) : p.status === "deleted" ? (
