@@ -477,10 +477,10 @@ function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSett
       fbPageId: page.id,
       fbPageName: page.name,
       igUserId: page.instagram?.id || null,
-      igAccountName: page.instagram?.username ? `@${page.instagram.username}` : null,
-      metaTokenExpiresAt: null, // Token abadi / page token tidak expire di Graph API
+      igAccountName: page.instagram?.username ? "@" + page.instagram.username : null,
+      metaTokenExpiresAt: null,
     });
-    alert(`Konfigurasi halaman "${page.name}" telah diterapkan ke form!\n\nUntuk menyimpannya secara permanen di database, silakan klik tombol "Simpan Settings Global" di bawah.`);
+    alert("Konfigurasi halaman \"" + page.name + "\" telah diterapkan ke form! Silakan klik \"Simpan Settings Global\" di bawah untuk menyimpan secara permanen.");
   };
 
   return (
@@ -797,10 +797,6 @@ function GlobalSettingsForm({ settings, onSave, saving }: { settings: GlobalSett
                   </li>
                   <li>
                     Sistem kami akan memanggil Graph API untuk mengambil <strong>Page Access Token abadi</strong> (Expires: Never) yang dikaitkan dengan token panjang Anda tersebut, lalu mengisikannya otomatis.
-                  </li>
-                </ol>
-              </div>
-            )}a otomatis.
                   </li>
                 </ol>
               </div>

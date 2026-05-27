@@ -117,7 +117,7 @@ function buildTextSvg(
 
     const xPx = canvasW * layer.x;
     const yPx = canvasH * layer.y;
-    const lineHeight = layer.fontSize * (layer.lineHeight || 1.2);
+    const lineHeight = layer.fontSize * Math.max(1.2, layer.lineHeight || 1.25);
 
     const anchor =
       layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
@@ -137,7 +137,7 @@ function buildTextSvg(
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}">${elements.join("")}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" xml:space="preserve">${elements.join("")}</svg>`;
 }
 
 async function fetchBuffer(urlOrPath: string): Promise<Buffer> {

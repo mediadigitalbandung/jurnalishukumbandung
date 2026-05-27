@@ -1,5 +1,7 @@
 import { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Hubungi Kami",
   description: "Hubungi redaksi Jurnalis Hukum Bandung untuk pertanyaan, saran, atau kerja sama.",

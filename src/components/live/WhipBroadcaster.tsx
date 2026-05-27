@@ -74,6 +74,7 @@ interface Props {
   onStarted?: () => void;
   onStopped?: () => void;
   onError?: (msg: string) => void;
+  onStatusChange?: (status: Status) => void;
 }
 
 /**
@@ -91,6 +92,7 @@ export default function WhipBroadcaster({
   onStarted,
   onStopped,
   onError,
+  onStatusChange,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -120,6 +122,11 @@ export default function WhipBroadcaster({
     null
   );
   const [duration, setDuration] = useState(0);
+
+  // Emit status changes ke parent supaya parent bisa UI berdasarkan real broadcaster state
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [status, onStatusChange]);
   const startTimeRef = useRef<number>(0);
 
   // Proactive permission check (Permissions API — Chrome/Edge/Firefox; Safari ga support)
@@ -276,16 +283,24 @@ export default function WhipBroadcaster({
     lines.push(`Browser: ${navigator.userAgent}`);
     lines.push(`Secure context: ${window.isSecureContext}`);
     lines.push(`Origin: ${window.location.origin}`);
+    const ua = navigator.userAgent.toLowerCase();
+    const isWindows = ua.includes("windows");
+    const isMac = ua.includes("mac");
+    lines.push(`OS: ${isWindows ? "Windows" : isMac ? "macOS" : "Linux/Other"}`);
 
+    let camState: string | undefined;
+    let micState: string | undefined;
     if (navigator.permissions?.query) {
       try {
         const cam = await navigator.permissions.query({ name: "camera" as PermissionName });
+        camState = cam.state;
         lines.push(`Camera permission state: ${cam.state}`);
       } catch (e) {
         lines.push(`Camera permission query failed: ${e instanceof Error ? e.message : String(e)}`);
       }
       try {
         const mic = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        micState = mic.state;
         lines.push(`Microphone permission state: ${mic.state}`);
       } catch (e) {
         lines.push(`Microphone permission query failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -328,9 +343,35 @@ export default function WhipBroadcaster({
       const msg = e instanceof Error ? e.message.toLowerCase() : "";
       const name = e instanceof Error ? e.name : "";
       if (name === "NotAllowedError" && msg.includes("system")) {
-        lines.push("🪟 INTERPRETATION: Windows OS-level block. Fix via Windows Settings → Privacy → Camera/Microphone.");
+        lines.push("🪟 INTERPRETATION: OS-level block (kernel/driver layer). Fix via Windows/macOS Settings → Privacy → Camera/Microphone.");
+        if (isWindows) {
+          lines.push("");
+          lines.push("WINDOWS FIX STEPS:");
+          lines.push("1. Open: ms-settings:privacy-webcam (paste di address bar Chrome)");
+          lines.push("2. Camera access = ON");
+          lines.push("3. Let apps access your camera = ON");
+          lines.push("4. ⭐ Let desktop apps access your camera = ON (paling sering OFF)");
+          lines.push("5. Ulangi untuk ms-settings:privacy-microphone");
+          lines.push("6. Tutup Chrome COMPLETELY (system tray exit), buka lagi");
+        }
       } else if (name === "NotAllowedError" && msg.includes("dismiss")) {
         lines.push("🚫 INTERPRETATION: User dismissed the permission prompt. Click lock icon in address bar → Reset permissions → reload.");
+      } else if (name === "NotAllowedError" && (camState === "denied" || micState === "denied")) {
+        // State denied but no "system" hint. Hard to tell site vs OS.
+        // If user has confirmed allow in Chrome settings (most users do), more likely OS.
+        lines.push("⚠️ INTERPRETATION: Permission state = denied. Bisa Chrome site-level ATAU Windows OS-level.");
+        lines.push("");
+        lines.push("URUTAN CEK:");
+        lines.push("1. Cek Chrome lock icon di address bar — Camera & Microphone harus ON (toggle biru)");
+        lines.push("2. Kalau toggle Chrome sudah ON tapi state masih denied → ini Windows OS-level");
+        if (isWindows) {
+          lines.push("3. Fix Windows: paste di address bar → ms-settings:privacy-webcam");
+          lines.push("4. Enable: Camera access + Let apps access + ⭐ Let desktop apps access");
+          lines.push("5. Sama untuk ms-settings:privacy-microphone");
+          lines.push("6. Tutup Chrome COMPLETELY → buka lagi");
+        }
+        lines.push("");
+        lines.push("VERIFIKASI: Buka 'Camera' app Windows (Start → Camera). Kalau Windows Camera bisa → hardware OK, Chrome aja yang ga dapat akses.");
       } else if (name === "NotAllowedError") {
         lines.push("🚫 INTERPRETATION: Chrome site-level block. Click lock icon → Site settings → Camera/Mic = Allow → reload.");
       } else if (name === "NotReadableError" || name === "TrackStartError") {
@@ -384,19 +425,37 @@ export default function WhipBroadcaster({
       });
 
       // Listen for state changes
+      // - "disconnected" = sementara network glitch, jangan tear down — browser ICE bisa auto-recover
+      // - "failed" = sudah final failure, baru tear down
+      // - "closed" = sudah closed (user atau remote tutup)
       pc.onconnectionstatechange = () => {
         const state = pc.connectionState;
         console.log("[WHIP] Connection state:", state);
         if (state === "connected") {
-          setStatus("live");
-          startTimeRef.current = Date.now();
-          onStarted?.();
-        } else if (state === "failed" || state === "disconnected") {
-          setError(`Koneksi ${state}. Coba mulai ulang.`);
+          // First time atau recover dari brief disconnect
+          if (status !== "live") {
+            setStatus("live");
+            startTimeRef.current = Date.now();
+            onStarted?.();
+          }
+        } else if (state === "failed") {
+          setError(`Koneksi failed. Coba mulai ulang broadcast.`);
           setStatus("error");
-          onError?.(state);
+          onError?.("connection failed");
+        } else if (state === "disconnected") {
+          // Sementara — log doang, jangan tear down. ICE akan retry sendiri.
+          console.warn("[WHIP] Disconnected (transient) — waiting ICE recovery...");
         }
+        // "closed" = remote/server closed — jangan ngapa-ngapain, biarin user lihat status terakhir
       };
+
+      // Track-level event: kalau media track ended (camera unplugged, OS revoke, dll)
+      streamRef.current.getTracks().forEach((track) => {
+        track.onended = () => {
+          console.warn(`[WHIP] Track ${track.kind} ended unexpectedly`);
+          // Jangan auto-tear-down, biarin user yang tentuin
+        };
+      });
 
       // Create offer
       const offer = await pc.createOffer({

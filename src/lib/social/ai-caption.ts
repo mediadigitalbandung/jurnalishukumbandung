@@ -42,6 +42,7 @@ ATURAN KETAT:
 2. Tidak boleh clickbait berlebihan atau sensasional
 3. Akurat terhadap isi artikel — jangan menambah info yang tidak ada
 4. Output HARUS berupa JSON valid tanpa markdown fence (tidak boleh \`\`\`)
+5. JANGAN PERNAH menghilangkan spasi antar kata atau menggabungkan kata (misalnya menulis 'KondisiMesin' alih-alih 'Kondisi Mesin', atau 'MobilBekas' alih-alih 'Mobil Bekas') hanya untuk menghemat karakter. Gunakan ejaan bahasa Indonesia yang benar dengan spasi yang tepat.
 
 FORMAT OUTPUT (JSON):
 {

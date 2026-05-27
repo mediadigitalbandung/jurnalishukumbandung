@@ -34,11 +34,23 @@ export async function POST(
 
     if (item.status === "LIVE") {
       // Allow re-start (kasus reconnect setelah disconnect)
-    } else if (item.status === "ARCHIVED" || item.status === "ENDED") {
+    } else if (item.status === "ARCHIVED") {
       throw new ApiError(
-        "Live ini sudah selesai. Buat live baru kalau mau streaming lagi.",
+        "Live ini sudah diarsipkan dengan recording. Buat live baru kalau mau streaming lagi.",
         400
       );
+    } else if (item.status === "ENDED") {
+      // Kasus: user pernah tekan stop atau koneksi putus tanpa recording terbentuk.
+      // Reset state ke SCHEDULED supaya bisa broadcast ulang di session yang sama.
+      await prisma.liveSession.update({
+        where: { id: item.id },
+        data: {
+          status: "SCHEDULED",
+          startedAt: null,
+          endedAt: null,
+          currentViewers: 0,
+        },
+      });
     }
 
     // Kembalikan info WHIP untuk client-side broadcaster

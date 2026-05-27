@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
@@ -45,48 +45,62 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
 
   const [session, setSession] = useState<LiveSession | null>(null);
   const [whip, setWhip] = useState<WhipInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  // Real broadcaster state (dari child WhipBroadcaster) — SOURCE OF TRUTH untuk
+  // "apakah benar2 sedang broadcasting?". DB session.status bisa stale.
+  const [broadcasterStatus, setBroadcasterStatus] = useState<
+    "idle" | "preview" | "connecting" | "live" | "stopping" | "error"
+  >("idle");
+  const isActivelyBroadcasting = broadcasterStatus === "live";
 
-  const loadSession = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/live/${params.id}`);
-      const json = await res.json();
-      if (!json.success) {
-        setErrorMsg(json.error || "Gagal load session");
-        setLoading(false);
-        return;
+  // Load session — silent mode untuk background refresh (jangan unmount UI!)
+  const loadSession = useCallback(
+    async (silent = false) => {
+      if (!silent) setInitialLoading(true);
+      try {
+        const res = await fetch(`/api/live/${params.id}`);
+        const json = await res.json();
+        if (!json.success) {
+          if (!silent) setErrorMsg(json.error || "Gagal load session");
+          return;
+        }
+        setSession(json.data);
+      } catch (e) {
+        if (!silent) setErrorMsg(e instanceof Error ? e.message : "Network error");
+      } finally {
+        if (!silent) setInitialLoading(false);
       }
-      setSession(json.data);
-      setLoading(false);
-    } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Network error");
-      setLoading(false);
-    }
-  }, [params.id]);
+    },
+    [params.id]
+  );
 
   useEffect(() => {
-    loadSession();
+    loadSession(false);
   }, [loadSession]);
 
-  // Polling viewer count saat live
+  // Polling viewer count + session status (SILENT — jangan trigger loading state
+  // yang nge-unmount WhipBroadcaster & break WebRTC connection).
+  // Hanya update viewer count, ga ganggu UI.
   useEffect(() => {
-    if (session?.status !== "LIVE") return;
+    if (!isActivelyBroadcasting) return;
     const tick = async () => {
       try {
         const res = await fetch(`/api/live/${params.id}/status`);
         const json = await res.json();
-        if (json.success && session) {
-          setSession({ ...session, currentViewers: json.data.currentViewers || 0 });
+        if (json.success) {
+          // Update viewer count saja, jangan replace whole session object
+          setSession((prev) =>
+            prev ? { ...prev, currentViewers: json.data.currentViewers || 0 } : prev
+          );
         }
       } catch {
         /* ignore */
       }
     };
-    const interval = setInterval(tick, 10000);
+    const interval = setInterval(tick, 15000);
     return () => clearInterval(interval);
-  }, [session, params.id]);
+  }, [isActivelyBroadcasting, params.id]);
 
   const handleStart = useCallback(async () => {
     try {
@@ -97,10 +111,12 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
         return;
       }
       setWhip(json.data);
+      // Silent refresh session — JANGAN trigger loading state (akan unmount WhipBroadcaster!)
+      loadSession(true);
     } catch (e) {
       showError(e instanceof Error ? e.message : "Network error");
     }
-  }, [params.id, showError]);
+  }, [params.id, showError, loadSession]);
 
   const handleEnd = useCallback(async () => {
     const ok = await confirm({
@@ -120,12 +136,18 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
           router.push("/panel/live");
         }, 1500);
       } else {
-        showError(json.error || "Gagal akhiri");
+        // Kalau "Live ini sudah ended", treat sebagai success (idempotent)
+        if (json.error?.includes("sudah")) {
+          success("Live sudah diakhiri sebelumnya");
+          loadSession(true); // refresh state
+        } else {
+          showError(json.error || "Gagal akhiri");
+        }
       }
     } catch (e) {
       showError(e instanceof Error ? e.message : "Network error");
     }
-  }, [params.id, confirm, success, showError, router]);
+  }, [params.id, confirm, success, showError, router, loadSession]);
 
   const copyViewerLink = () => {
     if (!session) return;
@@ -134,7 +156,7 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
     success("Link viewer dicopy ke clipboard");
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-goto-green" />
@@ -173,7 +195,7 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {session.status === "LIVE" && (
+          {isActivelyBroadcasting && (
             <span className="inline-flex items-center gap-1 bg-green-50 text-goto-green border border-green-200 px-3 py-1.5 rounded-full text-sm font-semibold">
               <Eye className="h-4 w-4" /> {session.currentViewers} viewer
             </span>
@@ -193,67 +215,97 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      {/* Status card */}
-      <div className="card p-4 flex items-start gap-3">
-        <div
-          className={`mt-1 w-3 h-3 rounded-full ${
-            session.status === "LIVE"
-              ? "bg-red-500 animate-pulse"
-              : session.status === "SCHEDULED"
-              ? "bg-blue-500"
-              : "bg-gray-400"
-          }`}
-        />
-        <div className="flex-1">
-          <div className="font-semibold">
-            Status: {session.status === "LIVE" ? "Sedang Live" : session.status === "SCHEDULED" ? "Siap Broadcast" : session.status}
+      {/* Status card — source of truth: broadcasterStatus (child) + session.status (DB) */}
+      {(() => {
+        // Derived display status — prefer child state when active
+        let dot = "bg-gray-400";
+        let label = "Belum mulai";
+        let desc = "Klik tombol di bawah untuk persiapkan broadcast.";
+        let showEndButton = false;
+        if (isActivelyBroadcasting) {
+          dot = "bg-red-500 animate-pulse";
+          label = "Sedang Live";
+          desc = `Stream aktif. Viewer bisa lihat di /live/${session.slug}`;
+          showEndButton = true;
+        } else if (broadcasterStatus === "connecting") {
+          dot = "bg-yellow-500 animate-pulse";
+          label = "Menyambungkan ke server...";
+          desc = "Tunggu beberapa detik sampai koneksi WebRTC terbentuk.";
+        } else if (broadcasterStatus === "preview") {
+          dot = "bg-blue-500";
+          label = "Preview kamera aktif";
+          desc = "Klik 'Mulai Live Broadcast' untuk mulai siaran.";
+        } else if (broadcasterStatus === "error") {
+          dot = "bg-orange-500";
+          label = "Ada error broadcaster";
+          desc = "Lihat panel error di bawah untuk detail.";
+        } else if (session.status === "SCHEDULED") {
+          dot = "bg-blue-500";
+          label = "Siap Broadcast";
+          desc = "Klik 'Persiapkan Broadcast' untuk mulai.";
+        } else if (session.status === "ENDED") {
+          dot = "bg-gray-500";
+          label = "Selesai";
+          desc = "Broadcast sebelumnya sudah berakhir. Klik 'Persiapkan Broadcast' untuk mulai lagi (akan auto-reset).";
+        } else if (session.status === "ARCHIVED") {
+          dot = "bg-green-500";
+          label = "Recording tersedia";
+          desc = "Live sebelumnya sudah selesai & recording tersimpan. Buat session baru untuk broadcast lagi.";
+        } else if (session.status === "FAILED") {
+          dot = "bg-red-400";
+          label = "Gagal";
+          desc = "Broadcast sebelumnya gagal. Coba mulai lagi.";
+        }
+        return (
+          <div className="card p-4 flex items-start gap-3">
+            <div className={`mt-1 w-3 h-3 rounded-full ${dot}`} />
+            <div className="flex-1">
+              <div className="font-semibold">Status: {label}</div>
+              <div className="text-sm text-txt-secondary mt-0.5">{desc}</div>
+            </div>
+            {showEndButton && (
+              <button
+                onClick={handleEnd}
+                className="!px-4 !py-2 inline-flex items-center gap-1.5 text-sm rounded-full bg-gray-800 hover:bg-black text-white font-semibold"
+              >
+                Akhiri Live
+              </button>
+            )}
           </div>
-          <div className="text-sm text-txt-secondary mt-0.5">
-            {session.status === "LIVE"
-              ? "Stream sedang aktif. Viewer bisa lihat di halaman /live/" + session.slug
-              : "Klik 'Aktifkan Kamera' untuk preview, lalu 'Mulai Live Broadcast' untuk siaran."}
-          </div>
-        </div>
-        {session.status === "LIVE" && (
-          <button
-            onClick={handleEnd}
-            className="!px-4 !py-2 inline-flex items-center gap-1.5 text-sm rounded-full bg-gray-800 hover:bg-black text-white font-semibold"
-          >
-            Akhiri Live
-          </button>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Broadcaster UI */}
       {whip ? (
-        <WhipBroadcaster
-          whipUrl={whip.whipUrl}
-          iceServers={whip.iceServers}
-          onStarted={() => {
-            success("Broadcast dimulai!");
-            // Reload session untuk update status
-            setTimeout(loadSession, 2000);
-          }}
-          onStopped={() => {
-            // Auto-call end API setelah broadcaster stop
-            handleEnd();
-          }}
-          onError={(msg) => showError(`Broadcast error: ${msg}`)}
+        <StableBroadcasterWrapper
+          whip={whip}
+          loadSession={loadSession}
+          onSuccess={success}
+          onError={showError}
+          onStatusChange={setBroadcasterStatus}
         />
       ) : (
         <div className="card p-8 text-center space-y-4">
           <Radio className="h-12 w-12 text-red-600 mx-auto" />
-          <div className="text-lg font-semibold">Siap broadcast?</div>
+          <div className="text-lg font-semibold">
+            {session.status === "ENDED" || session.status === "FAILED"
+              ? "Mulai broadcast lagi?"
+              : "Siap broadcast?"}
+          </div>
           <div className="text-sm text-txt-secondary max-w-md mx-auto">
-            Klik tombol di bawah untuk dapatkan akses kamera & mic, lalu mulai siaran live ke website JHB.
+            {session.status === "ENDED" || session.status === "FAILED"
+              ? "Klik tombol di bawah — session akan auto-reset & broadcast bisa dimulai ulang."
+              : "Klik tombol di bawah untuk dapatkan akses kamera & mic, lalu mulai siaran live."}
           </div>
           <button
             onClick={handleStart}
-            disabled={session.status === "LIVE"}
+            disabled={session.status === "ARCHIVED"}
             className="btn-primary inline-flex items-center gap-2 px-6 py-3"
           >
             <Radio className="h-5 w-5" />
-            {session.status === "LIVE" ? "Sudah Live (load broadcaster...)" : "Persiapkan Broadcast"}
+            {session.status === "ARCHIVED"
+              ? "Session sudah selesai (buat baru)"
+              : "Persiapkan Broadcast"}
           </button>
         </div>
       )}
@@ -272,5 +324,58 @@ export default function BroadcastPage({ params }: { params: { id: string } }) {
         </details>
       )}
     </div>
+  );
+}
+
+/**
+ * Wrapper untuk WhipBroadcaster dengan props yang STABLE (memoized).
+ * Parent page kadang re-render karena polling viewer count — kalau props
+ * berubah reference tiap render, child WhipBroadcaster bisa restart unexpectedly.
+ * Memoize semua callback + iceServers di sini supaya child stable.
+ */
+function StableBroadcasterWrapper({
+  whip,
+  loadSession,
+  onSuccess,
+  onError,
+  onStatusChange,
+}: {
+  whip: WhipInfo;
+  loadSession: (silent?: boolean) => void;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+  onStatusChange: (
+    status: "idle" | "preview" | "connecting" | "live" | "stopping" | "error"
+  ) => void;
+}) {
+  const stableIceServers = useMemo(() => whip.iceServers, [whip.iceServers]);
+
+  const handleStarted = useCallback(() => {
+    onSuccess("Broadcast dimulai!");
+    // SILENT refresh — JANGAN unmount UI (akan break WebRTC)
+    loadSession(true);
+  }, [onSuccess, loadSession]);
+
+  const handleStopped = useCallback(() => {
+    onSuccess("Broadcast dihentikan");
+    loadSession(true);
+  }, [onSuccess, loadSession]);
+
+  const handleError = useCallback(
+    (msg: string) => {
+      onError(`Broadcast error: ${msg}`);
+    },
+    [onError]
+  );
+
+  return (
+    <WhipBroadcaster
+      whipUrl={whip.whipUrl}
+      iceServers={stableIceServers}
+      onStarted={handleStarted}
+      onStopped={handleStopped}
+      onError={handleError}
+      onStatusChange={onStatusChange}
+    />
   );
 }

@@ -96,7 +96,7 @@ const LAYER_PRESETS: LayerPreset[] = [
       fontWeight: "700",
       maxWidth: 0.84,
       maxLines: 2,
-      lineHeight: 1.15,
+      lineHeight: 1.25,
     },
   },
   {
