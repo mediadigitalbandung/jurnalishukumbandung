@@ -12,6 +12,9 @@ import InstallPrompt from "@/components/pwa/InstallPrompt";
 import IosSplashScreens from "@/components/pwa/IosSplashScreens";
 import ZoomCompensator from "@/components/layout/ZoomCompensator";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import ConsentInit from "@/components/ConsentInit";
+import CookieConsent from "@/components/CookieConsent";
+import AdSense from "@/components/ads/AdSense";
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
@@ -175,8 +178,11 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${sourceSans.variable} ${lora.variable}`}>
       <head>
+        {/* Consent Mode v2 default — HARUS sebelum script Google apa pun (GA/AdSense) */}
+        <ConsentInit />
         {/* Resource hints — faster font & API loading = better Core Web Vitals */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
@@ -216,6 +222,10 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <GoogleAnalytics />
           </Suspense>
+          {/* Loader Google AdSense (Auto Ads + global adsbygoogle untuk <AdUnit />) */}
+          <AdSense />
+          {/* Banner persetujuan cookie — men-trigger consent 'update' untuk iklan personalized */}
+          <CookieConsent />
         </Providers>
       </body>
     </html>

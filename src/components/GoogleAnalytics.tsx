@@ -37,16 +37,10 @@ export default function GoogleAnalytics() {
           __html: `
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
+            window.gtag = window.gtag || gtag;
             gtag('js', new Date());
-            // UU PDP/GDPR: default deny tracking until user consents.
-            // CookieConsent component akan trigger gtag('consent','update',...) saat user accept.
-            gtag('consent', 'default', {
-              ad_storage: 'denied',
-              ad_user_data: 'denied',
-              ad_personalization: 'denied',
-              analytics_storage: 'denied',
-              wait_for_update: 500,
-            });
+            // Consent default (denied) di-set lebih dulu oleh <ConsentInit /> di <head>,
+            // independen dari GA. CookieConsent men-trigger gtag('consent','update',...).
             gtag('config', '${GA_ID}', {
               page_path: window.location.pathname,
               send_page_view: true,

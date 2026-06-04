@@ -146,11 +146,17 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
+              // Google Ads (AdSense) loader + Auto Ads + Funding Choices CMP must be allowed,
+              // selain GA/GTM yang sudah ada. Tanpa ini adsbygoogle.js diblokir.
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://adservice.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com https://*.fundingchoicesmessages.google.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https: http:",
-              "connect-src 'self' https://api.deepseek.com https://trends.google.com https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com",
+              // Ad requests/beacons ke endpoint Google Ads + DoubleClick.
+              "connect-src 'self' https://api.deepseek.com https://trends.google.com https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.g.doubleclick.net https://*.googleadservices.com https://*.adtrafficquality.google https://www.google.com",
+              // Iklan AdSense dirender di dalam iframe pihak Google — WAJIB di frame-src,
+              // kalau tidak iklan blank (fallback ke default-src 'self').
+              "frame-src 'self' https://googleads.g.doubleclick.net https://*.g.doubleclick.net https://*.googlesyndication.com https://*.safeframe.googlesyndication.com https://www.google.com https://*.adtrafficquality.google https://*.fundingchoicesmessages.google.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
