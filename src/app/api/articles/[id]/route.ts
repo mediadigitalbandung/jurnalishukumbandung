@@ -21,8 +21,13 @@ import {
 import { onArticlePublished, autoGenerateSeoFields, purgeCloudflareCache } from "@/lib/seo-utils";
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || "https://jurnalishukumbandung.com";
-function purgeHomepage() {
-  return purgeCloudflareCache([BASE, `${BASE}/`, `${BASE}/berita`]).catch(() => null);
+// Purge edge cache for the public homepage + article list, and (when given) the
+// specific article URL & its category page — so edits/publishes show up immediately.
+function purgeHomepage(slug?: string, categorySlug?: string) {
+  const urls = [BASE, `${BASE}/`, `${BASE}/berita`];
+  if (slug) urls.push(`${BASE}/berita/${slug}`);
+  if (categorySlug) urls.push(`${BASE}/kategori/${categorySlug}`);
+  return purgeCloudflareCache(urls).catch(() => null);
 }
 
 const updateArticleSchema = z.object({
@@ -323,6 +328,8 @@ export async function PUT(
 
         revalidatePath("/");
         revalidatePath("/berita");
+        revalidatePath(`/berita/${updated.slug}`);
+        await purgeHomepage(updated.slug, updated.category?.slug);
         return successResponse(updated);
       }
 
@@ -355,7 +362,8 @@ export async function PUT(
 
         revalidatePath("/");
         revalidatePath("/berita");
-        purgeHomepage();
+        revalidatePath(`/berita/${updated.slug}`);
+        await purgeHomepage(updated.slug, updated.category?.slug);
         return successResponse(updated);
       }
 
@@ -488,7 +496,9 @@ export async function PUT(
         await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish: ${article.status} → PUBLISHED. Artikel: ${article.title}`);
         revalidatePath("/");
         revalidatePath("/berita");
+        revalidatePath(`/berita/${updated.slug}`);
         onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
+        await purgeHomepage(updated.slug, updated.category?.slug);
         return successResponse(updated);
       }
 
@@ -502,6 +512,9 @@ export async function PUT(
         await logAudit(session.user.id, "STATUS_CHANGE", "article", article.id, `Admin langsung publish dari review: IN_REVIEW → PUBLISHED. Artikel: ${article.title}`);
         revalidatePath("/");
         revalidatePath("/berita");
+        revalidatePath(`/berita/${updated.slug}`);
+        onArticlePublished(updated.slug, article.id, article.categoryId).catch(() => {});
+        await purgeHomepage(updated.slug, updated.category?.slug);
         return successResponse(updated);
       }
 
@@ -665,6 +678,8 @@ export async function PUT(
 
         revalidatePath("/");
         revalidatePath("/berita");
+        revalidatePath(`/berita/${updated.slug}`);
+        await purgeHomepage(updated.slug, updated.category?.slug);
         return successResponse(updated);
       }
 
@@ -697,7 +712,8 @@ export async function PUT(
 
         revalidatePath("/");
         revalidatePath("/berita");
-        purgeHomepage();
+        revalidatePath(`/berita/${updated.slug}`);
+        await purgeHomepage(updated.slug, updated.category?.slug);
         return successResponse(updated);
       }
 
@@ -783,6 +799,14 @@ export async function PUT(
       });
 
       await logAudit(session.user.id, "UPDATE", "article", article.id, `Admin mengedit artikel: ${article.title}`);
+
+      // Bust caches so the edit shows immediately on the public site (page is
+      // edge-cached via next.config.js headers; without this it stays stale).
+      revalidatePath("/");
+      revalidatePath("/berita");
+      revalidatePath(`/berita/${updated.slug}`);
+      await purgeHomepage(updated.slug, updated.category?.slug);
+
       return successResponse(updated);
     }
 
