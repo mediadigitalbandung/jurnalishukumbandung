@@ -82,8 +82,14 @@ export const metadata: Metadata = {
     creator: "@jurnalishukumbdg",
   },
   icons: {
-    icon: "/logo-jhb.png",
-    apple: "/logo-jhb.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16.png", type: "image/png", sizes: "16x16" },
+      { url: "/favicon-96.png", type: "image/png", sizes: "96x96" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/manifest.json",
   robots: {
