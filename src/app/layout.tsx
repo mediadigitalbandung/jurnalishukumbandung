@@ -153,7 +153,11 @@ export default function RootLayout({
     },
     publishingPrinciples: `${appUrl}/kode-etik`,
     ethicsPolicy: `${appUrl}/kode-etik`,
-    correctionsPolicy: `${appUrl}/pedoman-media`,
+    correctionsPolicy: `${appUrl}/koreksi`,
+    actionableFeedbackPolicy: `${appUrl}/koreksi`,
+    diversityPolicy: `${appUrl}/pedoman-media`,
+    // Disclosure penggunaan AI — sinyal transparansi Google News 2026.
+    usageInfo: `${appUrl}/kebijakan-ai`,
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "editorial",

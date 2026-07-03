@@ -164,7 +164,11 @@ export default async function PenulisPage({ params }: { params: { slug: string }
     <div className="bg-surface min-h-screen">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([personLd, breadcrumbLd]) }}
+        dangerouslySetInnerHTML={{
+          // Escape `<` so user-controlled fields (bio, name, mediaSosial) can't
+          // break out of the JSON-LD block via `</script>` (stored XSS).
+          __html: JSON.stringify([personLd, breadcrumbLd]).replace(/</g, "\\u003c"),
+        }}
       />
       <div className="container-main py-8">
         {/* Author profile */}

@@ -9,9 +9,22 @@ import {
   requireAuth,
 } from "@/lib/api-utils";
 
+// Accept only http(s) URLs (or relative same-site paths for avatar) — blocks
+// javascript:/data: schemes that would otherwise reach public JSON-LD / OG tags.
+const safeUrl = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .refine(
+      (v) => v === "" || /^https?:\/\//i.test(v) || v.startsWith("/"),
+      "URL harus diawali http(s):// atau /",
+    )
+    .optional()
+    .nullable();
+
 const updateProfileSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter").max(100).optional(),
-  avatar: z.string().optional().nullable(),
+  avatar: safeUrl(500),
   bio: z.string().max(500).optional().nullable(),
   specialization: z.string().max(200).optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
@@ -20,7 +33,7 @@ const updateProfileSchema = z.object({
   pendidikan: z.string().max(200).optional().nullable(),
   pengalaman: z.string().max(2000).optional().nullable(),
   keahlian: z.string().max(500).optional().nullable(),
-  portofolio: z.string().max(300).optional().nullable(),
+  portofolio: safeUrl(300),
   mediaSosial: z.string().max(200).optional().nullable(),
   alamat: z.string().max(500).optional().nullable(),
 });

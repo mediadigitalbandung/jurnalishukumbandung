@@ -6,6 +6,7 @@ import Image from "next/image";
 import { UserCircle, Save, Loader2, Camera } from "lucide-react";
 
 import { roleLabelsMap } from "@/lib/roles";
+import MembershipCard from "@/components/profil/MembershipCard";
 
 interface UserProfile {
   id: string;
@@ -381,6 +382,25 @@ export default function ProfilPage() {
           </form>
         </div>
       </div>
+
+      {/* Membership Card */}
+      {profile && (
+        <div className="mt-6">
+          <MembershipCard
+            data={{
+              name: profile.name,
+              role: profile.role,
+              email: profile.email,
+              phone: profile.phone,
+              avatar: profile.avatar,
+              specialization: profile.specialization,
+              nomorKartuPers: profile.nomorKartuPers,
+              organisasiPers: profile.organisasiPers,
+              createdAt: profile.createdAt,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

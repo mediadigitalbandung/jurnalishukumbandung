@@ -24,6 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/kode-etik`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: `${siteUrl}/privasi`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: `${siteUrl}/pedoman-media`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${siteUrl}/koreksi`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/kebijakan-ai`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   // Category pages
